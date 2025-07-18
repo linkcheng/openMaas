@@ -1,0 +1,590 @@
+"""用户应用层测试 - 应用服务测试"""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+from datetime import datetime
+
+from src.user.application.services import (
+    UserApplicationService,
+    PasswordHashService,
+    EmailVerificationService,
+    ApiKeyService
+)
+from src.user.application.schemas import (
+    UserCreateCommand,
+    UserUpdateCommand,
+    PasswordChangeCommand,
+    UserSearchQuery
+)
+from src.user.domain.models import (
+    User,
+    UserProfile,
+    UserQuota,
+    UserStatus,
+    Role,
+    UserAlreadyExistsException,
+    InvalidCredentialsException
+)
+from src.shared.domain.base import EmailAddress
+from src.shared.application.exceptions import ApplicationException
+
+
+class TestPasswordHashService:
+    """密码哈希服务测试"""
+    
+    def test_hash_password(self):
+        """测试密码哈希"""
+        password = "TestPassword123!"
+        hashed = PasswordHashService.hash_password(password)
+        
+        assert hashed != password
+        assert ":" in hashed  # 格式：salt:hash
+        assert len(hashed) > 64  # 哈希结果应该很长
+    
+    def test_verify_password(self):
+        """测试密码验证"""
+        password = "TestPassword123!"
+        hashed = PasswordHashService.hash_password(password)
+        
+        # 正确密码
+        assert PasswordHashService.verify_password(password, hashed) == True
+        
+        # 错误密码
+        assert PasswordHashService.verify_password("WrongPassword", hashed) == False
+        
+        # 格式错误的哈希
+        assert PasswordHashService.verify_password(password, "invalid_hash") == False
+    
+    def test_hash_password_different_salts(self):
+        """测试相同密码生成不同哈希"""
+        password = "TestPassword123!"
+        hash1 = PasswordHashService.hash_password(password)
+        hash2 = PasswordHashService.hash_password(password)
+        
+        assert hash1 != hash2  # 不同的salt应该产生不同的哈希
+        assert PasswordHashService.verify_password(password, hash1) == True
+        assert PasswordHashService.verify_password(password, hash2) == True
+
+
+class TestEmailVerificationService:
+    """邮箱验证服务测试"""
+    
+    def test_generate_verification_token(self):
+        """测试生成验证令牌"""
+        token = EmailVerificationService.generate_verification_token()
+        
+        assert isinstance(token, str)
+        assert len(token) > 0
+    
+    def test_generate_reset_token(self):
+        """测试生成重置令牌"""
+        token = EmailVerificationService.generate_reset_token()
+        
+        assert isinstance(token, str)
+        assert len(token) > 0
+    
+    def test_tokens_are_unique(self):
+        """测试令牌唯一性"""
+        token1 = EmailVerificationService.generate_verification_token()
+        token2 = EmailVerificationService.generate_verification_token()
+        
+        assert token1 != token2
+        
+        reset_token1 = EmailVerificationService.generate_reset_token()
+        reset_token2 = EmailVerificationService.generate_reset_token()
+        
+        assert reset_token1 != reset_token2
+
+
+class TestApiKeyService:
+    """API密钥服务测试"""
+    
+    def test_generate_api_key(self):
+        """测试生成API密钥"""
+        api_key = ApiKeyService.generate_api_key()
+        
+        assert isinstance(api_key, str)
+        assert api_key.startswith("mk-")
+        assert len(api_key) > 10
+    
+    def test_hash_api_key(self):
+        """测试API密钥哈希"""
+        api_key = "mk-test-key"
+        hashed = ApiKeyService.hash_api_key(api_key)
+        
+        assert isinstance(hashed, str)
+        assert hashed != api_key
+        assert len(hashed) == 64  # SHA256哈希长度
+    
+    def test_api_keys_are_unique(self):
+        """测试API密钥唯一性"""
+        key1 = ApiKeyService.generate_api_key()
+        key2 = ApiKeyService.generate_api_key()
+        
+        assert key1 != key2
+    
+    def test_same_key_same_hash(self):
+        """测试相同密钥产生相同哈希"""
+        api_key = "mk-test-key"
+        hash1 = ApiKeyService.hash_api_key(api_key)
+        hash2 = ApiKeyService.hash_api_key(api_key)
+        
+        assert hash1 == hash2
+
+
+class TestUserApplicationService:
+    """用户应用服务测试"""
+    
+    def setup_method(self):
+        """设置测试环境"""
+        self.user_repository = AsyncMock()
+        self.role_repository = AsyncMock()
+        self.password_service = PasswordHashService()
+        self.email_service = EmailVerificationService()
+        self.api_key_service = ApiKeyService()
+        
+        self.service = UserApplicationService(
+            user_repository=self.user_repository,
+            role_repository=self.role_repository,
+            password_service=self.password_service,
+            email_service=self.email_service,
+            api_key_service=self.api_key_service
+        )
+    
+    @pytest.mark.asyncio
+    async def test_create_user_success(self):
+        """测试成功创建用户"""
+        # 准备测试数据
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User",
+            organization="Test Org"
+        )
+        
+        # 模拟仓储返回
+        self.user_repository.find_by_email.return_value = None
+        self.user_repository.find_by_username.return_value = None
+        self.role_repository.find_by_name.return_value = Role(
+            id=uuid4(),
+            name="user",
+            description="普通用户",
+            permissions=[]
+        )
+        
+        # 执行测试
+        result = await self.service.create_user(command)
+        
+        # 验证结果
+        assert result.username == "testuser"
+        assert result.email == "test@example.com"
+        assert result.profile.first_name == "Test"
+        assert result.profile.last_name == "User"
+        assert result.profile.organization == "Test Org"
+        
+        # 验证仓储调用
+        self.user_repository.find_by_email.assert_called_once_with("test@example.com")
+        self.user_repository.find_by_username.assert_called_once_with("testuser")
+        self.user_repository.save.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_create_user_email_exists(self):
+        """测试邮箱已存在的情况"""
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        
+        # 模拟邮箱已存在
+        existing_user = User.create(
+            username="existing",
+            email="test@example.com",
+            password_hash="hash",
+            first_name="Existing",
+            last_name="User"
+        )
+        self.user_repository.find_by_email.return_value = existing_user
+        
+        # 执行测试并验证异常
+        with pytest.raises(UserAlreadyExistsException, match="邮箱 test@example.com 已被使用"):
+            await self.service.create_user(command)
+    
+    @pytest.mark.asyncio
+    async def test_create_user_username_exists(self):
+        """测试用户名已存在的情况"""
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        
+        # 模拟用户名已存在
+        existing_user = User.create(
+            username="testuser",
+            email="existing@example.com",
+            password_hash="hash",
+            first_name="Existing",
+            last_name="User"
+        )
+        self.user_repository.find_by_email.return_value = None
+        self.user_repository.find_by_username.return_value = existing_user
+        
+        # 执行测试并验证异常
+        with pytest.raises(UserAlreadyExistsException, match="用户名 testuser 已被使用"):
+            await self.service.create_user(command)
+    
+    @pytest.mark.asyncio
+    async def test_authenticate_user_success(self):
+        """测试成功认证用户"""
+        # 创建测试用户
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password("password123"),
+            first_name="Test",
+            last_name="User"
+        )
+        user.verify_email()  # 验证邮箱
+        
+        self.user_repository.find_by_email.return_value = user
+        
+        # 执行测试
+        result = await self.service.authenticate_user("test@example.com", "password123")
+        
+        # 验证结果
+        assert result.username == "testuser"
+        assert result.email == "test@example.com"
+        
+        # 验证仓储调用
+        self.user_repository.find_by_email.assert_called_once_with("test@example.com")
+        self.user_repository.save.assert_called_once()  # 记录登录时间
+    
+    @pytest.mark.asyncio
+    async def test_authenticate_user_not_found(self):
+        """测试用户不存在的情况"""
+        self.user_repository.find_by_email.return_value = None
+        
+        # 执行测试并验证异常
+        with pytest.raises(InvalidCredentialsException, match="邮箱或密码错误"):
+            await self.service.authenticate_user("nonexistent@example.com", "password123")
+    
+    @pytest.mark.asyncio
+    async def test_authenticate_user_wrong_password(self):
+        """测试密码错误的情况"""
+        # 创建测试用户
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password("password123"),
+            first_name="Test",
+            last_name="User"
+        )
+        user.verify_email()
+        
+        self.user_repository.find_by_email.return_value = user
+        
+        # 执行测试并验证异常
+        with pytest.raises(InvalidCredentialsException, match="邮箱或密码错误"):
+            await self.service.authenticate_user("test@example.com", "wrongpassword")
+    
+    @pytest.mark.asyncio
+    async def test_authenticate_user_email_not_verified(self):
+        """测试邮箱未验证的情况"""
+        # 创建测试用户（未验证邮箱）
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password("password123"),
+            first_name="Test",
+            last_name="User"
+        )
+        
+        self.user_repository.find_by_email.return_value = user
+        
+        # 执行测试并验证异常
+        with pytest.raises(EmailNotVerifiedException, match="邮箱未验证"):
+            await self.service.authenticate_user("test@example.com", "password123")
+    
+    @pytest.mark.asyncio
+    async def test_authenticate_user_suspended(self):
+        """测试用户被暂停的情况"""
+        # 创建测试用户
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password("password123"),
+            first_name="Test",
+            last_name="User"
+        )
+        user.verify_email()
+        user.suspend("测试暂停")
+        
+        self.user_repository.find_by_email.return_value = user
+        
+        # 执行测试并验证异常
+        with pytest.raises(ApplicationException, match="账户已被暂停"):
+            await self.service.authenticate_user("test@example.com", "password123")
+    
+    @pytest.mark.asyncio
+    async def test_get_user_by_id_success(self):
+        """测试成功获取用户"""
+        user_id = uuid4()
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        # 执行测试
+        result = await self.service.get_user_by_id(user_id)
+        
+        # 验证结果
+        assert result is not None
+        assert result.username == "testuser"
+        assert result.email == "test@example.com"
+        
+        # 验证仓储调用
+        self.user_repository.find_by_id.assert_called_once_with(user_id)
+    
+    @pytest.mark.asyncio
+    async def test_get_user_by_id_not_found(self):
+        """测试用户不存在的情况"""
+        user_id = uuid4()
+        self.user_repository.find_by_id.return_value = None
+        
+        # 执行测试
+        result = await self.service.get_user_by_id(user_id)
+        
+        # 验证结果
+        assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_update_user_profile_success(self):
+        """测试成功更新用户档案"""
+        user_id = uuid4()
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        command = UserUpdateCommand(
+            user_id=user_id,
+            first_name="Updated",
+            last_name="Name",
+            bio="Updated bio"
+        )
+        
+        # 执行测试
+        result = await self.service.update_user_profile(command)
+        
+        # 验证结果
+        assert result.profile.first_name == "Updated"
+        assert result.profile.last_name == "Name"
+        assert result.profile.bio == "Updated bio"
+        
+        # 验证仓储调用
+        self.user_repository.find_by_id.assert_called_once_with(user_id)
+        self.user_repository.save.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_update_user_profile_not_found(self):
+        """测试更新不存在用户的档案"""
+        user_id = uuid4()
+        self.user_repository.find_by_id.return_value = None
+        
+        command = UserUpdateCommand(
+            user_id=user_id,
+            first_name="Updated",
+            last_name="Name"
+        )
+        
+        # 执行测试并验证异常
+        with pytest.raises(ApplicationException, match="用户不存在"):
+            await self.service.update_user_profile(command)
+    
+    @pytest.mark.asyncio
+    async def test_change_password_success(self):
+        """测试成功修改密码"""
+        user_id = uuid4()
+        old_password = "oldpassword123"
+        new_password = "newpassword123"
+        
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password(old_password),
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        command = PasswordChangeCommand(
+            user_id=user_id,
+            current_password=old_password,
+            new_password_hash=self.password_service.hash_password(new_password)
+        )
+        
+        # 执行测试
+        result = await self.service.change_password(command)
+        
+        # 验证结果
+        assert result == True
+        
+        # 验证密码已更新
+        assert self.password_service.verify_password(new_password, user.password_hash)
+        
+        # 验证仓储调用
+        self.user_repository.find_by_id.assert_called_once_with(user_id)
+        self.user_repository.save.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_change_password_wrong_current_password(self):
+        """测试当前密码错误的情况"""
+        user_id = uuid4()
+        old_password = "oldpassword123"
+        
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash=self.password_service.hash_password(old_password),
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        command = PasswordChangeCommand(
+            user_id=user_id,
+            current_password="wrongpassword",
+            new_password_hash=self.password_service.hash_password("newpassword123")
+        )
+        
+        # 执行测试并验证异常
+        with pytest.raises(InvalidCredentialsException, match="当前密码错误"):
+            await self.service.change_password(command)
+    
+    @pytest.mark.asyncio
+    async def test_create_api_key_success(self):
+        """测试成功创建API密钥"""
+        user_id = uuid4()
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        # 执行测试
+        result = await self.service.create_api_key(
+            user_id=user_id,
+            name="Test Key",
+            permissions=["user:read"]
+        )
+        
+        # 验证结果
+        assert result.name == "Test Key"
+        assert result.permissions == ["user:read"]
+        assert result.api_key.startswith("mk-")
+        
+        # 验证仓储调用
+        self.user_repository.find_by_id.assert_called_once_with(user_id)
+        self.user_repository.save.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_revoke_api_key_success(self):
+        """测试成功撤销API密钥"""
+        user_id = uuid4()
+        user = User.create(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="Test",
+            last_name="User"
+        )
+        user.id = user_id
+        
+        # 创建API密钥
+        api_key = user.create_api_key(
+            name="Test Key",
+            key_hash="hashed_key",
+            permissions=["user:read"]
+        )
+        
+        self.user_repository.find_by_id.return_value = user
+        
+        # 执行测试
+        result = await self.service.revoke_api_key(user_id, api_key.id)
+        
+        # 验证结果
+        assert result == True
+        assert api_key.is_active == False
+        
+        # 验证仓储调用
+        self.user_repository.find_by_id.assert_called_once_with(user_id)
+        self.user_repository.save.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_search_users_success(self):
+        """测试成功搜索用户"""
+        query = UserSearchQuery(
+            keyword="test",
+            status="active",
+            limit=10,
+            offset=0
+        )
+        
+        users = [
+            User.create(
+                username="testuser1",
+                email="test1@example.com",
+                password_hash="hash",
+                first_name="Test1",
+                last_name="User1"
+            ),
+            User.create(
+                username="testuser2",
+                email="test2@example.com",
+                password_hash="hash",
+                first_name="Test2",
+                last_name="User2"
+            )
+        ]
+        
+        self.user_repository.search.return_value = users
+        
+        # 执行测试
+        result = await self.service.search_users(query)
+        
+        # 验证结果
+        assert len(result) == 2
+        assert result[0].username == "testuser1"
+        assert result[1].username == "testuser2"
+        
+        # 验证仓储调用
+        self.user_repository.search.assert_called_once_with(query)

@@ -9,10 +9,10 @@ from loguru import logger
 import time
 import uuid
 
-from src.shared.application.config import settings
-from src.shared.application.exceptions import ApplicationException, to_http_exception
-from src.shared.infrastructure.database import init_milvus
-from src.user.interface import router as user_router
+from .shared.application.config import settings
+from .shared.application.exceptions import ApplicationException, to_http_exception
+from .shared.infrastructure.database import init_milvus
+from .user.interface import router as user_router
 
 
 @asynccontextmanager
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     
     # 启动服务器
     uvicorn.run(
-        "main:app",
+        "src.main:app",
         host=settings.host,
         port=settings.port,
         reload=settings.reload,
