@@ -1,17 +1,17 @@
 # MaaS Server
 
-大模型MAAS平台后端服务
+大模型 MaaS 平台后端服务
 
 ## 技术栈
 
 - **Python 3.11+**
-- **FastAPI** - Web框架
+- **FastAPI** - Web 框架
 - **SQLAlchemy 2.0** - ORM
 - **PostgreSQL** - 主数据库
 - **Redis** - 缓存和消息队列
 - **Milvus** - 向量数据库
 - **Celery** - 异步任务队列
-- **uv** - Python包管理器
+- **uv** - Python 包管理器
 
 ## 架构设计
 
@@ -73,7 +73,7 @@ uv run mypy src/
 uv run ruff check src && uv run mypy src && uv run pytest
 ```
 
-### 使用Hatch环境 (推荐)
+### 使用 Hatch 环境 (推荐)
 
 ```bash
 # 使用默认环境运行测试
@@ -166,12 +166,12 @@ uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 uv run gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker
 ```
 
-## API文档
+## API 文档
 
 启动服务器后，访问：
 
-- **OpenAPI文档**: http://localhost:8000/docs
-- **ReDoc文档**: http://localhost:8000/redoc
+- **OpenAPI 文档**: http://localhost:8000/docs
+- **ReDoc 文档**: http://localhost:8000/redoc
 - **健康检查**: http://localhost:8000/health
 
 ## 依赖管理
@@ -225,7 +225,7 @@ uv run pytest --cov=src --cov-report=html
 
 ## 部署
 
-### Docker部署
+### Docker 部署
 
 ```bash
 # 构建镜像
@@ -247,12 +247,12 @@ uv run gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker
 
 ## 贡献指南
 
-1. Fork项目
+1. Fork 项目
 2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启Pull Request
+5. 开启 Pull Request
 
 ## 许可证
 
-本项目使用MIT许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+本项目使用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。

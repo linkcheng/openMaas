@@ -11,13 +11,18 @@ class UserRepository(Repository[User]):
     """用户仓储接口"""
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> User | None:
+    async def find_by_email(self, email: str) -> User | None:
         """根据邮箱获取用户"""
         pass
 
     @abstractmethod
-    async def get_by_username(self, username: str) -> User | None:
+    async def find_by_username(self, username: str) -> User | None:
         """根据用户名获取用户"""
+        pass
+
+    @abstractmethod
+    async def find_by_api_key_hash(self, key_hash: str) -> User | None:
+        """根据API密钥哈希查找用户"""
         pass
 
     @abstractmethod
@@ -36,14 +41,7 @@ class UserRepository(Repository[User]):
         pass
 
     @abstractmethod
-    async def search_users(
-        self,
-        keyword: str | None = None,
-        status: str | None = None,
-        organization: str | None = None,
-        limit: int = 20,
-        offset: int = 0
-    ) -> list[User]:
+    async def search(self, query) -> list[User]:
         """搜索用户"""
         pass
 
@@ -62,7 +60,7 @@ class RoleRepository(Repository[Role]):
     """角色仓储接口"""
 
     @abstractmethod
-    async def get_by_name(self, name: str) -> Role | None:
+    async def find_by_name(self, name: str) -> Role | None:
         """根据名称获取角色"""
         pass
 
@@ -81,7 +79,7 @@ class ApiKeyRepository(Repository[ApiKey]):
     """API密钥仓储接口"""
 
     @abstractmethod
-    async def get_by_key_hash(self, key_hash: str) -> ApiKey | None:
+    async def find_by_key_hash(self, key_hash: str) -> ApiKey | None:
         """根据密钥哈希获取API密钥"""
         pass
 

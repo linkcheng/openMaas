@@ -1,7 +1,7 @@
 [project]
 name = "maas-server"
 version = "0.1.0"
-description = "Multi-as-a-Service Platform Backend"
+description = "Model-as-a-Service Platform Backend"
 authors = [{name = "MAAS Team", email = "team@maas.com"}]
 readme = "README.md"
 requires-python = ">=3.11"

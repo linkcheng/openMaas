@@ -12,7 +12,7 @@ import uuid
 from src.shared.application.config import settings
 from src.shared.application.exceptions import ApplicationException, to_http_exception
 from src.shared.infrastructure.database import init_milvus
-from src.user.interface.api.router import router as user_router
+from src.user.interface import router as user_router
 
 
 @asynccontextmanager
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Multi-as-a-Service Platform - 大模型服务平台",
+    description="MaaS Platform - 大模型服务平台",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
@@ -205,7 +205,7 @@ async def root():
 
 
 # 注册路由
-app.include_router(user_router, prefix="/api/v1", tags=["用户管理"])
+app.include_router(user_router)
 
 
 if __name__ == "__main__":

@@ -40,17 +40,18 @@ class Settings(BaseSettings):
     milvus_port: int = 19530
 
     # JWT配置
-    secret_key: str = Field(
+    jwt_secret_key: str = Field(
         default="your-secret-key-change-in-production",
         description="JWT密钥"
     )
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
 
     # 安全配置
     bcrypt_rounds: int = 12
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
+    frontend_url: str = "http://localhost:3000"
 
     # 文件存储配置
     upload_max_size: int = 1024 * 1024 * 1024  # 1GB

@@ -1,6 +1,6 @@
 # OpenMaaS
 
-一个基于微服务架构的多即服务(Multi-as-a-Service)平台，采用前后端分离设计。
+一个基于微服务架构的模型即服务(Model-as-a-Service)平台，采用前后端分离设计。
 
 ## 项目架构
 
@@ -20,15 +20,15 @@ openMaas/
 - **Vue Router 4** 路由管理
 - **Pinia 3** 状态管理
 - **Vitest** 单元测试
-- **Playwright** E2E测试
+- **Playwright** E2E 测试
 - **ESLint + Oxlint** 代码检查
 - **Prettier** 代码格式化
 
 ### 后端 (maas-server)
 
 - **Python 3.11+** 编程语言
-- **FastAPI** Web框架
-- **SQLAlchemy 2.0** ORM框架
+- **FastAPI** Web 框架
+- **SQLAlchemy 2.0** ORM 框架
 - **PostgreSQL** 主数据库
 - **Redis** 缓存和会话存储
 - **Milvus** 向量数据库

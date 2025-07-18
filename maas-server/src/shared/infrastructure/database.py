@@ -54,6 +54,10 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+# 别名，用于依赖注入
+get_db_session = get_async_session
+
+
 def get_sync_session():
     """获取同步数据库会话（用于依赖注入）"""
     db = SessionLocal()
