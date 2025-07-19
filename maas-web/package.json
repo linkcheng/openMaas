@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
+    "build:dev": "run-p type-check \"build-only --mode development {@}\" --",
+    "build:test": "run-p type-check \"build-only --mode test {@}\" --",
+    "build:prod": "run-p type-check \"build-only --mode production {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
@@ -17,6 +20,9 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.10.0",
+    "element-plus": "^2.10.4",
     "pinia": "^3.0.3",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"

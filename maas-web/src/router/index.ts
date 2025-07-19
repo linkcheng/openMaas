@@ -9,88 +9,93 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
-      meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../views/DashboardView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/about',
       name: 'about',
-      component: () => import('../views/AboutView.vue')
+      component: () => import('../views/AboutView.vue'),
     },
     // 认证相关路由
     {
-      path: '/login',
+      path: '/auth/login',
       name: 'login',
       component: () => import('../views/auth/LoginView.vue'),
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true },
     },
     {
-      path: '/register',
+      path: '/auth/register',
       name: 'register',
       component: () => import('../views/auth/RegisterView.vue'),
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true },
     },
     {
-      path: '/forgot-password',
+      path: '/auth/forgot-password',
       name: 'forgot-password',
       component: () => import('../views/auth/ForgotPasswordView.vue'),
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true },
     },
     // 用户管理路由
     {
-      path: '/profile',
+      path: '/user/profile',
       name: 'profile',
       component: () => import('../views/user/ProfileView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
-      path: '/settings',
+      path: '/user/settings',
       name: 'settings',
       component: () => import('../views/user/SettingsView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     // 管理员路由
     {
-      path: '/admin',
+      path: '/admin/dashboard',
       name: 'admin',
       component: () => import('../views/admin/AdminDashboard.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/admin/users',
       name: 'admin-users',
       component: () => import('../views/admin/UserManagement.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
-    }
-  ]
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+  ],
 })
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   const { isAuthenticated, isAdmin, initializeAuth } = useAuth()
-  
+
   // 初始化认证状态
   if (!isAuthenticated.value) {
     await initializeAuth()
   }
-  
+
   // 检查是否需要认证
   if (to.meta.requiresAuth && !isAuthenticated.value) {
-    next('/login')
+    next('/auth/login')
     return
   }
-  
+
   // 检查是否需要游客状态（未登录）
   if (to.meta.requiresGuest && isAuthenticated.value) {
     next('/')
     return
   }
-  
+
   // 检查是否需要管理员权限
   if (to.meta.requiresAdmin && !isAdmin.value) {
     next('/')
     return
   }
-  
+
   next()
 })
 

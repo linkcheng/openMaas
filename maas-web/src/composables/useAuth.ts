@@ -1,19 +1,19 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { apiClient, handleApiError } from '@/utils/api'
-import type { 
-  UserRegisterRequest, 
-  UserLoginRequest, 
+import type {
+  UserRegisterRequest,
+  UserLoginRequest,
   PasswordResetRequest,
-  PasswordResetConfirmRequest 
+  PasswordResetConfirmRequest,
 } from '@/utils/api'
 
 export const useAuth = () => {
   const userStore = useUserStore()
-  
+
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  
+
   // 计算属性
   const isAuthenticated = computed(() => userStore.isAuthenticated)
   const currentUser = computed(() => userStore.user)
@@ -29,10 +29,10 @@ export const useAuth = () => {
   const register = async (data: UserRegisterRequest) => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.register(data)
-      
+
       if (response.data.success) {
         return { success: true, message: response.data.message }
       } else {
@@ -51,23 +51,23 @@ export const useAuth = () => {
   const login = async (data: UserLoginRequest) => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.login(data)
-      
+
       if (response.data.success && response.data.data) {
         const tokenData = response.data.data
-        
+
         // 存储token和用户信息
         userStore.setTokens({
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           token_type: tokenData.token_type,
-          expires_in: tokenData.expires_in
+          expires_in: tokenData.expires_in,
         })
-        
+
         userStore.setUser(tokenData.user)
-        
+
         return { success: true, message: response.data.message }
       } else {
         error.value = response.data.error || '登录失败'
@@ -85,7 +85,7 @@ export const useAuth = () => {
   const logout = async () => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       await apiClient.auth.logout()
     } catch (err) {
@@ -102,17 +102,17 @@ export const useAuth = () => {
   const refreshToken = async () => {
     try {
       const response = await apiClient.auth.refreshToken()
-      
+
       if (response.data.success && response.data.data) {
         const tokenData = response.data.data
-        
+
         userStore.setTokens({
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           token_type: tokenData.token_type,
-          expires_in: tokenData.expires_in
+          expires_in: tokenData.expires_in,
         })
-        
+
         return true
       }
       return false
@@ -127,10 +127,10 @@ export const useAuth = () => {
   const getCurrentUser = async () => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.getCurrentUser()
-      
+
       if (response.data.success && response.data.data) {
         userStore.setUser(response.data.data)
         return { success: true, data: response.data.data }
@@ -150,10 +150,10 @@ export const useAuth = () => {
   const forgotPassword = async (data: PasswordResetRequest) => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.forgotPassword(data)
-      
+
       if (response.data.success) {
         return { success: true, message: response.data.message }
       } else {
@@ -172,10 +172,10 @@ export const useAuth = () => {
   const resetPassword = async (data: PasswordResetConfirmRequest) => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.resetPassword(data)
-      
+
       if (response.data.success) {
         return { success: true, message: response.data.message }
       } else {
@@ -194,10 +194,10 @@ export const useAuth = () => {
   const verifyEmail = async (token: string) => {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiClient.auth.verifyEmail(token)
-      
+
       if (response.data.success) {
         return { success: true, message: response.data.message }
       } else {
@@ -225,7 +225,7 @@ export const useAuth = () => {
   // 初始化认证状态
   const initializeAuth = async () => {
     userStore.initializeAuth()
-    
+
     // 如果有token，尝试获取用户信息
     if (userStore.tokens) {
       await getCurrentUser()
@@ -236,13 +236,13 @@ export const useAuth = () => {
     // 状态
     isLoading,
     error,
-    
+
     // 计算属性
     isAuthenticated,
     currentUser,
     isAdmin,
     isDeveloper,
-    
+
     // 方法
     clearError,
     register,
@@ -255,6 +255,6 @@ export const useAuth = () => {
     verifyEmail,
     hasPermission,
     hasRole,
-    initializeAuth
+    initializeAuth,
   }
 }
