@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel
 """配置工具类 - 提供配置加密、验证、健康检查等功能"""
 
 import os
@@ -170,7 +171,7 @@ class ConfigHealthChecker:
     async def check_database_connection(self) -> bool:
         """检查数据库连接"""
         try:
-            import asyncpg
+            import asyncpg 
 
             # 解析数据库URL
             url = self.settings.database.url

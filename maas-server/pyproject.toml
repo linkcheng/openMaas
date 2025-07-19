@@ -35,6 +35,7 @@ dependencies = [
     "loguru>=0.7.3",
     "asyncpg>=0.30.0",
     "cryptography>=45.0.5",
+    "uuid7>=0.1.0",
 ]
 
 [project.optional-dependencies]

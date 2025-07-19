@@ -1,5 +1,6 @@
 """用户基础设施层 - 仓储实现"""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
@@ -18,7 +19,7 @@ from user.domain.models import (
     UserStatus,
 )
 from user.domain.repositories import ApiKeyRepository, RoleRepository, UserRepository
-from user.infrastructure.models import ApiKeyORM, RoleORM, UserORM
+from user.infrastructure.models import ApiKeyORM, RoleORM, UserORM, UserRoleORM
 
 
 class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserRepository):
@@ -26,6 +27,21 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
 
     def __init__(self, session: AsyncSession):
         super().__init__(session, UserORM)
+
+    async def get_by_uuid(self, user_uuid: UUID) -> User | None:
+        """根据UUID获取用户"""
+        stmt = (
+            select(UserORM)
+            .where(UserORM.uuid == user_uuid)
+            .options(
+                selectinload(UserORM.roles),
+                selectinload(UserORM.api_keys),
+                selectinload(UserORM.quota)
+            )
+        )
+        result = await self.session.execute(stmt)
+        orm_obj = result.scalar_one_or_none()
+        return self._to_domain_entity(orm_obj) if orm_obj else None
 
     async def get_by_email(self, email: str) -> User | None:
         """根据邮箱获取用户"""
@@ -168,7 +184,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
 
         # 构建用户实体
         user = User(
-            id=orm_obj.id,
+            id=orm_obj.uuid,  # 使用UUID作为领域实体ID
             username=orm_obj.username,
             email=EmailAddress(orm_obj.email),
             password_hash=orm_obj.password_hash,
@@ -184,7 +200,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
         if orm_obj.roles:
             for role_orm in orm_obj.roles:
                 role = Role(
-                    id=role_orm.id,
+                    id=role_orm.uuid,  # 使用UUID作为领域实体ID
                     name=role_orm.name,
                     description=role_orm.description,
                     permissions=[]  # 权限需要单独加载
@@ -195,7 +211,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
         if orm_obj.api_keys:
             for key_orm in orm_obj.api_keys:
                 api_key = ApiKey(
-                    id=key_orm.id,
+                    id=key_orm.uuid,  # 使用UUID作为领域实体ID
                     name=key_orm.name,
                     key_hash=key_orm.key_hash,
                     permissions=key_orm.permissions or [],
@@ -223,7 +239,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
     def _create_orm_object(self, user: User) -> UserORM:
         """创建ORM对象"""
         return UserORM(
-            id=user.id,
+            uuid=user.id,  # 领域实体ID作为UUID
             username=user.username,
             email=user.email.value,
             password_hash=user.password_hash,
@@ -241,6 +257,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
 
     def _update_orm_object(self, orm_obj: UserORM, user: User) -> UserORM:
         """更新ORM对象"""
+        orm_obj.uuid = user.id  # 更新UUID
         orm_obj.username = user.username
         orm_obj.email = user.email.value
         orm_obj.password_hash = user.password_hash
@@ -261,6 +278,13 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
 
     def __init__(self, session: AsyncSession):
         super().__init__(session, RoleORM)
+
+    async def get_by_uuid(self, role_uuid: UUID) -> Role | None:
+        """根据UUID获取角色"""
+        stmt = select(RoleORM).where(RoleORM.uuid == role_uuid)
+        result = await self.session.execute(stmt)
+        orm_obj = result.scalar_one_or_none()
+        return self._to_domain_entity(orm_obj) if orm_obj else None
 
     async def get_by_name(self, name: str) -> Role | None:
         """根据名称获取角色"""
@@ -302,7 +326,7 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
                     permissions.append(permission)
 
         return Role(
-            id=orm_obj.id,
+            id=orm_obj.uuid,  # 使用UUID作为领域实体ID
             name=orm_obj.name,
             description=orm_obj.description,
             permissions=permissions
@@ -312,7 +336,7 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
         """创建ORM对象"""
         permissions = [str(perm) for perm in role.permissions]
         return RoleORM(
-            id=role.id,
+            uuid=role.id,  # 领域实体ID作为UUID
             name=role.name,
             description=role.description,
             permissions=permissions
@@ -321,6 +345,7 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
     def _update_orm_object(self, orm_obj: RoleORM, role: Role) -> RoleORM:
         """更新ORM对象"""
         permissions = [str(perm) for perm in role.permissions]
+        orm_obj.uuid = role.id  # 更新UUID
         orm_obj.name = role.name
         orm_obj.description = role.description
         orm_obj.permissions = permissions
@@ -333,6 +358,13 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
     def __init__(self, session: AsyncSession):
         super().__init__(session, ApiKeyORM)
 
+    async def get_by_uuid(self, api_key_uuid: UUID) -> ApiKey | None:
+        """根据UUID获取API密钥"""
+        stmt = select(ApiKeyORM).where(ApiKeyORM.uuid == api_key_uuid)
+        result = await self.session.execute(stmt)
+        orm_obj = result.scalar_one_or_none()
+        return self._to_domain_entity(orm_obj) if orm_obj else None
+
     async def get_by_key_hash(self, key_hash: str) -> ApiKey | None:
         """根据密钥哈希获取API密钥"""
         stmt = select(ApiKeyORM).where(ApiKeyORM.key_hash == key_hash)
@@ -340,18 +372,18 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
         orm_obj = result.scalar_one_or_none()
         return self._to_domain_entity(orm_obj) if orm_obj else None
 
-    async def find_by_user_id(self, user_id: UUID) -> list[ApiKey]:
-        """根据用户ID查找API密钥"""
-        stmt = select(ApiKeyORM).where(ApiKeyORM.user_id == user_id)
+    async def find_by_user_uuid(self, user_uuid: UUID) -> list[ApiKey]:
+        """根据用户UUID查找API密钥"""
+        stmt = select(ApiKeyORM).where(ApiKeyORM.user_uuid == user_uuid)
         result = await self.session.execute(stmt)
         orm_objects = result.scalars().all()
         return [self._to_domain_entity(obj) for obj in orm_objects]
 
-    async def get_active_keys_by_user(self, user_id: UUID) -> list[ApiKey]:
+    async def get_active_keys_by_user(self, user_uuid: UUID) -> list[ApiKey]:
         """获取用户的有效API密钥"""
         stmt = select(ApiKeyORM).where(
             and_(
-                ApiKeyORM.user_id == user_id,
+                ApiKeyORM.user_uuid == user_uuid,
                 ApiKeyORM.status == "active"
             )
         )
@@ -361,16 +393,16 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
 
     async def delete_expired_keys(self) -> int:
         """删除过期的API密钥"""
-        from datetime import datetime
+        from sqlalchemy import update
 
-        from sqlalchemy import delete
-
-        stmt = delete(ApiKeyORM).where(
+        # 使用update而不是delete，将状态设置为过期
+        stmt = update(ApiKeyORM).where(
             and_(
                 ApiKeyORM.expires_at.isnot(None),
-                ApiKeyORM.expires_at < datetime.utcnow()
+                ApiKeyORM.expires_at < datetime.now(UTC)
             )
-        )
+        ).values(status="expired")
+
         result = await self.session.execute(stmt)
         return result.rowcount
 
@@ -380,7 +412,7 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
             return None
 
         api_key = ApiKey(
-            id=orm_obj.id,
+            id=orm_obj.uuid,  # 使用UUID作为领域实体ID
             name=orm_obj.name,
             key_hash=orm_obj.key_hash,
             permissions=orm_obj.permissions or [],
@@ -394,7 +426,7 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
     def _create_orm_object(self, api_key: ApiKey) -> ApiKeyORM:
         """创建ORM对象"""
         return ApiKeyORM(
-            id=api_key.id,
+            uuid=api_key.id,  # 领域实体ID作为UUID
             name=api_key.name,
             key_hash=api_key.key_hash,
             permissions=api_key.permissions,
@@ -406,6 +438,7 @@ class SQLAlchemyApiKeyRepository(SQLAlchemyRepository[ApiKey, ApiKeyORM], ApiKey
 
     def _update_orm_object(self, orm_obj: ApiKeyORM, api_key: ApiKey) -> ApiKeyORM:
         """更新ORM对象"""
+        orm_obj.uuid = api_key.id  # 更新UUID
         orm_obj.name = api_key.name
         orm_obj.permissions = api_key.permissions
         orm_obj.expires_at = api_key.expires_at

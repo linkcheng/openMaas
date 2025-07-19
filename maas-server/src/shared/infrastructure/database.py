@@ -1,17 +1,14 @@
 """共享基础设施层 - 数据库配置"""
 
 from collections.abc import AsyncGenerator
-from typing import Any
 
-from loguru import logger
 import redis
+from loguru import logger
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from config.settings import settings
-
 
 # 创建元数据
 metadata = MetaData()
@@ -116,11 +113,10 @@ async def init_database() -> None:
     try:
         async with async_engine.begin() as conn:
             await conn.run_sync(metadata.create_all)
-            
+
         logger.info("数据库表创建完成")
         return True
     except Exception:
-        print("exception")
         return False
     logger.info("数据库表创建失败")
 

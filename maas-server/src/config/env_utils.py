@@ -1,14 +1,12 @@
 """环境变量工具 - 提供.env文件查找和管理功能"""
 
-import os
 from pathlib import Path
-from typing import List, Optional
 
 # 缓存查找结果，避免重复查找
-_env_file_cache: Optional[Path] = None
+_env_file_cache: Path | None = None
 
 
-def find_env_file(start_path: Optional[Path] = None) -> Optional[Path]:
+def find_env_file(start_path: Path | None = None) -> Path | None:
     """查找.env文件
     
     Args:
@@ -18,14 +16,14 @@ def find_env_file(start_path: Optional[Path] = None) -> Optional[Path]:
         找到的.env文件路径，如果没找到返回None
     """
     global _env_file_cache
-    
+
     # 如果已经有缓存结果，直接返回
     if _env_file_cache is not None:
         return _env_file_cache
-    
+
     if start_path is None:
         start_path = Path(__file__).resolve().parent
-    
+
     # 可能的.env文件位置（按优先级排序）
     possible_paths = [
         # 项目根目录 (maas-server/.env)
@@ -39,13 +37,13 @@ def find_env_file(start_path: Optional[Path] = None) -> Optional[Path]:
         # 用户主目录 (.env)
         Path.home() / ".env",
     ]
-    
+
     # 按优先级查找存在的.env文件
     for env_path in possible_paths:
         if env_path.exists() and env_path.is_file():
             _env_file_cache = env_path
             return _env_file_cache
-    
+
     # 缓存 None 结果，避免重复查找
     _env_file_cache = None
     return None
@@ -76,6 +74,6 @@ def get_env_file_path() -> str:
     env_file = find_env_file()
     if env_file:
         return str(env_file)
-    
+
     print("未找到 .env 文件, 将使用默认配置")
     return ""

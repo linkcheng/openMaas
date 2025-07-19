@@ -1,10 +1,8 @@
 """FastAPI应用入口点"""
 
-import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,9 +10,14 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from config import get_settings
+from config.settings import settings
 from shared.application.exceptions import ApplicationException, to_http_exception
-from shared.infrastructure.database import init_database, init_redis, close_database, close_redis
+from shared.infrastructure.database import (
+    close_database,
+    close_redis,
+    init_database,
+    init_redis,
+)
 from user.interface import router as user_router
 
 
@@ -23,43 +26,38 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     logger.info("正在启动MAAS平台...")
-    
+
     # 初始化数据库连接
     db_status = await init_database()
     if db_status:
         logger.info("数据库连接初始化成功")
     else:
         logger.warning("数据库连接初始化失败，请检查配置")
-    
+
     # 初始化Redis连接
     redis_status = await init_redis()
     if redis_status:
         logger.info("Redis连接初始化成功")
     else:
         logger.warning("Redis连接初始化失败，请检查配置")
-    
+
     logger.info("MAAS平台启动完成")
 
     yield
 
     # 关闭时执行
     logger.info("正在关闭MAAS平台...")
-    
+
     # 关闭数据库连接
     await close_database()
     logger.info("数据库连接已关闭")
-    
+
     # 关闭Redis连接
     await close_redis()
     logger.info("Redis连接已关闭")
-    
+
     logger.info("MAAS平台已关闭")
 
-
-# 获取配置实例
-settings = get_settings()
-
-print(settings)
 # 创建FastAPI应用
 app = FastAPI(
     title=settings.app.name,
@@ -251,7 +249,7 @@ if __name__ == "__main__":
 
     # 启动服务器
     uvicorn.run(
-        "src.main:app",
+        "main:app",
         host=settings.server.host,
         port=settings.server.port,
         reload=settings.server.reload,
