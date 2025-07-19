@@ -276,7 +276,7 @@ const saveNotificationSettings = async () => {
     // 这里需要实现保存通知设置的API
     await new Promise((resolve) => setTimeout(resolve, 1000)) // 模拟API调用
     alert('通知设置已保存')
-  } catch (error) {
+  } catch {
     alert('保存设置失败')
   } finally {
     loading.value = false

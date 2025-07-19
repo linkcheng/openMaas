@@ -1,299 +1,151 @@
 <template>
-  <div
-    class="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
-  >
-    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-      <div class="text-center mb-8">
-        <div class="flex justify-center mb-6">
-          <div
-            class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg"
-          >
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-              />
-            </svg>
-          </div>
-        </div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-2">注册 MaaS 账户</h2>
-        <p class="text-gray-600">创建您的账户，开始使用智能模型服务</p>
+  <div class="register-container">
+    <div class="register-card">
+      <div class="register-header">
+        <el-icon :size="48" color="#409EFF">
+          <UserFilled />
+        </el-icon>
+        <h1>MaaS 平台</h1>
+        <p>注册您的账户</p>
       </div>
 
-      <form class="space-y-6" @submit.prevent="handleRegister">
-        <div class="space-y-4">
-          <!-- 用户名 -->
-          <div>
-            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
-              用户名
-            </label>
-            <input
-              id="username"
-              v-model="form.username"
-              type="text"
-              required
-              minlength="3"
-              maxlength="50"
-              class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              placeholder="请输入用户名（3-50字符）"
-            />
-          </div>
-
-          <!-- 邮箱 -->
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-              邮箱地址
-            </label>
-            <input
-              id="email"
-              v-model="form.email"
-              type="email"
-              required
-              class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              placeholder="请输入邮箱地址"
-            />
-          </div>
-
-          <!-- 姓名 -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">
-                名字
-              </label>
-              <input
-                id="first_name"
-                v-model="form.first_name"
-                type="text"
-                required
-                maxlength="50"
-                class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="名字"
-              />
-            </div>
-            <div>
-              <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
-                姓氏
-              </label>
-              <input
-                id="last_name"
-                v-model="form.last_name"
-                type="text"
-                required
-                maxlength="50"
-                class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="姓氏"
-              />
-            </div>
-          </div>
-
-          <!-- 组织（可选） -->
-          <div>
-            <label for="organization" class="block text-sm font-medium text-gray-700 mb-2">
-              组织 <span class="text-gray-500">(可选)</span>
-            </label>
-            <input
-              id="organization"
-              v-model="form.organization"
-              type="text"
-              maxlength="255"
-              class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              placeholder="请输入组织名称"
-            />
-          </div>
-
-          <!-- 密码 -->
-          <div>
-            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-              密码
-            </label>
-            <div class="relative">
-              <input
-                id="password"
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                required
-                minlength="8"
-                maxlength="100"
-                class="block w-full pr-10 px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="至少8位，包含大小写字母和数字"
-              />
-              <button
-                type="button"
-                @click="showPassword = !showPassword"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600 transition-colors"
-              >
-                <svg
-                  v-if="showPassword"
-                  class="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
-                  />
-                </svg>
-                <svg
-                  v-else
-                  class="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </svg>
-              </button>
-            </div>
-            <!-- 密码强度提示 -->
-            <div class="mt-2 space-y-1">
-              <div class="flex items-center text-xs">
-                <span :class="passwordChecks.length ? 'text-green-600' : 'text-gray-500'">
-                  ✓ 至少8个字符
-                </span>
-              </div>
-              <div class="flex items-center text-xs">
-                <span :class="passwordChecks.uppercase ? 'text-green-600' : 'text-gray-500'">
-                  ✓ 包含大写字母
-                </span>
-              </div>
-              <div class="flex items-center text-xs">
-                <span :class="passwordChecks.lowercase ? 'text-green-600' : 'text-gray-500'">
-                  ✓ 包含小写字母
-                </span>
-              </div>
-              <div class="flex items-center text-xs">
-                <span :class="passwordChecks.number ? 'text-green-600' : 'text-gray-500'">
-                  ✓ 包含数字
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 确认密码 -->
-          <div>
-            <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">
-              确认密码
-            </label>
-            <input
-              id="confirm_password"
-              v-model="form.confirm_password"
-              type="password"
-              required
-              class="block w-full px-3 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              placeholder="请再次输入密码"
-            />
-            <div
-              v-if="form.confirm_password && form.password !== form.confirm_password"
-              class="mt-1 text-red-600 text-xs"
-            >
-              密码不匹配
-            </div>
-          </div>
-        </div>
-
-        <!-- 服务条款 -->
-        <div class="flex items-center">
-          <input
-            id="agree-terms"
-            v-model="form.agreeTerms"
-            type="checkbox"
-            required
-            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+      <el-form
+        ref="registerFormRef"
+        :model="registerForm"
+        :rules="rules"
+        class="register-form"
+        size="large"
+        label-position="top"
+        @submit.prevent="handleRegister"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="registerForm.username"
+            placeholder="请输入用户名（3-50字符）"
+            prefix-icon="User"
+            clearable
           />
-          <label for="agree-terms" class="ml-2 block text-sm text-gray-700">
-            我已阅读并同意
-            <a href="#" class="text-blue-600 hover:text-blue-500 transition-colors">服务条款</a>
-            和
-            <a href="#" class="text-blue-600 hover:text-blue-500 transition-colors">隐私政策</a>
-          </label>
-        </div>
+        </el-form-item>
 
-        <!-- 错误提示 -->
-        <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <div class="flex items-center">
-            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>{{ error }}</span>
-          </div>
-        </div>
+        <el-form-item label="邮箱地址" prop="email">
+          <el-input
+            v-model="registerForm.email"
+            type="email"
+            placeholder="请输入邮箱地址"
+            prefix-icon="Message"
+            clearable
+          />
+        </el-form-item>
 
-        <!-- 注册按钮 -->
-        <div>
-          <button
-            type="submit"
-            :disabled="isLoading || !isFormValid"
-            class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <div v-if="isLoading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="名字" prop="first_name">
+              <el-input v-model="registerForm.first_name" placeholder="请输入名字" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="姓氏" prop="last_name">
+              <el-input v-model="registerForm.last_name" placeholder="请输入姓氏" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="组织 (可选)" prop="organization">
+          <el-input
+            v-model="registerForm.organization"
+            placeholder="请输入组织名称"
+            prefix-icon="OfficeBuilding"
+            clearable
+          />
+        </el-form-item>
+
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="至少8位，包含大小写字母和数字"
+            prefix-icon="Lock"
+            show-password
+            clearable
+          />
+          <!-- 密码强度提示 -->
+          <div class="password-tips">
+            <div class="password-tip" :class="{ valid: passwordChecks.length }">
+              <el-icon><Select /></el-icon>
+              <span>至少8个字符</span>
             </div>
-            {{ isLoading ? '注册中...' : '创建账户' }}
-          </button>
-        </div>
+            <div class="password-tip" :class="{ valid: passwordChecks.uppercase }">
+              <el-icon><Select /></el-icon>
+              <span>包含大写字母</span>
+            </div>
+            <div class="password-tip" :class="{ valid: passwordChecks.lowercase }">
+              <el-icon><Select /></el-icon>
+              <span>包含小写字母</span>
+            </div>
+            <div class="password-tip" :class="{ valid: passwordChecks.number }">
+              <el-icon><Select /></el-icon>
+              <span>包含数字</span>
+            </div>
+          </div>
+        </el-form-item>
 
-        <!-- 登录链接 -->
-        <div class="text-center">
-          <p class="text-gray-600">
-            已有账户？
-            <router-link
-              to="/login"
-              class="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-            >
-              立即登录
-            </router-link>
-          </p>
-        </div>
-      </form>
+        <el-form-item label="确认密码" prop="confirm_password">
+          <el-input
+            v-model="registerForm.confirm_password"
+            type="password"
+            placeholder="请再次输入密码"
+            prefix-icon="Lock"
+            show-password
+            clearable
+          />
+        </el-form-item>
+
+        <el-form-item prop="agreeTerms">
+          <el-checkbox v-model="registerForm.agreeTerms">
+            我已阅读并同意
+            <el-link type="primary">服务条款</el-link>
+            和
+            <el-link type="primary">隐私政策</el-link>
+          </el-checkbox>
+        </el-form-item>
+
+        <el-form-item v-if="error">
+          <el-alert :title="error" type="error" show-icon :closable="false" />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button
+            type="primary"
+            class="register-button"
+            :loading="loading"
+            @click="handleRegister"
+          >
+            {{ loading ? '注册中...' : '创建账户' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <div class="login-link">
+        <span>已有账户？</span>
+        <el-link type="primary" @click="goToLogin"> 立即登录 </el-link>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-const { register, isLoading, error, clearError } = useAuth()
+const { register } = useAuth()
 
-// 表单数据
-const form = ref({
+const loading = ref(false)
+const error = ref('')
+
+const registerForm = reactive({
   username: '',
   email: '',
   first_name: '',
@@ -304,55 +156,362 @@ const form = ref({
   agreeTerms: false,
 })
 
-const showPassword = ref(false)
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 50, message: '用户名长度在 3 到 50 个字符', trigger: 'blur' },
+  ],
+  email: [
+    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
+  ],
+  first_name: [
+    { required: true, message: '请输入名字', trigger: 'blur' },
+    { max: 50, message: '名字不能超过50个字符', trigger: 'blur' },
+  ],
+  last_name: [
+    { required: true, message: '请输入姓氏', trigger: 'blur' },
+    { max: 50, message: '姓氏不能超过50个字符', trigger: 'blur' },
+  ],
+  organization: [{ max: 255, message: '组织名称不能超过255个字符', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 8, max: 100, message: '密码长度在 8 到 100 个字符', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (!/(?=.*[a-z])/.test(value)) {
+          callback(new Error('密码必须包含小写字母'))
+        } else if (!/(?=.*[A-Z])/.test(value)) {
+          callback(new Error('密码必须包含大写字母'))
+        } else if (!/(?=.*\d)/.test(value)) {
+          callback(new Error('密码必须包含数字'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  confirm_password: [
+    { required: true, message: '请确认密码', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value !== registerForm.password) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+  agreeTerms: [
+    {
+      validator: (_rule: unknown, value: boolean, callback: (error?: Error) => void) => {
+        if (!value) {
+          callback(new Error('请阅读并同意服务条款和隐私政策'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+const registerFormRef = ref()
 
 // 密码强度检查
 const passwordChecks = computed(() => ({
-  length: form.value.password.length >= 8,
-  uppercase: /[A-Z]/.test(form.value.password),
-  lowercase: /[a-z]/.test(form.value.password),
-  number: /\d/.test(form.value.password),
+  length: registerForm.password.length >= 8,
+  uppercase: /[A-Z]/.test(registerForm.password),
+  lowercase: /[a-z]/.test(registerForm.password),
+  number: /\d/.test(registerForm.password),
 }))
 
-// 表单验证
-const isFormValid = computed(() => {
-  return (
-    form.value.username.length >= 3 &&
-    form.value.email.includes('@') &&
-    form.value.first_name.trim() &&
-    form.value.last_name.trim() &&
-    passwordChecks.value.length &&
-    passwordChecks.value.uppercase &&
-    passwordChecks.value.lowercase &&
-    passwordChecks.value.number &&
-    form.value.password === form.value.confirm_password &&
-    form.value.agreeTerms
-  )
-})
+const goToLogin = () => {
+  router.push('/auth/login')
+}
 
 // 处理注册
 const handleRegister = async () => {
-  clearError()
+  if (!registerFormRef.value) return
 
-  if (!isFormValid.value) {
-    return
-  }
+  try {
+    await registerFormRef.value.validate()
+    loading.value = true
+    error.value = ''
 
-  const result = await register({
-    username: form.value.username,
-    email: form.value.email,
-    password: form.value.password,
-    first_name: form.value.first_name,
-    last_name: form.value.last_name,
-    organization: form.value.organization || undefined,
-  })
-
-  if (result.success) {
-    // 注册成功，跳转到登录页面并显示提示
-    router.push({
-      path: '/login',
-      query: { message: '注册成功，请检查邮箱完成验证后登录' },
+    const result = await register({
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password,
+      first_name: registerForm.first_name,
+      last_name: registerForm.last_name,
+      organization: registerForm.organization || undefined,
     })
+
+    if (result.success) {
+      ElMessage.success('注册成功，请检查邮箱完成验证后登录')
+      router.push('/auth/login')
+    } else {
+      error.value = result.error || '注册失败，请重试'
+    }
+  } catch (validationError) {
+    console.error('表单验证失败:', validationError)
+  } finally {
+    loading.value = false
   }
 }
 </script>
+
+<style scoped>
+.register-container {
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari fix */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+
+  /* Mobile optimization */
+  position: relative;
+  overflow-x: hidden;
+}
+
+.register-card {
+  background: var(--color-background);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-2xl);
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+
+  /* Mobile-first approach */
+  margin: var(--space-md) 0;
+
+  /* Browser compatibility */
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  /* Animation */
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.register-header h1 {
+  margin: var(--space-md) 0 var(--space-sm);
+  color: var(--color-text-primary);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.register-header p {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.register-form {
+  margin-bottom: var(--space-lg);
+}
+
+.register-button {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+
+  /* Touch optimization */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.login-link {
+  text-align: center;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-md);
+}
+
+.login-link span {
+  margin-right: var(--space-sm);
+}
+
+/* 密码强度提示样式 */
+.password-tips {
+  margin-top: var(--space-sm);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.password-tip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.password-tip.valid {
+  color: var(--el-color-success);
+}
+
+.password-tip .el-icon {
+  font-size: 0.75rem;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .register-container {
+    padding: var(--space-sm);
+    /* Fix for mobile browsers */
+    min-height: calc(100vh - env(keyboard-inset-height, 0px));
+  }
+
+  .register-card {
+    padding: var(--space-xl) var(--space-lg);
+    margin: var(--space-sm) 0;
+    border-radius: var(--radius-lg);
+    max-width: 100%;
+  }
+
+  .register-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .register-header p {
+    font-size: 0.875rem;
+  }
+
+  .register-button {
+    height: 52px; /* Larger touch target on mobile */
+    font-size: 1.125rem;
+  }
+
+  .password-tips {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 768px) {
+  .register-card {
+    max-width: 520px;
+    padding: var(--space-2xl) var(--space-xl);
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  .register-card {
+    padding: 3rem 2.5rem;
+    max-width: 520px;
+  }
+
+  .register-header h1 {
+    font-size: 2rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .register-card {
+    border-width: 0.5px;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .register-card {
+    background: var(--color-background-soft);
+    border: 1px solid var(--color-border);
+  }
+}
+
+/* Focus states for accessibility */
+.register-form :deep(.el-input__inner):focus {
+  border-color: var(--maas-primary-500) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.register-form :deep(.el-button):focus {
+  outline: 2px solid var(--maas-primary-500);
+  outline-offset: 2px;
+}
+
+/* Loading state */
+.register-form :deep(.el-button.is-loading) {
+  pointer-events: none;
+}
+
+/* Form validation */
+.register-form :deep(.el-form-item.is-error .el-input__inner) {
+  border-color: var(--maas-error) !important;
+}
+
+/* Touch improvements for mobile */
+@media (pointer: coarse) {
+  .register-form :deep(.el-input__inner) {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .register-form :deep(.el-button) {
+    min-height: 48px;
+    padding: 12px 24px;
+  }
+
+  .register-form :deep(.el-checkbox__input) {
+    transform: scale(1.2);
+  }
+}
+
+/* Orientation handling */
+@media (orientation: landscape) and (max-height: 500px) {
+  .register-container {
+    padding: var(--space-sm);
+  }
+
+  .register-card {
+    padding: var(--space-lg);
+    margin: var(--space-xs) 0;
+  }
+
+  .register-header {
+    margin-bottom: var(--space-md);
+  }
+
+  .register-header h1 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-xs);
+  }
+
+  .register-header p {
+    font-size: 0.875rem;
+  }
+}
+</style>

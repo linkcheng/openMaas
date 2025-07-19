@@ -23,8 +23,8 @@
               <el-card class="intro-card" shadow="never">
                 <p class="intro-text">
                   MaaS（Model-as-a-Service）是一个现代化的 AI 模型服务平台，
-                  致力于为开发者和企业提供便捷、高效的模型管理和部署服务。
-                  我们的使命是降低 AI 技术的使用门槛，让每个人都能轻松地使用和部署 AI 模型。
+                  致力于为开发者和企业提供便捷、高效的模型管理和部署服务。 我们的使命是降低 AI
+                  技术的使用门槛，让每个人都能轻松地使用和部署 AI 模型。
                 </p>
               </el-card>
             </section>

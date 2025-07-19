@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { apiClient, handleApiError } from '@/utils/api'
+import { handleApiError } from '@/utils/api'
 
 interface Stats {
   total_users: number

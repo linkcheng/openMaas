@@ -2,7 +2,7 @@ import axios, { type AxiosInstance, type AxiosResponse, AxiosError } from 'axios
 import { useUserStore } from '@/stores/userStore'
 
 // API响应接口
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   message?: string
@@ -164,19 +164,19 @@ class ApiClient {
   }
 
   // 通用请求方法
-  get<T = any>(url: string, params?: any): Promise<AxiosResponse<T>> {
+  get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<AxiosResponse<T>> {
     return this.client.get(url, { params })
   }
 
-  post<T = any>(url: string, data?: any): Promise<AxiosResponse<T>> {
+  post<T = unknown>(url: string, data?: unknown): Promise<AxiosResponse<T>> {
     return this.client.post(url, data)
   }
 
-  put<T = any>(url: string, data?: any): Promise<AxiosResponse<T>> {
+  put<T = unknown>(url: string, data?: unknown): Promise<AxiosResponse<T>> {
     return this.client.put(url, data)
   }
 
-  delete<T = any>(url: string): Promise<AxiosResponse<T>> {
+  delete<T = unknown>(url: string): Promise<AxiosResponse<T>> {
     return this.client.delete(url)
   }
 }
@@ -185,14 +185,19 @@ class ApiClient {
 export const apiClient = new ApiClient()
 
 // 错误处理工具函数
-export const handleApiError = (error: any): string => {
-  if (error.response?.data?.detail) {
-    return error.response.data.detail
+export const handleApiError = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    if (error.response?.data?.detail) {
+      return error.response.data.detail
+    }
+    if (error.response?.data?.message) {
+      return error.response.data.message
+    }
+    if (error.message) {
+      return error.message
+    }
   }
-  if (error.response?.data?.message) {
-    return error.response.data.message
-  }
-  if (error.message) {
+  if (error instanceof Error) {
     return error.message
   }
   return '请求失败，请稍后重试'

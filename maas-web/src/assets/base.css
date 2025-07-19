@@ -1,52 +1,90 @@
-/* color palette from <https://github.com/vuejs/theme> */
+/* CSS Custom Properties for MaaS Platform */
 :root {
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
+  /* Base Colors */
+  --maas-white: #ffffff;
+  --maas-gray-50: #fafafa;
+  --maas-gray-100: #f5f5f5;
+  --maas-gray-200: #e5e5e5;
+  --maas-gray-300: #d4d4d4;
+  --maas-gray-400: #a3a3a3;
+  --maas-gray-500: #737373;
+  --maas-gray-600: #525252;
+  --maas-gray-700: #404040;
+  --maas-gray-800: #262626;
+  --maas-gray-900: #171717;
 
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
+  /* Brand Colors */
+  --maas-primary-50: #eff6ff;
+  --maas-primary-100: #dbeafe;
+  --maas-primary-500: #3b82f6;
+  --maas-primary-600: #2563eb;
+  --maas-primary-700: #1d4ed8;
+  --maas-primary-800: #1e40af;
 
-  --vt-c-indigo: #2c3e50;
+  /* Semantic Colors */
+  --maas-success: #10b981;
+  --maas-warning: #f59e0b;
+  --maas-error: #ef4444;
+  --maas-info: #06b6d4;
 
-  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
-  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
-  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
-  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+  /* Semantic Variables */
+  --color-background: var(--maas-white);
+  --color-background-soft: var(--maas-gray-50);
+  --color-background-mute: var(--maas-gray-100);
 
-  --vt-c-text-light-1: var(--vt-c-indigo);
-  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
-  --vt-c-text-dark-1: var(--vt-c-white);
-  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+  --color-border: var(--maas-gray-200);
+  --color-border-hover: var(--maas-gray-300);
+
+  --color-text-primary: var(--maas-gray-900);
+  --color-text-secondary: var(--maas-gray-600);
+  --color-text-tertiary: var(--maas-gray-500);
+
+  --color-heading: var(--color-text-primary);
+  --color-text: var(--color-text-primary);
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Layout */
+  --container-max-width: 1200px;
+  --content-max-width: 800px;
+  --header-height: 64px;
+  --footer-height: 80px;
 }
 
-/* semantic color variables for this project */
-:root {
-  --color-background: var(--vt-c-white);
-  --color-background-soft: var(--vt-c-white-soft);
-  --color-background-mute: var(--vt-c-white-mute);
-
-  --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
-
-  --color-heading: var(--vt-c-text-light-1);
-  --color-text: var(--vt-c-text-light-1);
-
-  --section-gap: 160px;
-}
-
+/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: var(--vt-c-black);
-    --color-background-soft: var(--vt-c-black-soft);
-    --color-background-mute: var(--vt-c-black-mute);
+    --color-background: var(--maas-gray-900);
+    --color-background-soft: var(--maas-gray-800);
+    --color-background-mute: var(--maas-gray-700);
 
-    --color-border: var(--vt-c-divider-dark-2);
-    --color-border-hover: var(--vt-c-divider-dark-1);
+    --color-border: var(--maas-gray-700);
+    --color-border-hover: var(--maas-gray-600);
 
-    --color-heading: var(--vt-c-text-dark-1);
-    --color-text: var(--vt-c-text-dark-2);
+    --color-text-primary: var(--maas-white);
+    --color-text-secondary: var(--maas-gray-300);
+    --color-text-tertiary: var(--maas-gray-400);
+
+    --color-heading: var(--color-text-primary);
+    --color-text: var(--color-text-primary);
   }
 }
 
@@ -55,32 +93,205 @@
 *::after {
   box-sizing: border-box;
   margin: 0;
-  font-weight: normal;
+  padding: 0;
+}
+
+/* Modern CSS Reset */
+html {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  font-size: 16px;
+  line-height: 1.5;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
-  line-height: 1.6;
   font-family:
-    Inter,
+    'Inter',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
     Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
     'Helvetica Neue',
+    Arial,
+    'Noto Sans',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    '微软雅黑',
     sans-serif;
-  font-size: 15px;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background-color: var(--color-background);
+
+  /* Font rendering optimization */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Smooth transitions */
+  transition:
+    color 0.3s ease,
+    background-color 0.3s ease;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+h2 {
+  font-size: 2rem;
+}
+h3 {
+  font-size: 1.75rem;
+}
+h4 {
+  font-size: 1.5rem;
+}
+h5 {
+  font-size: 1.25rem;
+}
+h6 {
+  font-size: 1rem;
+}
+
+p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+/* Links */
+a {
+  color: var(--maas-primary-600);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--maas-primary-700);
+}
+
+a:focus {
+  outline: 2px solid var(--maas-primary-500);
+  outline-offset: 2px;
+}
+
+/* Buttons */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:focus {
+  outline: 2px solid var(--maas-primary-500);
+  outline-offset: 2px;
+}
+
+/* Form elements */
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: border-color 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--maas-primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Images and media */
+img,
+video,
+iframe {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Print styles */
+@media print {
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+
+  @page {
+    margin: 0.5in;
+  }
 }

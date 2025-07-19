@@ -1,13 +1,180 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>MaaS 平台 - 智能模型即服务平台</title>
+    <meta name="title" content="MaaS 平台 - 智能模型即服务平台">
+    <meta name="description" content="MaaS（Model-as-a-Service）是一个微服务平台，为您提供强大的 AI 模型服务和管理能力">
+    <meta name="keywords" content="MaaS,模型即服务,AI,人工智能,机器学习,模型管理,API服务">
+    <meta name="author" content="MaaS Platform Team">
+    
+    <!-- Viewport Meta Tags for Mobile Optimization -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    
+    <!-- Mobile Web App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="MaaS 平台">
+    
+    <!-- Theme Color for Mobile Browsers -->
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="msapplication-navbutton-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://maas.platform.com/">
+    <meta property="og:title" content="MaaS 平台 - 智能模型即服务平台">
+    <meta property="og:description" content="MaaS（Model-as-a-Service）是一个微服务平台，为您提供强大的 AI 模型服务和管理能力">
+    <meta property="og:image" content="/og-image.jpg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://maas.platform.com/">
+    <meta property="twitter:title" content="MaaS 平台 - 智能模型即服务平台">
+    <meta property="twitter:description" content="MaaS（Model-as-a-Service）是一个微服务平台，为您提供强大的 AI 模型服务和管理能力">
+    <meta property="twitter:image" content="/twitter-image.jpg">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    
+    <!-- Preconnect to External Domains for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- DNS Prefetch for Performance -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="/src/assets/base.css" as="style">
+    <link rel="preload" href="/src/assets/main.css" as="style">
+    
+    <!-- Browser Compatibility -->
+    <!--[if IE]>
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <![endif]-->
+    
+    <!-- CSS Loading Optimization -->
+    <style>
+      /* Critical CSS for initial render */
+      html {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #ffffff;
+        color: #171717;
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+      
+      #app {
+        min-height: 100vh;
+        background-color: #ffffff;
+      }
+      
+      /* Loading spinner */
+      .loading-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f4f6;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading when app is ready */
+      .app-ready .loading-container {
+        display: none;
+      }
+      
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #171717;
+          color: #ffffff;
+        }
+        
+        #app {
+          background-color: #171717;
+        }
+        
+        .loading-container {
+          background: #171717;
+        }
+        
+        .loading-spinner {
+          border-color: #404040;
+          border-top-color: #3b82f6;
+        }
+      }
+    </style>
   </head>
   <body>
+    <!-- Loading indicator -->
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- Main app container -->
     <div id="app"></div>
+    
+    <!-- No script fallback -->
+    <noscript>
+      <div style="text-align: center; padding: 2rem; font-family: sans-serif;">
+        <h1>需要启用 JavaScript</h1>
+        <p>请启用 JavaScript 以使用 MaaS 平台。</p>
+        <p>Please enable JavaScript to use the MaaS Platform.</p>
+      </div>
+    </noscript>
+    
+    <!-- Application script -->
     <script type="module" src="/src/main.ts"></script>
+    
+    <!-- Remove loading indicator when app is ready -->
+    <script>
+      window.addEventListener('DOMContentLoaded', function() {
+        // Add a small delay to ensure smooth transition
+        setTimeout(function() {
+          document.body.classList.add('app-ready');
+        }, 500);
+      });
+    </script>
   </body>
 </html>
