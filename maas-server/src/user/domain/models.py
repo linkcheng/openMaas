@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
+
 from uuid_extensions import uuid7
 
 from shared.domain.base import (

@@ -19,7 +19,7 @@ from user.domain.models import (
     UserStatus,
 )
 from user.domain.repositories import ApiKeyRepository, RoleRepository, UserRepository
-from user.infrastructure.models import ApiKeyORM, RoleORM, UserORM, UserRoleORM
+from user.infrastructure.models import ApiKeyORM, RoleORM, UserORM
 
 
 class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserRepository):

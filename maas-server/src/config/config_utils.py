@@ -171,7 +171,7 @@ class ConfigHealthChecker:
     async def check_database_connection(self) -> bool:
         """检查数据库连接"""
         try:
-            import asyncpg 
+            import asyncpg
 
             # 解析数据库URL
             url = self.settings.database.url

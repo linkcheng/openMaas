@@ -4,8 +4,6 @@ from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
-from uuid_extensions import uuid7
-
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -20,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from uuid_extensions import uuid7
 
 from shared.infrastructure.database import Base
 

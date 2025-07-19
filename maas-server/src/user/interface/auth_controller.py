@@ -47,14 +47,46 @@ async def register(
     """
     用户注册
     
-    - **username**: 用户名（3-50字符）
+    - **username**: 用户名（3-50字符，字母、数字、下划线）
     - **email**: 邮箱地址
     - **password**: 密码（至少8字符，包含大小写字母和数字）
     - **first_name**: 名字
     - **last_name**: 姓氏
     - **organization**: 组织（可选）
+    
+    注册成功后会发送邮箱验证链接，用户需要验证邮箱后才能正常使用所有功能。
     """
     try:
+        # 预先验证输入数据
+        if len(request.username) < 3 or len(request.username) > 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户名长度必须在3-50个字符之间"
+            )
+
+        # 验证用户名格式（只允许字母、数字、下划线）
+        import re
+        if not re.match(r"^[a-zA-Z0-9_]+$", request.username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户名只能包含字母、数字和下划线"
+            )
+
+        # 验证密码强度
+        if len(request.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="密码至少需要8个字符"
+            )
+
+        if not (re.search(r"[a-z]", request.password) and
+                re.search(r"[A-Z]", request.password) and
+                re.search(r"\d", request.password)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="密码必须包含大写字母、小写字母和数字"
+            )
+
         # 哈希密码
         password_hash = PasswordHashService.hash_password(request.password)
 
@@ -73,6 +105,10 @@ async def register(
 
         # 生成邮箱验证令牌并发送邮件
         verification_token = EmailVerificationService.generate_verification_token()
+
+        # TODO: 将验证令牌存储到数据库中，设置过期时间
+        # await user_service.store_verification_token(user.id, verification_token)
+
         background_tasks.add_task(
             email_service.send_verification_email,
             request.email,
@@ -86,14 +122,20 @@ async def register(
             request.username
         )
 
-        return ApiResponse.success(user, "注册成功，请检查邮箱完成验证")
+        return ApiResponse.success_response_response(user, "注册成功！验证邮件已发送到您的邮箱，请查收并点击链接完成验证")
 
     except UserAlreadyExistsException as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
-    except Exception:
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        # 记录详细错误信息
+        import logging
+        logging.error(f"用户注册失败: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="注册失败，请稍后重试"
@@ -119,7 +161,7 @@ async def login(
         # 创建令牌
         token_response = await auth_service._create_token_response(user)
 
-        return ApiResponse.success(token_response, "登录成功")
+        return ApiResponse.success_response(token_response, "登录成功")
 
     except InvalidCredentialsException:
         raise HTTPException(
@@ -150,7 +192,7 @@ async def refresh_token(
     """
     try:
         token_response = await auth_service.refresh_access_token(credentials.credentials)
-        return ApiResponse.success(token_response, "令牌刷新成功")
+        return ApiResponse.success_response(token_response, "令牌刷新成功")
 
     except Exception as e:
         raise HTTPException(
@@ -174,7 +216,7 @@ async def verify_email(
         # 暂时简化处理
         # result = await user_service.verify_email(user_id)
 
-        return ApiResponse.success(True, "邮箱验证成功")
+        return ApiResponse.success_response(True, "邮箱验证成功")
 
     except Exception:
         raise HTTPException(
@@ -205,7 +247,7 @@ async def forgot_password(
             reset_token
         )
 
-        return ApiResponse.success(True, "密码重置邮件已发送")
+        return ApiResponse.success_response(True, "密码重置邮件已发送")
 
     except Exception:
         raise HTTPException(
@@ -229,7 +271,7 @@ async def reset_password(
         # TODO: 实现令牌验证和密码重置逻辑
         # 暂时简化处理
 
-        return ApiResponse.success(True, "密码重置成功")
+        return ApiResponse.success_response(True, "密码重置成功")
 
     except Exception:
         raise HTTPException(
@@ -251,7 +293,7 @@ async def logout(
         # TODO: 可以实现令牌黑名单功能
         # 这里简化处理，客户端删除令牌即可
 
-        return ApiResponse.success(True, "退出登录成功")
+        return ApiResponse.success_response(True, "退出登录成功")
 
     except Exception:
         raise HTTPException(
@@ -276,7 +318,7 @@ async def get_current_user(
                 detail="用户不存在"
             )
 
-        return ApiResponse.success(user, "获取用户信息成功")
+        return ApiResponse.success_response(user, "获取用户信息成功")
 
     except Exception:
         raise HTTPException(

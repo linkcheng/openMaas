@@ -296,11 +296,249 @@ class TestUserApplicationService:
             await self.service.authenticate_user("test@example.com", "wrongpassword")
     
     @pytest.mark.asyncio
-    async def test_authenticate_user_email_not_verified(self):
-        """测试邮箱未验证的情况"""
-        # 创建测试用户（未验证邮箱）
-        user = User.create(
+    async def test_create_user_with_organization(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository,
+        sample_user_data
+    ):
+        """测试创建包含组织信息的用户"""
+        # 安排
+        mock_user_repository.find_by_email.return_value = None
+        mock_user_repository.find_by_username.return_value = None
+        mock_role_repository.find_by_name.return_value = MagicMock(name="user")
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
             username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe",
+            organization="TechCorp"
+        )
+
+        # 执行
+        result = await service.create_user(command)
+
+        # 验证
+        assert result.profile.organization == "TechCorp"
+        mock_user_repository.save.assert_called_once()
+
+    async def test_create_user_without_organization(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository,
+        sample_user_data
+    ):
+        """测试创建不包含组织信息的用户"""
+        # 安排
+        mock_user_repository.find_by_email.return_value = None
+        mock_user_repository.find_by_username.return_value = None
+        mock_role_repository.find_by_name.return_value = MagicMock(name="user")
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe",
+            organization=None
+        )
+
+        # 执行
+        result = await service.create_user(command)
+
+        # 验证
+        assert result.profile.organization is None
+        mock_user_repository.save.assert_called_once()
+
+    async def test_create_user_email_already_exists(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository
+    ):
+        """测试邮箱已存在的情况"""
+        # 安排
+        existing_user = MagicMock()
+        mock_user_repository.find_by_email.return_value = existing_user
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="testuser",
+            email="existing@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe"
+        )
+
+        # 执行与验证
+        with pytest.raises(UserAlreadyExistsException) as exc_info:
+            await service.create_user(command)
+        
+        assert "邮箱 existing@example.com 已被使用" in str(exc_info.value)
+
+    async def test_create_user_username_already_exists(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository
+    ):
+        """测试用户名已存在的情况"""
+        # 安排
+        mock_user_repository.find_by_email.return_value = None
+        existing_user = MagicMock()
+        mock_user_repository.find_by_username.return_value = existing_user
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="existinguser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe"
+        )
+
+        # 执行与验证
+        with pytest.raises(UserAlreadyExistsException) as exc_info:
+            await service.create_user(command)
+        
+        assert "用户名 existinguser 已被使用" in str(exc_info.value)
+
+    async def test_create_user_sets_default_quota(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository
+    ):
+        """测试创建用户时设置默认配额"""
+        # 安排
+        mock_user_repository.find_by_email.return_value = None
+        mock_user_repository.find_by_username.return_value = None
+        mock_role_repository.find_by_name.return_value = MagicMock(name="user")
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe"
+        )
+
+        # 执行
+        result = await service.create_user(command)
+
+        # 验证默认配额
+        assert result.quota is not None
+        assert result.quota.api_calls_limit == 1000
+        assert result.quota.api_calls_used == 0
+        assert result.quota.storage_limit == 1024 * 1024 * 1024  # 1GB
+        assert result.quota.storage_used == 0
+        assert result.quota.compute_hours_limit == 10
+        assert result.quota.compute_hours_used == 0
+
+    async def test_create_user_assigns_default_role(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository
+    ):
+        """测试创建用户时分配默认角色"""
+        # 安排
+        default_role = MagicMock()
+        default_role.name = "user"
+        
+        mock_user_repository.find_by_email.return_value = None
+        mock_user_repository.find_by_username.return_value = None
+        mock_role_repository.find_by_name.return_value = default_role
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe"
+        )
+
+        # 执行
+        result = await service.create_user(command)
+
+        # 验证
+        mock_role_repository.find_by_name.assert_called_once_with("user")
+        # 验证用户被保存（间接验证角色被添加）
+        mock_user_repository.save.assert_called_once()
+
+    async def test_create_user_no_default_role_available(
+        self,
+        mock_user_repository,
+        mock_role_repository,
+        mock_api_key_repository
+    ):
+        """测试没有默认角色可用的情况"""
+        # 安排
+        mock_user_repository.find_by_email.return_value = None
+        mock_user_repository.find_by_username.return_value = None
+        mock_role_repository.find_by_name.return_value = None  # 没有找到默认角色
+        
+        service = UserApplicationService(
+            mock_user_repository,
+            mock_role_repository,
+            mock_api_key_repository
+        )
+        
+        command = UserCreateCommand(
+            username="testuser",
+            email="test@example.com",
+            password_hash="hashed_password",
+            first_name="John",
+            last_name="Doe"
+        )
+
+        # 执行
+        result = await service.create_user(command)
+
+        # 验证 - 用户仍然应该被创建，即使没有默认角色
+        assert result.username == "testuser"
+        mock_user_repository.save.assert_called_once()
+        mock_role_repository.find_by_name.assert_called_once_with("user")
+
+    async def test_authenticate_user_email_not_verified(
             email="test@example.com",
             password_hash=self.password_service.hash_password("password123"),
             first_name="Test",

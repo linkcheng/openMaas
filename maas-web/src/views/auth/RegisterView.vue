@@ -21,10 +21,18 @@
         <el-form-item label="用户名" prop="username">
           <el-input
             v-model="registerForm.username"
-            placeholder="请输入用户名（3-50字符）"
+            placeholder="请输入用户名（3-50字符，字母数字下划线）"
             prefix-icon="User"
             clearable
+            :maxlength="50"
+            show-word-limit
           />
+          <div v-if="registerForm.username && !/^[a-zA-Z0-9_]+$/.test(registerForm.username)" class="validation-tip error">
+            用户名只能包含字母、数字和下划线
+          </div>
+          <div v-else-if="registerForm.username && registerForm.username.length >= 3" class="validation-tip success">
+            ✓ 用户名格式正确
+          </div>
         </el-form-item>
 
         <el-form-item label="邮箱地址" prop="email">
@@ -35,17 +43,35 @@
             prefix-icon="Message"
             clearable
           />
+          <div v-if="registerForm.email && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)" class="validation-tip error">
+            请输入有效的邮箱地址
+          </div>
+          <div v-else-if="registerForm.email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)" class="validation-tip success">
+            ✓ 邮箱格式正确
+          </div>
         </el-form-item>
 
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="名字" prop="first_name">
-              <el-input v-model="registerForm.first_name" placeholder="请输入名字" clearable />
+              <el-input 
+                v-model="registerForm.first_name" 
+                placeholder="请输入名字" 
+                clearable 
+                :maxlength="50"
+                show-word-limit
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="姓氏" prop="last_name">
-              <el-input v-model="registerForm.last_name" placeholder="请输入姓氏" clearable />
+              <el-input 
+                v-model="registerForm.last_name" 
+                placeholder="请输入姓氏" 
+                clearable 
+                :maxlength="50"
+                show-word-limit
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -56,6 +82,8 @@
             placeholder="请输入组织名称"
             prefix-icon="OfficeBuilding"
             clearable
+            :maxlength="255"
+            show-word-limit
           />
         </el-form-item>
 
@@ -160,20 +188,74 @@ const rules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 50, message: '用户名长度在 3 到 50 个字符', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+          callback(new Error('用户名只能包含字母、数字和下划线'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
   ],
   email: [
     { required: true, message: '请输入邮箱地址', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        // 更严格的邮箱验证
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+        if (value && !emailRegex.test(value)) {
+          callback(new Error('请输入有效的邮箱地址'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
   ],
   first_name: [
     { required: true, message: '请输入名字', trigger: 'blur' },
-    { max: 50, message: '名字不能超过50个字符', trigger: 'blur' },
+    { min: 1, max: 50, message: '名字长度在 1 到 50 个字符', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value && /^\s*$/.test(value)) {
+          callback(new Error('名字不能只包含空格'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
   ],
   last_name: [
     { required: true, message: '请输入姓氏', trigger: 'blur' },
-    { max: 50, message: '姓氏不能超过50个字符', trigger: 'blur' },
+    { min: 1, max: 50, message: '姓氏长度在 1 到 50 个字符', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value && /^\s*$/.test(value)) {
+          callback(new Error('姓氏不能只包含空格'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
   ],
-  organization: [{ max: 255, message: '组织名称不能超过255个字符', trigger: 'blur' }],
+  organization: [
+    { max: 255, message: '组织名称不能超过255个字符', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value && /^\s*$/.test(value)) {
+          callback(new Error('组织名称不能只包含空格'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 8, max: 100, message: '密码长度在 8 到 100 个字符', trigger: 'blur' },
@@ -356,6 +438,21 @@ const handleRegister = async () => {
 
 .login-link span {
   margin-right: var(--space-sm);
+}
+
+/* 验证提示样式 */
+.validation-tip {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  transition: all 0.2s ease;
+}
+
+.validation-tip.error {
+  color: var(--el-color-danger);
+}
+
+.validation-tip.success {
+  color: var(--el-color-success);
 }
 
 /* 密码强度提示样式 */

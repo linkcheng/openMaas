@@ -108,7 +108,7 @@ class ApiResponse(BaseModel, Generic[T]):
     request_id: str | None = None
 
     @classmethod
-    def success(
+    def success_response(
         cls,
         data: T | None = None,
         message: str = "操作成功",
@@ -123,7 +123,7 @@ class ApiResponse(BaseModel, Generic[T]):
         )
 
     @classmethod
-    def error(
+    def error_response(
         cls,
         message: str,
         code: int = 400,

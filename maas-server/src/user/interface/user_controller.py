@@ -43,7 +43,7 @@ async def get_current_user(
                 detail="用户不存在"
             )
 
-        return ApiResponse.success(user, "获取用户信息成功")
+        return ApiResponse.success_response_response(user, "获取用户信息成功")
 
     except Exception:
         raise HTTPException(
@@ -70,7 +70,7 @@ async def update_current_user(
         )
 
         user = await user_service.update_user_profile(command)
-        return ApiResponse.success(user, "用户信息更新成功")
+        return ApiResponse.success_response(user, "用户信息更新成功")
 
     except Exception:
         raise HTTPException(
@@ -99,7 +99,7 @@ async def change_password(
         )
 
         success = await user_service.change_password(command)
-        return ApiResponse.success(success, "密码修改成功")
+        return ApiResponse.success_response(success, "密码修改成功")
 
     except InvalidCredentialsException:
         raise HTTPException(
@@ -121,7 +121,7 @@ async def get_user_stats(
     """获取用户统计信息"""
     try:
         stats = await user_service.get_user_stats(user_id)
-        return ApiResponse.success(stats, "获取统计信息成功")
+        return ApiResponse.success_response(stats, "获取统计信息成功")
 
     except Exception:
         raise HTTPException(
@@ -145,7 +145,7 @@ async def create_api_key(
             expires_at=request.expires_at,
         )
 
-        return ApiResponse.success(api_key, "API密钥创建成功")
+        return ApiResponse.success_response(api_key, "API密钥创建成功")
 
     except Exception:
         raise HTTPException(
@@ -181,7 +181,7 @@ async def get_api_keys(
             for key in user.api_keys
         ]
 
-        return ApiResponse.success(api_keys, "获取API密钥列表成功")
+        return ApiResponse.success_response(api_keys, "获取API密钥列表成功")
 
     except Exception:
         raise HTTPException(
@@ -199,7 +199,7 @@ async def revoke_api_key(
     """撤销API密钥"""
     try:
         success = await user_service.revoke_api_key(user_id, key_id)
-        return ApiResponse.success(success, "API密钥撤销成功")
+        return ApiResponse.success_response(success, "API密钥撤销成功")
 
     except Exception:
         raise HTTPException(
@@ -232,7 +232,7 @@ async def search_users(
         )
 
         users = await user_service.search_users(query)
-        return ApiResponse.success(users, "搜索用户成功")
+        return ApiResponse.success_response(users, "搜索用户成功")
 
     except Exception:
         raise HTTPException(
@@ -256,7 +256,7 @@ async def get_user_by_id(
                 detail="用户不存在"
             )
 
-        return ApiResponse.success(user, "获取用户详情成功")
+        return ApiResponse.success_response(user, "获取用户详情成功")
 
     except Exception:
         raise HTTPException(
@@ -275,7 +275,7 @@ async def suspend_user(
     """暂停用户（管理员）"""
     try:
         success = await user_service.suspend_user(user_id, reason)
-        return ApiResponse.success(success, "用户已暂停")
+        return ApiResponse.success_response(success, "用户已暂停")
 
     except Exception:
         raise HTTPException(
@@ -293,7 +293,7 @@ async def activate_user(
     """激活用户（管理员）"""
     try:
         success = await user_service.activate_user(user_id)
-        return ApiResponse.success(success, "用户已激活")
+        return ApiResponse.success_response(success, "用户已激活")
 
     except Exception:
         raise HTTPException(
