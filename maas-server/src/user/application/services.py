@@ -2,34 +2,30 @@
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 from uuid import UUID
 
-from ...shared.application.exceptions import ApplicationException
-from ...shared.domain.base import EmailAddress
-from ..domain.models import (
+from shared.application.exceptions import ApplicationException
+from user.application.schemas import (
+    ApiKeyCreateResponse,
+    PasswordChangeCommand,
+    UserCreateCommand,
+    UserResponse,
+    UserSearchQuery,
+    UserStatsResponse,
+    UserSummaryResponse,
+    UserUpdateCommand,
+)
+from user.domain.models import (
+    EmailNotVerifiedException,
+    InvalidCredentialsException,
     User,
+    UserAlreadyExistsException,
     UserProfile,
     UserQuota,
     UserStatus,
-    UserAlreadyExistsException,
-    InvalidCredentialsException,
-    EmailNotVerifiedException,
-    Role,
-    ApiKey,
 )
-from ..domain.repositories import UserRepository, RoleRepository
-from .schemas import (
-    UserCreateCommand,
-    UserUpdateCommand,
-    PasswordChangeCommand,
-    UserSearchQuery,
-    UserResponse,
-    UserSummaryResponse,
-    ApiKeyCreateResponse,
-    UserStatsResponse,
-)
+from user.domain.repositories import RoleRepository, UserRepository
 
 
 class PasswordHashService:
@@ -40,9 +36,9 @@ class PasswordHashService:
         """哈希密码"""
         salt = secrets.token_hex(32)
         password_hash = hashlib.pbkdf2_hmac(
-            'sha256',
-            password.encode('utf-8'),
-            salt.encode('utf-8'),
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
             100000
         )
         return f"{salt}:{password_hash.hex()}"
@@ -51,11 +47,11 @@ class PasswordHashService:
     def verify_password(password: str, hashed_password: str) -> bool:
         """验证密码"""
         try:
-            salt, stored_hash = hashed_password.split(':')
+            salt, stored_hash = hashed_password.split(":")
             password_hash = hashlib.pbkdf2_hmac(
-                'sha256',
-                password.encode('utf-8'),
-                salt.encode('utf-8'),
+                "sha256",
+                password.encode("utf-8"),
+                salt.encode("utf-8"),
                 100000
             )
             return password_hash.hex() == stored_hash
@@ -171,7 +167,7 @@ class UserApplicationService:
 
         return await self._map_to_response(user)
 
-    async def get_user_by_id(self, user_id: UUID) -> Optional[UserResponse]:
+    async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
         """根据ID获取用户"""
         user = await self._user_repository.find_by_id(user_id)
         if not user:
@@ -227,7 +223,7 @@ class UserApplicationService:
         return True
 
     async def create_api_key(
-        self, user_id: UUID, name: str, permissions: list[str], expires_at: Optional[datetime] = None
+        self, user_id: UUID, name: str, permissions: list[str], expires_at: datetime | None = None
     ) -> ApiKeyCreateResponse:
         """创建API密钥"""
         user = await self._user_repository.find_by_id(user_id)
@@ -327,7 +323,7 @@ class UserApplicationService:
 
     async def _map_to_response(self, user: User) -> UserResponse:
         """映射到响应DTO"""
-        from .schemas import UserProfileResponse, UserQuotaResponse, RoleResponse
+        from .schemas import RoleResponse, UserProfileResponse, UserQuotaResponse
 
         profile = UserProfileResponse(
             first_name=user.profile.first_name,

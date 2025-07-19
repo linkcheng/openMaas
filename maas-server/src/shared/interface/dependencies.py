@@ -1,19 +1,23 @@
 """共享接口层 - 依赖注入容器"""
 
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
+from collections.abc import AsyncGenerator
 
-from ..infrastructure.database import get_db_session
-from ...user.domain.repositories import UserRepository, RoleRepository
-from ...user.infrastructure.repositories import UserRepositoryImpl, RoleRepositoryImpl
-from ...user.application.services import (
-    UserApplicationService, 
-    PasswordHashService, 
-    EmailVerificationService, 
-    ApiKeyService
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared.infrastructure.database import get_db_session
+from user.application.auth_service import AuthService, EmailService
+from user.application.services import (
+    ApiKeyService,
+    EmailVerificationService,
+    PasswordHashService,
+    UserApplicationService,
 )
-from ...user.application.auth_service import AuthService, EmailService
+from user.domain.repositories import RoleRepository, UserRepository
+from user.infrastructure.repositories import (
+    SQLAlchemyRoleRepository,
+    SQLAlchemyUserRepository,
+)
 
 
 class DependencyContainer:
@@ -27,17 +31,17 @@ class DependencyContainer:
 
     async def get_user_repository(self, db: AsyncSession) -> UserRepository:
         """获取用户仓储"""
-        return UserRepositoryImpl(db)
+        return SQLAlchemyUserRepository(db)
 
     async def get_role_repository(self, db: AsyncSession) -> RoleRepository:
         """获取角色仓储"""
-        return RoleRepositoryImpl(db)
+        return SQLAlchemyRoleRepository(db)
 
     async def get_user_application_service(self, db: AsyncSession) -> UserApplicationService:
         """获取用户应用服务"""
         user_repo = await self.get_user_repository(db)
         role_repo = await self.get_role_repository(db)
-        
+
         return UserApplicationService(
             user_repository=user_repo,
             role_repository=role_repo,

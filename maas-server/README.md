@@ -28,7 +28,7 @@ src/
 ├── inference/              # 推理服务领域
 ├── finetune/              # 微调服务领域
 ├── knowledge/             # 知识库领域
-└── application/           # 应用管理领域
+└── apps/                  # 应用管理领域
 ```
 
 ## 开发环境设置
@@ -45,10 +45,10 @@ src/
 uv sync
 
 # 运行开发服务器
-uv run uvicorn src.main:app --reload
+uv run uvicorn main:app --reload
 
 # 或者使用主函数
-uv run python -m src.main
+uv run python -m main
 
 # 运行测试
 uv run pytest
@@ -129,19 +129,10 @@ MAAS_DATABASE_URL_SYNC=postgresql://maas:maas@localhost:5432/maas
 # Redis配置
 MAAS_REDIS_URL=redis://localhost:6379/0
 
-# Milvus配置
-MAAS_MILVUS_HOST=localhost
-MAAS_MILVUS_PORT=19530
-
 # JWT配置
 MAAS_SECRET_KEY=your-secret-key-change-in-production
 MAAS_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# 邮件配置
-MAAS_SMTP_HOST=smtp.gmail.com
-MAAS_SMTP_PORT=587
-MAAS_SMTP_USERNAME=your-email@gmail.com
-MAAS_SMTP_PASSWORD=your-app-password
 ```
 
 ## 开发工具

@@ -98,6 +98,47 @@ class MetricsResponse(BaseModel):
 
 
 # 响应构建器
+class ApiResponse(BaseModel, Generic[T]):
+    """API响应模型"""
+    success: bool = True
+    data: T | None = None
+    message: str = "操作成功"
+    code: int = 200
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    request_id: str | None = None
+
+    @classmethod
+    def success(
+        cls,
+        data: T | None = None,
+        message: str = "操作成功",
+        code: int = 200
+    ) -> "ApiResponse[T]":
+        """构建成功响应"""
+        return cls(
+            success=True,
+            data=data,
+            message=message,
+            code=code
+        )
+
+    @classmethod
+    def error(
+        cls,
+        message: str,
+        code: int = 400,
+        data: T | None = None
+    ) -> "ApiResponse[T]":
+        """构建错误响应"""
+        return cls(
+            success=False,
+            data=data,
+            message=message,
+            code=code
+        )
+
+
+# 响应构建器
 def success_response(
     data: Any = None,
     message: str = "操作成功",

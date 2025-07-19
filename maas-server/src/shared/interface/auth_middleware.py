@@ -1,13 +1,13 @@
 """共享接口层 - 认证中间件"""
 
-import jwt
-from fastapi import Request, HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional, Annotated
+from typing import Annotated
 from uuid import UUID
 
-from ..application.config import settings
-from ..application.exceptions import ApplicationException
+import jwt
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from config.settings import settings
 
 
 class JWTBearer(HTTPBearer):
@@ -36,9 +36,9 @@ class JWTBearer(HTTPBearer):
         """验证JWT令牌"""
         try:
             payload = jwt.decode(
-                token, 
-                settings.jwt_secret_key, 
-                algorithms=[settings.jwt_algorithm]
+                token,
+                settings.get_jwt_secret_key(),
+                algorithms=[settings.security.jwt_algorithm]
             )
             return payload is not None
         except jwt.ExpiredSignatureError:
@@ -56,8 +56,8 @@ class AuthService:
         try:
             payload = jwt.decode(
                 token,
-                settings.jwt_secret_key,
-                algorithms=[settings.jwt_algorithm]
+                settings.get_jwt_secret_key(),
+                algorithms=[settings.security.jwt_algorithm]
             )
             return payload
         except jwt.ExpiredSignatureError:
@@ -116,12 +116,12 @@ async def get_current_user_permissions(
 
 async def get_optional_user_id(
     request: Request
-) -> Optional[UUID]:
+) -> UUID | None:
     """获取可选的用户ID（不强制认证）"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return None
-    
+
     token = auth_header.split(" ")[1]
     try:
         return AuthService.get_user_id_from_token(token)
@@ -139,20 +139,20 @@ class PermissionChecker:
     def __call__(self, permissions: Annotated[list[str], Depends(get_current_user_permissions)]):
         """检查权限"""
         required_permission = f"{self.resource}:{self.action}"
-        
+
         # 检查具体权限
         if required_permission in permissions:
             return True
-        
+
         # 检查通配符权限
         wildcard_resource = f"{self.resource}:*"
         if wildcard_resource in permissions:
             return True
-        
+
         # 检查全局权限
         if "*:*" in permissions:
             return True
-        
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"缺少权限: {required_permission}"
@@ -183,33 +183,26 @@ def require_roles(roles: list[str]):
     return Depends(RoleChecker(roles))
 
 
-class AdminChecker:
-    """管理员检查器"""
-
-    async def __call__(self, permissions: Annotated[list[str], Depends(get_current_user_permissions)]):
-        """检查是否为管理员"""
-        admin_permissions = ["admin:*", "*:*"]
-        if not any(perm in permissions for perm in admin_permissions):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="需要管理员权限"
-            )
-        return True
-
-
-# 管理员权限依赖
-require_admin = Depends(AdminChecker())
+def require_admin(permissions: Annotated[list[str], Depends(get_current_user_permissions)]) -> bool:
+    """管理员权限检查"""
+    admin_permissions = ["admin:*", "*:*"]
+    if not any(perm in permissions for perm in admin_permissions):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限"
+        )
+    return True
 
 
 class ApiKeyAuth:
     """API密钥认证"""
 
-    async def __call__(self, request: Request) -> Optional[UUID]:
+    async def __call__(self, request: Request) -> UUID | None:
         """API密钥认证"""
         api_key = request.headers.get("X-API-Key")
         if not api_key:
             return None
-        
+
         # TODO: 实现API密钥验证逻辑
         # 需要注入用户仓储来验证API密钥
         return None

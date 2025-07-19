@@ -3,8 +3,8 @@
 from abc import abstractmethod
 from uuid import UUID
 
-from ...shared.domain.base import Repository
-from .models import ApiKey, Role, User
+from shared.domain.base import Repository
+from user.domain.models import ApiKey, Role, User
 
 
 class UserRepository(Repository[User]):

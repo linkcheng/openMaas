@@ -1,25 +1,36 @@
 """共享基础设施层 - 数据库配置"""
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
+from loguru import logger
 import redis
-from pymilvus import connections
-from sqlalchemy import create_engine
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-from ..application.config import settings
+from config.settings import settings
 
-# SQLAlchemy 基础模型
-Base = declarative_base()
+
+# 创建元数据
+metadata = MetaData()
+
+# 创建基类
+class Base(DeclarativeBase):
+    """SQLAlchemy 基类"""
+    metadata = metadata
+
 
 # 异步数据库引擎
 async_engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
+    settings.get_database_url(),
+    echo=settings.server.debug,
     pool_pre_ping=True,
     pool_recycle=3600,
+    pool_size=20,
+    max_overflow=30,
+    pool_timeout=30,
 )
 
 # 异步会话工厂
@@ -27,14 +38,19 @@ async_session_factory = async_sessionmaker(
     async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
 )
 
 # 同步数据库引擎（用于Alembic迁移）
 sync_engine = create_engine(
-    settings.database_url_sync,
-    echo=settings.debug,
+    settings.database.url_sync,
+    echo=settings.server.debug,
     pool_pre_ping=True,
     pool_recycle=3600,
+    pool_size=20,
+    max_overflow=30,
+    pool_timeout=30,
 )
 
 # 同步会话工厂
@@ -69,11 +85,14 @@ def get_sync_session():
 
 # Redis连接
 redis_client = redis.Redis.from_url(
-    settings.redis_url,
+    settings.get_redis_url(),
     decode_responses=True,
     retry_on_timeout=True,
     retry_on_error=[redis.BusyLoadingError, redis.ConnectionError],
     health_check_interval=30,
+    max_connections=50,
+    socket_connect_timeout=5,
+    socket_timeout=5,
 )
 
 
@@ -82,16 +101,53 @@ def get_redis():
     return redis_client
 
 
-# Milvus连接
-def init_milvus():
-    """初始化Milvus连接"""
-    connections.connect(
-        alias="default",
-        host=settings.milvus_host,
-        port=settings.milvus_port,
-    )
+async def check_redis_connection() -> bool:
+    """检查Redis连接状态"""
+    try:
+        redis_client.ping()
+        return True
+    except Exception:
+        return False
 
 
-def get_milvus():
-    """获取Milvus连接"""
-    return connections.get_connection(alias="default")
+async def init_database() -> None:
+    """初始化数据库"""
+    logger.info("创建数据库表...")
+    try:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(metadata.create_all)
+            
+        logger.info("数据库表创建完成")
+        return True
+    except Exception:
+        print("exception")
+        return False
+    logger.info("数据库表创建失败")
+
+
+async def init_redis():
+    """初始化Redis连接"""
+    try:
+        # 检查Redis连接
+        if await check_redis_connection():
+            return True
+        return False
+    except Exception:
+        return False
+
+
+async def close_database():
+    """关闭数据库连接"""
+    try:
+        await async_engine.dispose()
+        sync_engine.dispose()
+    except Exception:
+        pass
+
+
+async def close_redis():
+    """关闭Redis连接"""
+    try:
+        redis_client.close()
+    except Exception:
+        pass

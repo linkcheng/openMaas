@@ -6,9 +6,9 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ...shared.domain.base import EmailAddress
-from ...shared.infrastructure.repository import SQLAlchemyRepository
-from ..domain.models import (
+from shared.domain.base import EmailAddress
+from shared.infrastructure.repository import SQLAlchemyRepository
+from user.domain.models import (
     ApiKey,
     Permission,
     Role,
@@ -17,8 +17,8 @@ from ..domain.models import (
     UserQuota,
     UserStatus,
 )
-from ..domain.repositories import ApiKeyRepository, RoleRepository, UserRepository
-from .models import ApiKeyORM, RoleORM, UserORM
+from user.domain.repositories import ApiKeyRepository, RoleRepository, UserRepository
+from user.infrastructure.models import ApiKeyORM, RoleORM, UserORM
 
 
 class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserRepository):

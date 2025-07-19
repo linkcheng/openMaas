@@ -1,34 +1,38 @@
 """用户接口层 - 认证控制器"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from fastapi.security import HTTPAuthorizationCredentials
 from typing import Annotated
 
-from ...shared.interface.auth_middleware import jwt_bearer, get_current_user_id
-from ...shared.interface.dependencies import (
-    get_user_application_service,
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
+
+from shared.application.response import ApiResponse
+from shared.interface.auth_middleware import get_current_user_id, jwt_bearer
+from shared.interface.dependencies import (
     get_auth_service,
     get_email_service,
+    get_user_application_service,
 )
-from ...shared.application.response import ApiResponse
-from ..application.services import (
-    UserApplicationService,
-    PasswordHashService,
-    EmailVerificationService,
-)
-from ..application.auth_service import AuthService, EmailService
-from ..application.schemas import (
+from user.application.auth_service import AuthService, EmailService
+from user.application.schemas import (
+    AuthTokenResponse,
+    EmailVerificationRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
+    UserCreateCommand,
     UserCreateRequest,
     UserLoginRequest,
-    PasswordResetRequest,
-    PasswordResetConfirmRequest,
-    EmailVerificationRequest,
-    AuthTokenResponse,
     UserResponse,
-    UserCreateCommand,
 )
-from ..domain.models import UserAlreadyExistsException, InvalidCredentialsException, EmailNotVerifiedException
-
+from user.application.services import (
+    EmailVerificationService,
+    PasswordHashService,
+    UserApplicationService,
+)
+from user.domain.models import (
+    EmailNotVerifiedException,
+    InvalidCredentialsException,
+    UserAlreadyExistsException,
+)
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -53,7 +57,7 @@ async def register(
     try:
         # 哈希密码
         password_hash = PasswordHashService.hash_password(request.password)
-        
+
         # 创建用户命令
         command = UserCreateCommand(
             username=request.username,
@@ -63,10 +67,10 @@ async def register(
             last_name=request.last_name,
             organization=request.organization,
         )
-        
+
         # 创建用户
         user = await user_service.create_user(command)
-        
+
         # 生成邮箱验证令牌并发送邮件
         verification_token = EmailVerificationService.generate_verification_token()
         background_tasks.add_task(
@@ -74,22 +78,22 @@ async def register(
             request.email,
             verification_token
         )
-        
+
         # 发送欢迎邮件
         background_tasks.add_task(
             email_service.send_welcome_email,
             request.email,
             request.username
         )
-        
+
         return ApiResponse.success(user, "注册成功，请检查邮箱完成验证")
-        
+
     except UserAlreadyExistsException as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="注册失败，请稍后重试"
@@ -111,12 +115,12 @@ async def login(
     try:
         # 认证用户
         user = await user_service.authenticate_user(request.email, request.password)
-        
+
         # 创建令牌
         token_response = await auth_service._create_token_response(user)
-        
+
         return ApiResponse.success(token_response, "登录成功")
-        
+
     except InvalidCredentialsException:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -127,7 +131,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先验证邮箱"
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登录失败，请稍后重试"
@@ -147,7 +151,7 @@ async def refresh_token(
     try:
         token_response = await auth_service.refresh_access_token(credentials.credentials)
         return ApiResponse.success(token_response, "令牌刷新成功")
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -169,10 +173,10 @@ async def verify_email(
         # TODO: 实现令牌验证逻辑，这里需要存储和验证令牌
         # 暂时简化处理
         # result = await user_service.verify_email(user_id)
-        
+
         return ApiResponse.success(True, "邮箱验证成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="邮箱验证失败"
@@ -193,17 +197,17 @@ async def forgot_password(
     try:
         # 生成重置令牌
         reset_token = EmailVerificationService.generate_reset_token()
-        
+
         # 发送重置邮件
         background_tasks.add_task(
             email_service.send_password_reset_email,
             request.email,
             reset_token
         )
-        
+
         return ApiResponse.success(True, "密码重置邮件已发送")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="发送重置邮件失败"
@@ -224,10 +228,10 @@ async def reset_password(
     try:
         # TODO: 实现令牌验证和密码重置逻辑
         # 暂时简化处理
-        
+
         return ApiResponse.success(True, "密码重置成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="密码重置失败"
@@ -246,10 +250,10 @@ async def logout(
     try:
         # TODO: 可以实现令牌黑名单功能
         # 这里简化处理，客户端删除令牌即可
-        
+
         return ApiResponse.success(True, "退出登录成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="退出登录失败"
@@ -271,10 +275,10 @@ async def get_current_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
-        
+
         return ApiResponse.success(user, "获取用户信息成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户信息失败"

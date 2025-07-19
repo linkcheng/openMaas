@@ -1,18 +1,21 @@
 """FastAPI应用入口点"""
 
+import sys
+import time
+import uuid
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
-import time
-import uuid
 
-from .shared.application.config import settings
-from .shared.application.exceptions import ApplicationException, to_http_exception
-from .shared.infrastructure.database import init_milvus
-from .user.interface import router as user_router
+from config import get_settings
+from shared.application.exceptions import ApplicationException, to_http_exception
+from shared.infrastructure.database import init_database, init_redis, close_database, close_redis
+from user.interface import router as user_router
 
 
 @asynccontextmanager
@@ -21,36 +24,56 @@ async def lifespan(app: FastAPI):
     # 启动时执行
     logger.info("正在启动MAAS平台...")
     
-    # 初始化Milvus连接
-    try:
-        init_milvus()
-        logger.info("Milvus连接初始化成功")
-    except Exception as e:
-        logger.error(f"Milvus连接初始化失败: {e}")
+    # 初始化数据库连接
+    db_status = await init_database()
+    if db_status:
+        logger.info("数据库连接初始化成功")
+    else:
+        logger.warning("数据库连接初始化失败，请检查配置")
+    
+    # 初始化Redis连接
+    redis_status = await init_redis()
+    if redis_status:
+        logger.info("Redis连接初始化成功")
+    else:
+        logger.warning("Redis连接初始化失败，请检查配置")
     
     logger.info("MAAS平台启动完成")
-    
+
     yield
-    
+
     # 关闭时执行
     logger.info("正在关闭MAAS平台...")
+    
+    # 关闭数据库连接
+    await close_database()
+    logger.info("数据库连接已关闭")
+    
+    # 关闭Redis连接
+    await close_redis()
+    logger.info("Redis连接已关闭")
+    
     logger.info("MAAS平台已关闭")
 
 
+# 获取配置实例
+settings = get_settings()
+
+print(settings)
 # 创建FastAPI应用
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    description="MaaS Platform - 大模型服务平台",
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    title=settings.app.name,
+    version=settings.app.version,
+    description=settings.app.description,
+    docs_url="/docs" if settings.server.debug else None,
+    redoc_url="/redoc" if settings.server.debug else None,
     lifespan=lifespan
 )
 
 # 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.security.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,7 +82,7 @@ app.add_middleware(
 # 添加可信主机中间件
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"] if settings.debug else ["localhost", "127.0.0.1"]
+    allowed_hosts=["*"] if settings.server.debug else ["localhost", "127.0.0.1"]
 )
 
 
@@ -69,11 +92,11 @@ async def add_request_id(request: Request, call_next):
     """为每个请求添加唯一ID"""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
-    
+
     # 添加请求ID到响应头
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
-    
+
     return response
 
 
@@ -82,19 +105,19 @@ async def add_request_id(request: Request, call_next):
 async def log_requests(request: Request, call_next):
     """记录请求日志"""
     start_time = time.time()
-    
+
     # 记录请求开始
     logger.info(
         f"请求开始: {request.method} {request.url.path} - "
         f"客户端: {request.client.host if request.client else 'unknown'} - "
         f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
     )
-    
+
     response = await call_next(request)
-    
+
     # 计算处理时间
     process_time = time.time() - start_time
-    
+
     # 记录请求完成
     logger.info(
         f"请求完成: {request.method} {request.url.path} - "
@@ -102,10 +125,10 @@ async def log_requests(request: Request, call_next):
         f"耗时: {process_time:.4f}s - "
         f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
     )
-    
+
     # 添加处理时间到响应头
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     return response
 
 
@@ -119,13 +142,13 @@ async def application_exception_handler(request: Request, exc: ApplicationExcept
         f"请求: {request.method} {request.url.path} - "
         f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
     )
-    
+
     http_exc = to_http_exception(exc)
     return JSONResponse(
         status_code=http_exc.status_code,
         content={
             **http_exc.detail,
-            "request_id": getattr(request.state, 'request_id', None),
+            "request_id": getattr(request.state, "request_id", None),
             "timestamp": time.time()
         }
     )
@@ -140,7 +163,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         f"请求: {request.method} {request.url.path} - "
         f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
     )
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -150,7 +173,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
                 "message": exc.detail,
                 "details": {}
             },
-            "request_id": getattr(request.state, 'request_id', None),
+            "request_id": getattr(request.state, "request_id", None),
             "timestamp": time.time()
         }
     )
@@ -160,23 +183,23 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def general_exception_handler(request: Request, exc: Exception):
     """通用异常处理器"""
     logger.error(
-        f"未处理异常: {str(exc)} - "
+        f"未处理异常: {exc!s} - "
         f"类型: {type(exc).__name__} - "
         f"请求: {request.method} {request.url.path} - "
         f"请求ID: {getattr(request.state, 'request_id', 'unknown')}",
         exc_info=True
     )
-    
+
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
             "error": {
                 "code": "INTERNAL_SERVER_ERROR",
-                "message": "服务器内部错误" if not settings.debug else str(exc),
+                "message": "服务器内部错误" if not settings.server.debug else str(exc),
                 "details": {}
             },
-            "request_id": getattr(request.state, 'request_id', None),
+            "request_id": getattr(request.state, "request_id", None),
             "timestamp": time.time()
         }
     )
@@ -188,7 +211,7 @@ async def health_check():
     """健康检查"""
     return {
         "status": "healthy",
-        "version": settings.app_version,
+        "version": settings.app.version,
         "timestamp": time.time()
     }
 
@@ -198,9 +221,9 @@ async def health_check():
 async def root():
     """根路径"""
     return {
-        "message": f"欢迎使用 {settings.app_name}",
-        "version": settings.app_version,
-        "docs": "/docs" if settings.debug else None
+        "message": f"欢迎使用 {settings.app.name}",
+        "version": settings.app.version,
+        "docs": "/docs" if settings.server.debug else None
     }
 
 
@@ -210,7 +233,7 @@ app.include_router(user_router)
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # 配置日志
     logger.remove()
     logger.add(
@@ -225,12 +248,12 @@ if __name__ == "__main__":
         level=settings.log_level,
         format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>"
     )
-    
+
     # 启动服务器
     uvicorn.run(
         "src.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload,
+        host=settings.server.host,
+        port=settings.server.port,
+        reload=settings.server.reload,
         log_level=settings.log_level.lower()
     )

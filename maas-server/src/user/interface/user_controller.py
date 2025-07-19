@@ -1,32 +1,30 @@
 """用户接口层 - 用户管理控制器"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Annotated
 from uuid import UUID
 
-from ...shared.interface.auth_middleware import (
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from shared.application.response import ApiResponse
+from shared.interface.auth_middleware import (
     get_current_user_id,
-    require_permission,
     require_admin,
 )
-from ...shared.interface.dependencies import get_user_application_service
-from ...shared.application.response import ApiResponse
-from ..application.services import UserApplicationService
-from ..application.schemas import (
-    UserUpdateRequest,
-    PasswordChangeRequest,
+from shared.interface.dependencies import get_user_application_service
+from user.application.schemas import (
     ApiKeyCreateRequest,
-    UserSearchRequest,
-    UserResponse,
-    UserUpdateCommand,
-    PasswordChangeCommand,
     ApiKeyCreateResponse,
     ApiKeyResponse,
-    UserSummaryResponse,
+    PasswordChangeCommand,
+    PasswordChangeRequest,
+    UserResponse,
     UserStatsResponse,
+    UserSummaryResponse,
+    UserUpdateCommand,
+    UserUpdateRequest,
 )
-from ..domain.models import InvalidCredentialsException
-
+from user.application.services import UserApplicationService
+from user.domain.models import InvalidCredentialsException
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -44,10 +42,10 @@ async def get_current_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
-        
+
         return ApiResponse.success(user, "获取用户信息成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户信息失败"
@@ -70,11 +68,11 @@ async def update_current_user(
             organization=request.organization,
             bio=request.bio,
         )
-        
+
         user = await user_service.update_user_profile(command)
         return ApiResponse.success(user, "用户信息更新成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新用户信息失败"
@@ -89,26 +87,26 @@ async def change_password(
 ):
     """修改密码"""
     try:
-        from ..application.services import PasswordHashService
-        
+        from user.application.services import PasswordHashService
+
         # 哈希新密码
         new_password_hash = PasswordHashService.hash_password(request.new_password)
-        
+
         command = PasswordChangeCommand(
             user_id=user_id,
             current_password=request.current_password,
             new_password_hash=new_password_hash,
         )
-        
+
         success = await user_service.change_password(command)
         return ApiResponse.success(success, "密码修改成功")
-        
+
     except InvalidCredentialsException:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="当前密码错误"
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="密码修改失败"
@@ -124,8 +122,8 @@ async def get_user_stats(
     try:
         stats = await user_service.get_user_stats(user_id)
         return ApiResponse.success(stats, "获取统计信息成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取统计信息失败"
@@ -146,10 +144,10 @@ async def create_api_key(
             permissions=request.permissions,
             expires_at=request.expires_at,
         )
-        
+
         return ApiResponse.success(api_key, "API密钥创建成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建API密钥失败"
@@ -169,7 +167,7 @@ async def get_api_keys(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
-        
+
         api_keys = [
             ApiKeyResponse(
                 id=key.id,
@@ -182,10 +180,10 @@ async def get_api_keys(
             )
             for key in user.api_keys
         ]
-        
+
         return ApiResponse.success(api_keys, "获取API密钥列表成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取API密钥列表失败"
@@ -202,8 +200,8 @@ async def revoke_api_key(
     try:
         success = await user_service.revoke_api_key(user_id, key_id)
         return ApiResponse.success(success, "API密钥撤销成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="撤销API密钥失败"
@@ -213,18 +211,18 @@ async def revoke_api_key(
 # 管理员API
 @router.get("/", response_model=ApiResponse[list[UserSummaryResponse]], summary="搜索用户")
 async def search_users(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     keyword: str = Query(None, description="搜索关键词"),
     status: str = Query(None, description="用户状态"),
     organization: str = Query(None, description="组织"),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页数量"),
     _: bool = Depends(require_admin),
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """搜索用户（管理员）"""
     try:
-        from ..application.schemas import UserSearchQuery
-        
+        from user.application.schemas import UserSearchQuery
+
         query = UserSearchQuery(
             keyword=keyword,
             status=status,
@@ -232,11 +230,11 @@ async def search_users(
             limit=limit,
             offset=(page - 1) * limit,
         )
-        
+
         users = await user_service.search_users(query)
         return ApiResponse.success(users, "搜索用户成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="搜索用户失败"
@@ -245,9 +243,9 @@ async def search_users(
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse], summary="获取用户详情")
 async def get_user_by_id(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
     _: bool = Depends(require_admin),
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """获取用户详情（管理员）"""
     try:
@@ -257,10 +255,10 @@ async def get_user_by_id(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
-        
+
         return ApiResponse.success(user, "获取用户详情成功")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户详情失败"
@@ -269,17 +267,17 @@ async def get_user_by_id(
 
 @router.post("/{user_id}/suspend", response_model=ApiResponse[bool], summary="暂停用户")
 async def suspend_user(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
     reason: str = Query(..., description="暂停原因"),
     _: bool = Depends(require_admin),
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """暂停用户（管理员）"""
     try:
         success = await user_service.suspend_user(user_id, reason)
         return ApiResponse.success(success, "用户已暂停")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="暂停用户失败"
@@ -288,16 +286,16 @@ async def suspend_user(
 
 @router.post("/{user_id}/activate", response_model=ApiResponse[bool], summary="激活用户")
 async def activate_user(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
     _: bool = Depends(require_admin),
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """激活用户（管理员）"""
     try:
         success = await user_service.activate_user(user_id)
         return ApiResponse.success(success, "用户已激活")
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="激活用户失败"

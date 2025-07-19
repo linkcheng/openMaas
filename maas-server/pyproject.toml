@@ -34,6 +34,7 @@ dependencies = [
     "pymilvus>=2.5.2",
     "loguru>=0.7.3",
     "asyncpg>=0.30.0",
+    "cryptography>=45.0.5",
 ]
 
 [project.optional-dependencies]

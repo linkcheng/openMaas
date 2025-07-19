@@ -70,12 +70,16 @@ celerybeat.pid
 # SageMath
 *.sage.py
 
-# 环境变量
+# 环境变量文件
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
+.env.development
+.env.testing  
+.env.production
+# 保留模板文件
+!.env.template
+!.env.example
 
 # FastAPI
 .fastapi/

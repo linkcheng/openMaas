@@ -8,8 +8,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..domain.base import AggregateRoot, Repository
-from .database import Base
+from shared.domain.base import AggregateRoot, Repository
+from shared.infrastructure.database import Base
 
 T = TypeVar("T", bound=AggregateRoot)
 M = TypeVar("M", bound=Base)
@@ -121,65 +121,3 @@ class RedisRepository(ABC):
     async def exists(self, key: str) -> bool:
         """检查键是否存在"""
         return await self.redis.exists(key)
-
-
-class MilvusRepository(ABC):
-    """Milvus向量仓储基类"""
-
-    def __init__(self, collection_name: str):
-        self.collection_name = collection_name
-
-    async def insert_vectors(self, vectors: list[list[float]], metadata: list[dict[str, Any]]) -> list[str]:
-        """插入向量数据"""
-        from pymilvus import Collection
-        collection = Collection(self.collection_name)
-
-        # 准备插入数据
-        entities = []
-        for i, (vector, meta) in enumerate(zip(vectors, metadata, strict=False)):
-            entity = {
-                "id": meta.get("id", f"vec_{i}"),
-                "vector": vector,
-                **meta
-            }
-            entities.append(entity)
-
-        # 插入数据
-        insert_result = collection.insert(entities)
-        return insert_result.primary_keys
-
-    async def search_vectors(self, query_vectors: list[list[float]], top_k: int = 10, filters: str | None = None) -> list[dict[str, Any]]:
-        """搜索向量"""
-        from pymilvus import Collection
-        collection = Collection(self.collection_name)
-
-        search_params = {
-            "metric_type": "COSINE",
-            "params": {"nprobe": 10}
-        }
-
-        results = collection.search(
-            data=query_vectors,
-            anns_field="vector",
-            param=search_params,
-            limit=top_k,
-            expr=filters
-        )
-
-        return [
-            {
-                "id": hit.id,
-                "score": hit.score,
-                "entity": hit.entity
-            }
-            for result in results
-            for hit in result
-        ]
-
-    async def delete_vectors(self, ids: list[str]) -> None:
-        """删除向量"""
-        from pymilvus import Collection
-        collection = Collection(self.collection_name)
-
-        expr = f"id in {ids}"
-        collection.delete(expr)
