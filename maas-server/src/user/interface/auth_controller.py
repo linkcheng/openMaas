@@ -1,35 +1,31 @@
 """用户接口层 - 认证控制器"""
 
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import ValidationError
 
 from shared.application.response import ApiResponse
 from shared.interface.auth_middleware import get_current_user_id, jwt_bearer
 from shared.interface.dependencies import (
     get_auth_service,
-    get_email_service,
     get_user_application_service,
 )
-from user.application.auth_service import AuthService, EmailService
+from user.application.auth_service import AuthService
 from user.application.schemas import (
     AuthTokenResponse,
-    EmailVerificationRequest,
-    PasswordResetConfirmRequest,
-    PasswordResetRequest,
     UserCreateCommand,
     UserCreateRequest,
     UserLoginRequest,
     UserResponse,
 )
 from user.application.services import (
-    EmailVerificationService,
     PasswordHashService,
     UserApplicationService,
 )
 from user.domain.models import (
-    EmailNotVerifiedException,
     InvalidCredentialsException,
     UserAlreadyExistsException,
 )
@@ -40,9 +36,7 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 @router.post("/register", response_model=ApiResponse[UserResponse], summary="用户注册")
 async def register(
     request: UserCreateRequest,
-    background_tasks: BackgroundTasks,
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-    email_service: Annotated[EmailService, Depends(get_email_service)],
 ):
     """
     用户注册
@@ -53,40 +47,8 @@ async def register(
     - **first_name**: 名字
     - **last_name**: 姓氏
     - **organization**: 组织（可选）
-    
-    注册成功后会发送邮箱验证链接，用户需要验证邮箱后才能正常使用所有功能。
     """
     try:
-        # 预先验证输入数据
-        if len(request.username) < 3 or len(request.username) > 50:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名长度必须在3-50个字符之间"
-            )
-
-        # 验证用户名格式（只允许字母、数字、下划线）
-        import re
-        if not re.match(r"^[a-zA-Z0-9_]+$", request.username):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名只能包含字母、数字和下划线"
-            )
-
-        # 验证密码强度
-        if len(request.password) < 8:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="密码至少需要8个字符"
-            )
-
-        if not (re.search(r"[a-z]", request.password) and
-                re.search(r"[A-Z]", request.password) and
-                re.search(r"\d", request.password)):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="密码必须包含大写字母、小写字母和数字"
-            )
-
         # 哈希密码
         password_hash = PasswordHashService.hash_password(request.password)
 
@@ -103,38 +65,27 @@ async def register(
         # 创建用户
         user = await user_service.create_user(command)
 
-        # 生成邮箱验证令牌并发送邮件
-        verification_token = EmailVerificationService.generate_verification_token()
-
-        # TODO: 将验证令牌存储到数据库中，设置过期时间
-        # await user_service.store_verification_token(user.id, verification_token)
-
-        background_tasks.add_task(
-            email_service.send_verification_email,
-            request.email,
-            verification_token
-        )
-
-        # 发送欢迎邮件
-        background_tasks.add_task(
-            email_service.send_welcome_email,
-            request.email,
-            request.username
-        )
-
-        return ApiResponse.success_response_response(user, "注册成功！验证邮件已发送到您的邮箱，请查收并点击链接完成验证")
+        return ApiResponse.success_response(user, "注册成功")
 
     except UserAlreadyExistsException as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
-    except HTTPException:
-        # 重新抛出HTTP异常
-        raise
+    except ValidationError as e:
+        # 处理 Pydantic 验证错误
+        error_messages = []
+        for error in e.errors():
+            field = error.get("loc", ["unknown"])[-1]
+            message = error.get("msg", "验证失败")
+            error_messages.append(f"{field}: {message}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="; ".join(error_messages)
+        )
     except Exception as e:
         # 记录详细错误信息
-        import logging
         logging.error(f"用户注册失败: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -168,11 +119,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="邮箱或密码错误"
         )
-    except EmailNotVerifiedException:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="请先验证邮箱"
-        )
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -201,83 +148,7 @@ async def refresh_token(
         )
 
 
-@router.post("/verify-email", response_model=ApiResponse[bool], summary="验证邮箱")
-async def verify_email(
-    request: EmailVerificationRequest,
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """
-    验证邮箱
-    
-    - **token**: 邮箱验证令牌
-    """
-    try:
-        # TODO: 实现令牌验证逻辑，这里需要存储和验证令牌
-        # 暂时简化处理
-        # result = await user_service.verify_email(user_id)
 
-        return ApiResponse.success_response(True, "邮箱验证成功")
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="邮箱验证失败"
-        )
-
-
-@router.post("/forgot-password", response_model=ApiResponse[bool], summary="忘记密码")
-async def forgot_password(
-    request: PasswordResetRequest,
-    background_tasks: BackgroundTasks,
-    email_service: Annotated[EmailService, Depends(get_email_service)],
-):
-    """
-    忘记密码
-    
-    - **email**: 邮箱地址
-    """
-    try:
-        # 生成重置令牌
-        reset_token = EmailVerificationService.generate_reset_token()
-
-        # 发送重置邮件
-        background_tasks.add_task(
-            email_service.send_password_reset_email,
-            request.email,
-            reset_token
-        )
-
-        return ApiResponse.success_response(True, "密码重置邮件已发送")
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="发送重置邮件失败"
-        )
-
-
-@router.post("/reset-password", response_model=ApiResponse[bool], summary="重置密码")
-async def reset_password(
-    request: PasswordResetConfirmRequest,
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """
-    重置密码
-    
-    - **token**: 重置令牌
-    - **new_password**: 新密码
-    """
-    try:
-        # TODO: 实现令牌验证和密码重置逻辑
-        # 暂时简化处理
-
-        return ApiResponse.success_response(True, "密码重置成功")
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码重置失败"
-        )
 
 
 @router.post("/logout", response_model=ApiResponse[bool], summary="退出登录")

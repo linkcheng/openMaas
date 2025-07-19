@@ -26,8 +26,9 @@ class UserCreateRequest(BaseModel):
 
     @validator("username")
     def validate_username(cls, v):
-        if not v.isalnum() and "_" not in v and "-" not in v:
-            raise ValueError("用户名只能包含字母、数字、下划线和连字符")
+        import re
+        if not re.match(r"^[a-zA-Z0-9_]+$", v):
+            raise ValueError("用户名只能包含字母、数字和下划线")
         return v
 
     @validator("password")

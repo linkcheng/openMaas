@@ -1,7 +1,7 @@
 """配置设置 - 提供配置实例管理"""
 
 
-from config.schemas import Settings
+from src.config.schemas import Settings
 
 # 全局配置实例
 _settings_instance: Settings | None = None

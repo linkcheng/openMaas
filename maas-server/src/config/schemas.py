@@ -3,7 +3,7 @@
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from config.env_utils import get_env_file_path
+from src.config.env_utils import get_env_file_path
 
 
 class DatabaseConfig(BaseSettings):

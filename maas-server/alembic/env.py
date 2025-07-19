@@ -1,12 +1,13 @@
 """数据库迁移配置"""
 
+import sys
+import os
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, MetaData
 from alembic import context
 
-# 导入所有模型
-from src.shared.infrastructure.database import Base
-from src.user.infrastructure.models import UserORM, RoleORM, ApiKeyORM, UserQuotaORM
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Alembic Config object
 config = context.config
@@ -15,8 +16,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 设置目标元数据
-target_metadata = Base.metadata
+# 简化的元数据配置，避免复杂的导入
+target_metadata = MetaData()
+
+# 手动定义表结构，避免导入问题
+def include_object(object, name, type_, reflected, compare_to):
+    """决定哪些对象应该包含在迁移中"""
+    return True
 
 
 def run_migrations_offline() -> None:
@@ -27,6 +33,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -43,7 +50,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

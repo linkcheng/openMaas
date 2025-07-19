@@ -8,7 +8,7 @@ from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from config.settings import settings
+from src.config.settings import settings
 
 # 创建元数据
 metadata = MetaData()

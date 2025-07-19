@@ -145,3 +145,5 @@ poetry.lock
 
 # PEP 582
 __pypackages__/
+
+alembic.ini

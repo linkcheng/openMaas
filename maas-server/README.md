@@ -89,17 +89,180 @@ hatch run all
 hatch run type-check
 ```
 
-## 数据库迁移
+## 数据库迁移 (Alembic)
+
+### 什么是 Alembic
+
+Alembic 是一个 Python 数据库迁移工具，专门用于 SQLAlchemy ORM。在 MaaS 项目中，它的作用包括：
+
+- **数据库版本控制** - 管理数据库结构的变更历史
+- **迁移管理** - 自动生成数据库表结构变更脚本
+- **环境同步** - 确保不同环境间数据库结构的一致性
+
+### 项目配置
+
+**配置文件 (alembic.ini)**
+- 数据库连接：`postgresql://admin:123456@localhost:5432/maas_dev`
+- 迁移脚本位置：`alembic/` 目录
+- 集成了 Black 代码格式化工具
+
+**迁移文件结构**
+```
+alembic/
+├── env.py                           # 环境配置
+├── script.py.mako                   # 迁移模板
+└── versions/
+    ├── 001_initial_user_tables.py   # 初始用户表结构
+    └── 002_seed_data.py             # 种子数据
+```
+
+### 数据库准备
+
+首次使用需要设置 PostgreSQL 数据库：
 
 ```bash
-# 生成迁移
-uv run alembic revision --autogenerate -m "描述"
+# 安装 PostgreSQL (如果还没安装)
+brew install postgresql
 
-# 执行迁移
-uv run alembic upgrade head
+# 启动 PostgreSQL 服务
+brew services start postgresql
 
-# 回滚迁移
-uv run alembic downgrade -1
+# 创建数据库和用户
+psql postgres -c "CREATE USER admin WITH PASSWORD '123456';"
+psql postgres -c "CREATE DATABASE maas_dev OWNER admin;"
+psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE maas_dev TO admin;"
+```
+
+### 初始化数据库（首次使用）
+
+```bash
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 升级到最新版本（会执行所有迁移文件）
+alembic upgrade head
+
+# 如果表已存在，标记为当前版本
+alembic stamp head
+```
+
+### 日常操作命令
+
+```bash
+# 查看当前版本
+alembic current
+
+# 查看迁移历史
+alembic history --verbose
+
+# 查看待执行的迁移
+alembic show head
+
+# 升级到最新版本
+alembic upgrade head
+
+# 升级到指定版本
+alembic upgrade <revision_id>
+
+# 回滚一个版本
+alembic downgrade -1
+
+# 回滚到指定版本
+alembic downgrade <revision_id>
+```
+
+### 创建新迁移
+
+#### 方法一：自动生成迁移（推荐）
+
+```bash
+# 修改你的 SQLAlchemy 模型后，自动生成迁移文件
+alembic revision --autogenerate -m "添加新表或字段的描述"
+```
+
+#### 方法二：手动创建迁移
+
+```bash
+# 创建空的迁移文件
+alembic revision -m "手动创建的迁移描述"
+```
+
+### 迁移文件示例
+
+```python
+"""添加用户表
+
+Revision ID: 001_initial_user_tables
+Revises: 
+Create Date: 2025-01-18 12:00:00.000000
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers, used by Alembic.
+revision = '001_initial_user_tables'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+def upgrade() -> None:
+    """创建用户表"""
+    op.create_table(
+        'users',
+        sa.Column('id', sa.Integer(), primary_key=True),
+        sa.Column('username', sa.String(50), nullable=False, unique=True),
+        sa.Column('email', sa.String(255), nullable=False, unique=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    
+    # 创建索引
+    op.create_index('idx_users_username', 'users', ['username'])
+
+def downgrade() -> None:
+    """删除用户表"""
+    op.drop_table('users')
+```
+
+### 当前数据库结构
+
+项目已包含以下表结构：
+
+**001_initial_user_tables.py** - 创建核心用户管理表：
+- `users` - 用户基本信息
+- `roles` - 角色权限
+- `user_roles` - 用户角色关联
+- `api_keys` - API 密钥管理
+- `user_quotas` - 用户配额限制
+
+**002_seed_data.py** - 初始化数据：
+- 创建三个默认角色：admin、developer、user
+- 创建默认管理员账户 (admin/Admin123!)
+- 设置管理员的权限和配额
+
+### 最佳实践
+
+- **总是先备份数据库**再运行迁移
+- **在开发环境测试**迁移后再应用到生产环境
+- **使用描述性的迁移消息**，便于理解变更内容
+- **检查自动生成的迁移**，确保符合预期
+- **团队协作时**，及时同步迁移文件
+- **避免直接修改已应用的迁移文件**
+
+### 故障排除
+
+#### 常见问题
+
+1. **导入错误** - 确保 Python 路径配置正确
+2. **数据库连接失败** - 检查数据库服务是否启动，连接配置是否正确
+3. **表已存在错误** - 使用 `alembic stamp head` 标记当前状态
+4. **迁移冲突** - 检查迁移文件的依赖关系
+
+#### 重置迁移历史
+
+```bash
+# 删除所有表（谨慎操作）
+# 然后重新运行迁移
+alembic upgrade head
 ```
 
 ## 项目结构

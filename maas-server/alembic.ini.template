@@ -11,7 +11,7 @@ file_template = %%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(rev)
 timezone = UTC
 
 # 数据库连接URL
-sqlalchemy.url = postgresql://maas:maas@localhost:5432/maas
+sqlalchemy.url = postgresql://admin:123456@localhost:5432/maas_dev
 
 # 输出编码
 output_encoding = utf-8
