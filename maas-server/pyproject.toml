@@ -2,13 +2,13 @@
 name = "maas-server"
 version = "0.1.0"
 description = "Model-as-a-Service Platform Backend"
-authors = [{name = "MAAS Team", email = "team@maas.com"}]
+authors = [{name = "MAAS Team", email = "linkcheng1992@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

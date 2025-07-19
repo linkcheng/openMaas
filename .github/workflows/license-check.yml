@@ -1,0 +1,65 @@
+name: License Compliance Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # 每周一检查一次依赖许可证
+    - cron: "0 2 * * 1"
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Python dependencies
+        run: |
+          cd maas-server
+          pip install uv
+          uv sync
+
+      - name: Install Node.js dependencies
+        run: |
+          cd maas-web
+          npm ci
+
+      - name: Install license checking tools
+        run: |
+          pip install pip-licenses
+          npm install -g license-checker
+
+      - name: Run license compliance check
+        run: |
+          python scripts/check-licenses.py
+
+      - name: Check license headers
+        run: |
+          python scripts/add-license-headers.py --dry-run
+
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-report
+          path: |
+            LICENSE
+            NOTICE
+            CONTRIBUTING.md
+            AUTHORS
+            maas-server/THIRD-PARTY-LICENSES.md
+            maas-web/THIRD-PARTY-LICENSES.md
