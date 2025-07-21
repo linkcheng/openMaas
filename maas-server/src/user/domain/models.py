@@ -310,7 +310,7 @@ class User(AggregateRoot):
             raise BusinessRuleViolationException("用户名不能超过50个字符")
 
         # 创建用户
-        user_id = uuid7.uuid7()
+        user_id = uuid7()
         email_addr = EmailAddress(email)
         profile = UserProfile(
             first_name=first_name,
@@ -328,7 +328,7 @@ class User(AggregateRoot):
 
         # 添加领域事件
         user.add_domain_event(UserRegisteredEvent(
-            event_id=uuid7.uuid7(),
+            event_id=uuid7(),
             occurred_at=datetime.utcnow(),
             event_type="user.registered",
             aggregate_id=user_id,
@@ -356,7 +356,7 @@ class User(AggregateRoot):
 
         # 添加领域事件
         self.add_domain_event(UserProfileUpdatedEvent(
-            event_id=uuid7.uuid7(),
+            event_id=uuid7(),
             occurred_at=datetime.utcnow(),
             event_type="user.profile_updated",
             aggregate_id=self.id,
@@ -383,7 +383,7 @@ class User(AggregateRoot):
 
         # 添加领域事件
         self.add_domain_event(UserEmailVerifiedEvent(
-            event_id=uuid7.uuid7(),
+            event_id=uuid7(),
             occurred_at=datetime.utcnow(),
             event_type="user.email_verified",
             aggregate_id=self.id,
@@ -422,7 +422,7 @@ class User(AggregateRoot):
             raise BusinessRuleViolationException("API密钥数量已达上限")
 
         api_key = ApiKey(
-            id=uuid7.uuid7(),
+            id=uuid7(),
             name=name,
             key_hash=key_hash,
             permissions=permissions,
@@ -434,7 +434,7 @@ class User(AggregateRoot):
 
         # 添加领域事件
         self.add_domain_event(ApiKeyCreatedEvent(
-            event_id=uuid7.uuid7(),
+            event_id=uuid7(),
             occurred_at=datetime.utcnow(),
             event_type="user.api_key_created",
             aggregate_id=self.id,

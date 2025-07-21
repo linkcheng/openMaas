@@ -4,8 +4,8 @@ from .env_utils import (
     find_env_file,
     get_env_file_path,
 )
-from .settings import get_settings, reload_settings
 from .schemas import Settings
+from .settings import get_settings, reload_settings
 
 __all__ = [
     "Settings",

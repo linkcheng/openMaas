@@ -8,7 +8,7 @@ from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from src.config.settings import settings
+from config.settings import settings
 
 # 创建元数据
 metadata = MetaData()
@@ -107,7 +107,7 @@ async def check_redis_connection() -> bool:
         return False
 
 
-async def init_database() -> None:
+async def init_database() -> bool:
     """初始化数据库"""
     logger.info("创建数据库表...")
     try:
@@ -115,10 +115,19 @@ async def init_database() -> None:
             await conn.run_sync(metadata.create_all)
 
         logger.info("数据库表创建完成")
+
+        # 初始化数据
+        from .database_initializer import init_initial_data
+        init_success = await init_initial_data()
+        if init_success:
+            logger.info("数据库初始数据创建完成")
+        else:
+            logger.warning("数据库初始数据创建失败")
+
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"数据库初始化失败: {e}")
         return False
-    logger.info("数据库表创建失败")
 
 
 async def init_redis():

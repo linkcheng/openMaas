@@ -27,10 +27,16 @@
             :maxlength="50"
             show-word-limit
           />
-          <div v-if="registerForm.username && !/^[a-zA-Z0-9_]+$/.test(registerForm.username)" class="validation-tip error">
+          <div
+            v-if="registerForm.username && !/^[a-zA-Z0-9_]+$/.test(registerForm.username)"
+            class="validation-tip error"
+          >
             用户名只能包含字母、数字和下划线
           </div>
-          <div v-else-if="registerForm.username && registerForm.username.length >= 3" class="validation-tip success">
+          <div
+            v-else-if="registerForm.username && registerForm.username.length >= 3"
+            class="validation-tip success"
+          >
             ✓ 用户名格式正确
           </div>
         </el-form-item>
@@ -43,10 +49,22 @@
             prefix-icon="Message"
             clearable
           />
-          <div v-if="registerForm.email && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)" class="validation-tip error">
+          <div
+            v-if="
+              registerForm.email &&
+              !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)
+            "
+            class="validation-tip error"
+          >
             请输入有效的邮箱地址
           </div>
-          <div v-else-if="registerForm.email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)" class="validation-tip success">
+          <div
+            v-else-if="
+              registerForm.email &&
+              /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registerForm.email)
+            "
+            class="validation-tip success"
+          >
             ✓ 邮箱格式正确
           </div>
         </el-form-item>
@@ -54,10 +72,10 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="名字" prop="first_name">
-              <el-input 
-                v-model="registerForm.first_name" 
-                placeholder="请输入名字" 
-                clearable 
+              <el-input
+                v-model="registerForm.first_name"
+                placeholder="请输入名字"
+                clearable
                 :maxlength="50"
                 show-word-limit
               />
@@ -65,10 +83,10 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="姓氏" prop="last_name">
-              <el-input 
-                v-model="registerForm.last_name" 
-                placeholder="请输入姓氏" 
-                clearable 
+              <el-input
+                v-model="registerForm.last_name"
+                placeholder="请输入姓氏"
+                clearable
                 :maxlength="50"
                 show-word-limit
               />
