@@ -44,7 +44,7 @@ class UserCreateRequest(BaseModel):
 
 class UserLoginRequest(BaseModel):
     """用户登录请求"""
-    email: EmailStr = Field(..., description="邮箱地址")
+    login_id: str = Field(..., description="邮箱地址或用户名")
     password: str = Field(..., description="密码")
 
 

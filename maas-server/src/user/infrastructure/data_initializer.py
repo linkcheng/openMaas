@@ -68,11 +68,17 @@ class UserDataInitializer(DataInitializer):
 
     def _get_initial_admin_data(self) -> dict[str, Any]:
         """获取初始管理员用户数据"""
+        from user.application.services import PasswordHashService
+
+        # 动态生成密码哈希
+        admin_password = "admin123"  # 默认管理员密码
+        password_hash = PasswordHashService.hash_password(admin_password)
+
         return {
             "user_id": uuid7(),
             "username": "admin",
             "email": "admin@example.com",
-            "password_hash": "3821f8e1cac0bae81358bcd4c54ee3e3627fa78c6689d9f3c2d0fb6e623ea446:d0fbbd9c906f7044854f668bbd74510143908bc0a628536d0e3eb1751eaa1bea",
+            "password_hash": password_hash,
             "first_name": "系统",
             "last_name": "管理员",
             "organization": "MaaS平台",
@@ -167,7 +173,7 @@ class UserDataInitializer(DataInitializer):
             logger.error("管理员角色不存在，无法分配")
             return
 
-        # 检查是否已经分配了角色
+        # 检查是否已经分配了角色（使用更严格的检查）
         result = await session.execute(
             select(UserRoleORM).where(
                 (UserRoleORM.user_id == admin_user.user_id) &
@@ -177,18 +183,27 @@ class UserDataInitializer(DataInitializer):
         existing_user_role = result.scalar_one_or_none()
 
         if existing_user_role:
-            logger.info("管理员角色已分配")
+            logger.info("管理员角色已分配，跳过")
             return
 
-        # 创建用户角色关联
-        user_role = UserRoleORM(
-            user_role_id=uuid7(),
-            user_id=admin_user.user_id,
-            role_id=admin_role.role_id,
-            granted_by_id=admin_user.user_id  # 自己分配给自己
-        )
-        session.add(user_role)
-        logger.info("为管理员用户分配管理员角色")
+        try:
+            # 创建用户角色关联
+            user_role = UserRoleORM(
+                user_role_id=uuid7(),
+                user_id=admin_user.user_id,
+                role_id=admin_role.role_id,
+                granted_by_id=admin_user.user_id  # 自己分配给自己
+            )
+            session.add(user_role)
+            await session.flush()  # 立即刷新以检测约束冲突
+            logger.info("为管理员用户分配管理员角色")
+        except Exception as e:
+            logger.warning(f"管理员角色分配失败，可能已存在: {e}")
+            # 如果是唯一约束错误，说明角色已分配，可以忽略
+            if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                logger.info("管理员角色已存在，忽略重复分配")
+            else:
+                raise
 
     async def _create_admin_quota(self, session: AsyncSession, admin_user: UserORM) -> None:
         """为管理员创建配额"""

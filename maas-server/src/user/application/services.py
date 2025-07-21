@@ -17,7 +17,6 @@ from user.application.schemas import (
     UserUpdateCommand,
 )
 from user.domain.models import (
-    EmailNotVerifiedException,
     InvalidCredentialsException,
     User,
     UserAlreadyExistsException,
@@ -146,17 +145,30 @@ class UserApplicationService:
 
         return await self._map_to_response(user)
 
-    async def authenticate_user(self, email: str, password: str) -> UserResponse:
-        """认证用户"""
-        user = await self._user_repository.find_by_email(email)
+    async def authenticate_user(self, login_id: str, password: str) -> UserResponse:
+        """认证用户 - 支持邮箱或用户名登录"""
+        # 首先尝试按邮箱查找
+        user = None
+        if "@" in login_id:
+            # 包含@符号，当作邮箱处理
+            user = await self._user_repository.find_by_email(login_id)
+        else:
+            # 不包含@符号，当作用户名处理
+            user = await self._user_repository.find_by_username(login_id)
+
+        # 如果用户名查找失败，再尝试邮箱查找（防止用户名中有@的情况）
+        if not user and "@" not in login_id:
+            user = await self._user_repository.find_by_email(login_id)
+
         if not user:
-            raise InvalidCredentialsException("邮箱或密码错误")
+            raise InvalidCredentialsException("用户名/邮箱或密码错误")
 
         if not self._password_service.verify_password(password, user.password_hash):
-            raise InvalidCredentialsException("邮箱或密码错误")
+            raise InvalidCredentialsException("用户名/邮箱或密码错误")
 
-        if not user.email_verified:
-            raise EmailNotVerifiedException("邮箱未验证")
+        # 暂时移除邮箱验证要求，后续可重新启用
+        # if not user.email_verified:
+        #     raise EmailNotVerifiedException("邮箱未验证")
 
         if user.status != UserStatus.ACTIVE:
             raise ApplicationException("账户已被暂停")

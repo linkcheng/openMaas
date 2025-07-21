@@ -85,34 +85,33 @@ class AuthService:
                 raise ApplicationException("用户已被暂停")
 
             # 创建新的令牌
-            return await self._create_token_response(user)
+            from .services import UserApplicationService
+            
+            # 创建临时的 UserApplicationService 来转换用户对象
+            user_app_service = UserApplicationService(
+                user_repository=self._user_repository,
+                role_repository=None,
+                password_service=None,
+                email_service=None,
+                api_key_service=None,
+            )
+            user_response = await user_app_service._map_to_response(user)
+            return await self._create_token_response(user_response)
 
         except jwt.ExpiredSignatureError:
             raise ApplicationException("刷新令牌已过期")
         except jwt.InvalidTokenError:
             raise ApplicationException("无效的刷新令牌")
 
-    async def _create_token_response(self, user) -> AuthTokenResponse:
+    async def _create_token_response(self, user_response) -> AuthTokenResponse:
         """创建令牌响应"""
-        from .services import UserApplicationService
-
         # 获取用户权限
         permissions = []
-        for role in user.roles:
-            permissions.extend([str(perm) for perm in role.permissions])
+        for role in user_response.roles:
+            permissions.extend(role.permissions)
 
-        access_token = self.create_access_token(user.id, permissions)
-        refresh_token = self.create_refresh_token(user.id)
-
-        # 创建用户响应数据
-        user_app_service = UserApplicationService(
-            user_repository=self._user_repository,
-            role_repository=None,  # 这里需要依赖注入
-            password_service=None,
-            email_service=None,
-            api_key_service=None,
-        )
-        user_response = await user_app_service._map_to_response(user)
+        access_token = self.create_access_token(user_response.id, permissions)
+        refresh_token = self.create_refresh_token(user_response.id)
 
         return AuthTokenResponse(
             access_token=access_token,

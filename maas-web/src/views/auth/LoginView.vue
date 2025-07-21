@@ -2,21 +2,21 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-
-const loading = ref(false)
+const { login, isLoading } = useAuth()
 
 const loginForm = reactive({
-  username: '',
+  login_id: '',
   password: '',
   remember: false,
 })
 
 const rules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
+  login_id: [
+    { required: true, message: '请输入用户名或邮箱', trigger: 'blur' },
+    { min: 3, message: '用户名或邮箱至少3个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -31,21 +31,22 @@ const handleLogin = async () => {
 
   try {
     await loginFormRef.value.validate()
-    loading.value = true
 
-    // 模拟登录 API 调用
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // 调用实际的登录 API
+    const result = await login({
+      login_id: loginForm.login_id,
+      password: loginForm.password,
+    })
 
-    // 这里应该调用实际的登录 API
-    // const response = await login(loginForm.username, loginForm.password)
-
-    ElMessage.success('登录成功')
-    router.push('/dashboard')
+    if (result.success) {
+      ElMessage.success(result.message || '登录成功')
+      router.push('/dashboard')
+    } else {
+      ElMessage.error(result.error || '登录失败')
+    }
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error('登录失败，请检查用户名和密码')
-  } finally {
-    loading.value = false
   }
 }
 
@@ -77,10 +78,10 @@ const goToForgotPassword = () => {
         size="large"
         label-position="top"
       >
-        <el-form-item label="用户名" prop="username">
+        <el-form-item label="用户名/邮箱" prop="login_id">
           <el-input
-            v-model="loginForm.username"
-            placeholder="请输入用户名"
+            v-model="loginForm.login_id"
+            placeholder="请输入用户名或邮箱"
             prefix-icon="User"
             clearable
           />
@@ -106,8 +107,8 @@ const goToForgotPassword = () => {
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" class="login-button" :loading="loading" @click="handleLogin">
-            {{ loading ? '登录中...' : '登录' }}
+          <el-button type="primary" class="login-button" :loading="isLoading" @click="handleLogin">
+            {{ isLoading ? '登录中...' : '登录' }}
           </el-button>
         </el-form-item>
       </el-form>

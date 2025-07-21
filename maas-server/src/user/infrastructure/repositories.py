@@ -62,22 +62,40 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
 
     async def _sync_user_roles(self, user_orm: UserORM, user: User):
         """同步用户角色"""
+        from uuid_extensions import uuid7
+
         from user.infrastructure.models import UserRoleORM
 
-        # 删除现有角色关联
+        # 获取现有角色关联
         stmt = select(UserRoleORM).where(UserRoleORM.user_id == user.id)
         result = await self.session.execute(stmt)
         existing_roles = result.scalars().all()
-        for role_rel in existing_roles:
-            await self.session.delete(role_rel)
+        existing_role_ids = {role_rel.role_id for role_rel in existing_roles}
+
+        # 获取当前用户应有的角色ID
+        current_role_ids = {role.id for role in user.roles}
+
+        # 如果角色没有变化，直接返回
+        if existing_role_ids == current_role_ids:
+            return
+
+        # 删除不再需要的角色关联
+        roles_to_remove = existing_role_ids - current_role_ids
+        if roles_to_remove:
+            for role_rel in existing_roles:
+                if role_rel.role_id in roles_to_remove:
+                    await self.session.delete(role_rel)
 
         # 添加新的角色关联
+        roles_to_add = current_role_ids - existing_role_ids
         for role in user.roles:
-            role_rel = UserRoleORM(
-                user_id=user.id,
-                role_id=role.id
-            )
-            self.session.add(role_rel)
+            if role.id in roles_to_add:
+                role_rel = UserRoleORM(
+                    user_role_id=uuid7(),  # 添加必需的user_role_id字段
+                    user_id=user.id,
+                    role_id=role.id
+                )
+                self.session.add(role_rel)
 
     async def _sync_user_api_keys(self, user_orm: UserORM, user: User):
         """同步用户API密钥"""

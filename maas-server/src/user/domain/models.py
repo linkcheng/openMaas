@@ -323,7 +323,8 @@ class User(AggregateRoot):
             username=username,
             email=email_addr,
             password_hash=password_hash,
-            profile=profile
+            profile=profile,
+            email_verified=True  # 新用户默认为邮箱已验证，简化注册流程
         )
 
         # 添加领域事件
@@ -337,7 +338,10 @@ class User(AggregateRoot):
                 "user_id": str(user_id),
                 "email": email,
                 "username": username
-            }
+            },
+            user_id=user_id,
+            email=email,
+            username=username
         ))
 
         return user

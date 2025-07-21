@@ -20,7 +20,7 @@ export interface UserRegisterRequest {
 }
 
 export interface UserLoginRequest {
-  email: string
+  login_id: string
   password: string
 }
 

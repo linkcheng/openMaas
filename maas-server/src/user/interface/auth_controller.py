@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
+from loguru import logger
 from pydantic import ValidationError
 
 from shared.application.response import ApiResponse
@@ -102,13 +103,13 @@ async def login(
     """
     用户登录
     
-    - **email**: 邮箱地址
+    - **login_id**: 邮箱地址或用户名
     - **password**: 密码
     """
     try:
         # 认证用户
-        user = await user_service.authenticate_user(request.email, request.password)
-
+        user = await user_service.authenticate_user(request.login_id, request.password)
+        logger.info(user)
         # 创建令牌
         token_response = await auth_service._create_token_response(user)
 
@@ -117,10 +118,11 @@ async def login(
     except InvalidCredentialsException:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="邮箱或密码错误"
+            detail="用户名/邮箱或密码错误"
         )
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"登录失败: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登录失败，请稍后重试"
