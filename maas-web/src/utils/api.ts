@@ -52,6 +52,55 @@ export interface PasswordResetConfirmRequest {
   new_password: string
 }
 
+// 统计数据相关接口
+export interface UserStatsResponse {
+  total_api_calls: number
+  total_storage_used: number
+  total_compute_hours: number
+  models_created: number
+  applications_created: number
+  last_30_days_activity: Record<string, number>
+  api_keys_count: number
+  requests_count: number
+  usage_cost: number
+}
+
+export interface AdminStatsResponse {
+  total_users: number
+  total_api_keys: number
+  total_requests: number
+  active_users: number
+  active_users_30d: number
+  total_models: number
+  total_deployments: number
+  storage_usage_total: number
+  user_growth_trend: Record<string, number>
+  popular_models: Array<{
+    id: string
+    name: string
+    usage_count: number
+  }>
+}
+
+export interface ActivityLogResponse {
+  id: string
+  type: string
+  description: string
+  timestamp: string
+  status: 'success' | 'warning' | 'error'
+  user_id?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface SystemHealthResponse {
+  status: 'healthy' | 'warning' | 'error'
+  database: boolean
+  redis: boolean
+  storage: boolean
+  uptime: number
+  version: string
+}
+
 class ApiClient {
   private client: AxiosInstance
 
@@ -163,6 +212,48 @@ class ApiClient {
       }),
 
     activateUser: (userId: string) => this.client.post<ApiResponse>(`/users/${userId}/activate`),
+  }
+
+  // 统计数据API
+  stats = {
+    // 用户统计
+    getUserStats: () => this.client.get<ApiResponse<UserStatsResponse>>('/users/me/stats'),
+
+    // 管理员统计
+    getAdminStats: () => this.client.get<ApiResponse<AdminStatsResponse>>('/admin/stats'),
+
+    // 获取用户活动日志
+    getUserActivityLogs: (params: {
+      page?: number
+      limit?: number
+      type?: string
+    } = {}) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/users/me/activity-logs', { params }),
+
+    // 获取所有用户活动日志（管理员）
+    getAllActivityLogs: (params: {
+      page?: number
+      limit?: number
+      user_id?: string
+      type?: string
+    } = {}) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/admin/activity-logs', { params }),
+  }
+
+  // 系统监控API
+  system = {
+    // 系统健康检查
+    getHealth: () => this.client.get<ApiResponse<SystemHealthResponse>>('/system/health'),
+
+    // 系统指标
+    getMetrics: () => this.client.get<ApiResponse>('/system/metrics'),
+
+    // 资源使用情况
+    getResources: () => this.client.get<ApiResponse>('/system/resources'),
+  }
+
+  // 仪表盘API
+  dashboard = {
+    // 获取仪表盘概览数据
+    getOverview: () => this.client.get<ApiResponse>('/dashboard/overview'),
   }
 
   // 通用请求方法

@@ -149,7 +149,7 @@ async def login(
 
         # 认证用户
         user = await user_service.authenticate_user(request.login_id, decrypted_password)
-        # logger.info(user)
+
         # 创建令牌
         token_response = await auth_service._create_token_response(user)
 

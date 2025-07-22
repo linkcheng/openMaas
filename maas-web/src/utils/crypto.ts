@@ -78,7 +78,7 @@ export class SM2CryptoUtil {
             localStorage.removeItem(this.LOCAL_KEY)
           }
         }
-      } catch (e) {
+      } catch {
         // 解析失败，清理
         localStorage.removeItem(this.LOCAL_KEY)
       }
