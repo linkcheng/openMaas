@@ -4,6 +4,29 @@
 
 <template>
   <div class="about">
+    <!-- 页面头部（与首页一致） -->
+    <el-header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <el-icon :size="32" color="#409EFF">
+            <Platform />
+          </el-icon>
+          <span class="logo-text">MaaS 平台</span>
+        </div>
+        <div class="nav">
+          <el-menu mode="horizontal" :default-active="'about'" router>
+            <el-menu-item index="/">首页</el-menu-item>
+            <el-menu-item index="/dashboard">控制台</el-menu-item>
+            <el-menu-item index="/about">关于</el-menu-item>
+          </el-menu>
+        </div>
+        <div class="user-actions">
+          <el-button type="primary" @click="$router.push('/auth/login')"> 登录 </el-button>
+          <el-button @click="$router.push('/auth/register')"> 注册 </el-button>
+        </div>
+      </div>
+    </el-header>
+
     <el-container>
       <!-- 页面头部 -->
       <el-header height="200px" class="hero-header">
@@ -80,84 +103,77 @@
               </el-row>
             </section>
 
-            <!-- 技术架构 -->
-            <section class="section">
-              <h2 class="section-title">技术架构</h2>
-              <el-row :gutter="24">
-                <el-col :xs="24" :lg="12">
-                  <el-card class="tech-card">
-                    <template #header>
-                      <h3>
-                        <el-icon><Cpu /></el-icon>
-                        前端技术栈
-                      </h3>
-                    </template>
-                    <ul class="tech-list">
-                      <li>Vue 3 + TypeScript</li>
-                      <li>Element Plus UI 框架</li>
-                      <li>Vite 构建工具</li>
-                      <li>Pinia 状态管理</li>
-                      <li>Vue Router 路由管理</li>
-                    </ul>
-                  </el-card>
-                </el-col>
-                <el-col :xs="24" :lg="12">
-                  <el-card class="tech-card">
-                    <template #header>
-                      <h3>
-                        <el-icon><Server /></el-icon>
-                        后端技术栈
-                      </h3>
-                    </template>
-                    <ul class="tech-list">
-                      <li>Python + FastAPI</li>
-                      <li>SQLAlchemy ORM</li>
-                      <li>PostgreSQL 数据库</li>
-                      <li>Redis 缓存</li>
-                      <li>Celery 异步任务</li>
-                    </ul>
-                  </el-card>
-                </el-col>
-              </el-row>
-            </section>
-
-            <!-- 团队信息 -->
-            <section class="section">
-              <h2 class="section-title">开发团队</h2>
-              <el-card class="team-card">
-                <p class="team-description">
-                  我们是一支专注于 AI 技术的团队，拥有丰富的机器学习、系统架构和产品开发经验。
-                  致力于打造最优秀的 AI 模型服务平台，为用户提供卓越的体验。
-                </p>
-                <el-divider />
-                <div class="contact-info">
-                  <h3>联系我们</h3>
-                  <p>
-                    <el-icon><Message /></el-icon>
-                    邮箱：support@maas-platform.com
-                  </p>
-                  <p>
-                    <el-icon><Phone /></el-icon>
-                    电话：400-123-4567
-                  </p>
-                  <p>
-                    <el-icon><Location /></el-icon>
-                    地址：北京市海淀区中关村软件园
-                  </p>
-                </div>
-              </el-card>
-            </section>
           </el-col>
         </el-row>
       </el-main>
     </el-container>
+
+    <!-- 页面底部（与首页一致） -->
+    <el-footer class="footer">
+      <div class="footer-content">
+        <p>&copy; 2024 MaaS 平台. 保留所有权利.</p>
+      </div>
+    </el-footer>
   </div>
 </template>
 
 <style scoped>
 .about {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #f5f7fa;
+}
+
+/* 添加首页样式 */
+.header {
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+  height: var(--header-height);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+  height: 100%;
+  gap: var(--space-md);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  display: none;
+}
+
+.user-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .hero-header {
@@ -241,64 +257,35 @@
   margin: 0;
 }
 
-.tech-card {
-  height: 100%;
-  margin-bottom: 24px;
-}
 
-.tech-card h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: #303133;
-}
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .header-content {
+    padding: 0 var(--space-sm);
+    flex-wrap: wrap;
+    min-height: var(--header-height);
+    height: auto;
+  }
 
-.tech-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
+  .logo {
+    order: 1;
+  }
 
-.tech-list li {
-  padding: 8px 0;
-  color: #606266;
-  border-bottom: 1px solid #f0f0f0;
-}
+  .user-actions {
+    order: 2;
+    gap: var(--space-xs);
+  }
 
-.tech-list li:last-child {
-  border-bottom: none;
-}
+  .nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    margin-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+  }
 
-.team-card {
-  text-align: center;
-}
-
-.team-description {
-  font-size: 1.1rem;
-  line-height: 1.8;
-  color: #606266;
-  margin-bottom: 0;
-}
-
-.contact-info {
-  text-align: left;
-}
-
-.contact-info h3 {
-  margin-bottom: 20px;
-  color: #303133;
-}
-
-.contact-info p {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0;
-  color: #606266;
-}
-
-@media (max-width: 768px) {
   .hero-title {
     font-size: 2rem;
   }
@@ -314,5 +301,41 @@
   .main-content {
     padding: 40px 20px;
   }
+}
+
+/* 平板适配 */
+@media (min-width: 641px) and (max-width: 768px) {
+  .nav {
+    display: flex;
+  }
+
+  .header-content {
+    gap: var(--space-lg);
+  }
+}
+
+/* 桌面端适配 */
+@media (min-width: 769px) {
+  .nav {
+    display: flex;
+  }
+
+  .header-content {
+    gap: var(--space-xl);
+  }
+}
+
+/* 底部样式（与首页一致） */
+.footer {
+  background: var(--color-text-primary);
+  color: var(--color-background);
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
 }
 </style>
