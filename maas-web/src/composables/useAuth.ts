@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { apiClient, handleApiError } from '@/utils/api'
+import { SM2CryptoUtil } from '@/utils/crypto'
 import type {
   UserRegisterRequest,
   UserLoginRequest,
@@ -31,7 +32,15 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.register(data)
+      // 加密密码
+      const encryptedPassword = await SM2CryptoUtil.encryptPassword(data.password)
+
+      const encryptedData = {
+        ...data,
+        password: encryptedPassword
+      }
+      
+      const response = await apiClient.auth.register(encryptedData)
 
       if (response.data.success) {
         return { success: true, message: response.data.message }
@@ -53,7 +62,14 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.login(data)
+      // 加密密码
+      const encryptedPassword = await SM2CryptoUtil.encryptPassword(data.password)
+      const encryptedData = {
+        ...data,
+        password: encryptedPassword
+      }
+      
+      const response = await apiClient.auth.login(encryptedData)
 
       if (response.data.success && response.data.data) {
         const tokenData = response.data.data

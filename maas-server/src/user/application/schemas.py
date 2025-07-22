@@ -19,7 +19,7 @@ class UserCreateRequest(BaseModel):
     """用户创建请求"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     email: EmailStr = Field(..., description="邮箱地址")
-    password: str = Field(..., min_length=8, max_length=100, description="密码")
+    password: str = Field(..., description="SM2加密后的密码")
     first_name: str = Field(..., min_length=1, max_length=50, description="名字")
     last_name: str = Field(..., min_length=1, max_length=50, description="姓氏")
     organization: str | None = Field(None, max_length=255, description="组织")
@@ -31,21 +31,11 @@ class UserCreateRequest(BaseModel):
             raise ValueError("用户名只能包含字母、数字和下划线")
         return v
 
-    @validator("password")
-    def validate_password(cls, v):
-        if not any(c.isupper() for c in v):
-            raise ValueError("密码必须包含至少一个大写字母")
-        if not any(c.islower() for c in v):
-            raise ValueError("密码必须包含至少一个小写字母")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("密码必须包含至少一个数字")
-        return v
-
 
 class UserLoginRequest(BaseModel):
     """用户登录请求"""
     login_id: str = Field(..., description="邮箱地址或用户名")
-    password: str = Field(..., description="密码")
+    password: str = Field(..., description="SM2加密后的密码")
 
 
 class UserUpdateRequest(BaseModel):

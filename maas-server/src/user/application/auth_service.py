@@ -86,7 +86,7 @@ class AuthService:
 
             # 创建新的令牌
             from .services import UserApplicationService
-            
+
             # 创建临时的 UserApplicationService 来转换用户对象
             user_app_service = UserApplicationService(
                 user_repository=self._user_repository,

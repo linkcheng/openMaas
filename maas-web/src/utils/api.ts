@@ -124,6 +124,8 @@ class ApiClient {
     verifyEmail: (token: string) => this.client.post<ApiResponse>('/auth/verify-email', { token }),
 
     getCurrentUser: () => this.client.get<ApiResponse>('/auth/me'),
+
+    getPublicKey: () => this.client.get<ApiResponse>('/auth/crypto/public-key'),
   }
 
   // 用户管理API

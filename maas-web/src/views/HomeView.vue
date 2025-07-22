@@ -15,7 +15,7 @@
         </div>
         <div class="nav">
           <el-menu mode="horizontal" :default-active="'home'" router>
-            <el-menu-item index="/home">首页</el-menu-item>
+            <el-menu-item index="/">首页</el-menu-item>
             <el-menu-item index="/dashboard">控制台</el-menu-item>
             <el-menu-item index="/about">关于</el-menu-item>
           </el-menu>

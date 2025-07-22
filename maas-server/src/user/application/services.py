@@ -4,6 +4,7 @@ import hashlib
 import secrets
 from datetime import datetime
 from uuid import UUID
+from loguru import logger
 
 from shared.application.exceptions import ApplicationException
 from user.application.schemas import (
@@ -45,6 +46,10 @@ class PasswordHashService:
     @staticmethod
     def verify_password(password: str, hashed_password: str) -> bool:
         """验证密码"""
+        # 检查输入参数
+        if not password or not hashed_password:
+            return False
+            
         try:
             salt, stored_hash = hashed_password.split(":")
             password_hash = hashlib.pbkdf2_hmac(
@@ -54,7 +59,8 @@ class PasswordHashService:
                 100000
             )
             return password_hash.hex() == stored_hash
-        except (ValueError, IndexError):
+        except (ValueError, AttributeError, IndexError) as e:
+            logger.error(f"密码验证失败: {e}")
             return False
 
 
@@ -166,7 +172,7 @@ class UserApplicationService:
         if not self._password_service.verify_password(password, user.password_hash):
             raise InvalidCredentialsException("用户名/邮箱或密码错误")
 
-        # 暂时移除邮箱验证要求，后续可重新启用
+        # TODO: 暂时移除邮箱验证要求，后续可重新启用
         # if not user.email_verified:
         #     raise EmailNotVerifiedException("邮箱未验证")
 

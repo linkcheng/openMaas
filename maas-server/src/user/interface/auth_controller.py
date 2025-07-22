@@ -9,6 +9,7 @@ from loguru import logger
 from pydantic import ValidationError
 
 from shared.application.response import ApiResponse
+from shared.infrastructure.crypto_service import get_sm2_service
 from shared.interface.auth_middleware import get_current_user_id, jwt_bearer
 from shared.interface.dependencies import (
     get_auth_service,
@@ -34,6 +35,27 @@ from user.domain.models import (
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 
+@router.get("/crypto/public-key", response_model=ApiResponse[dict], summary="获取SM2公钥")
+async def get_public_key():
+    """
+    获取SM2公钥用于前端密码加密
+    
+    返回SM2公钥信息，前端使用此公钥加密密码后传输
+    """
+    try:
+        sm2_service = get_sm2_service()
+        key_info = sm2_service.get_key_info()
+
+        return ApiResponse.success_response(key_info, "获取公钥成功")
+
+    except Exception as e:
+        logger.error(f"获取公钥失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取公钥失败"
+        )
+
+
 @router.post("/register", response_model=ApiResponse[UserResponse], summary="用户注册")
 async def register(
     request: UserCreateRequest,
@@ -44,14 +66,18 @@ async def register(
     
     - **username**: 用户名（3-50字符，字母、数字、下划线）
     - **email**: 邮箱地址
-    - **password**: 密码（至少8字符，包含大小写字母和数字）
+    - **password**: SM2加密后的密码
     - **first_name**: 名字
     - **last_name**: 姓氏
     - **organization**: 组织（可选）
     """
     try:
+        # 解密密码
+        sm2_service = get_sm2_service()
+        decrypted_password = sm2_service.decrypt(request.password)
+
         # 哈希密码
-        password_hash = PasswordHashService.hash_password(request.password)
+        password_hash = PasswordHashService.hash_password(decrypted_password)
 
         # 创建用户命令
         command = UserCreateCommand(
@@ -68,6 +94,12 @@ async def register(
 
         return ApiResponse.success_response(user, "注册成功")
 
+    except ValueError as e:
+        # SM2解密失败
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"密码解密失败: {e}"
+        )
     except UserAlreadyExistsException as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -104,17 +136,31 @@ async def login(
     用户登录
     
     - **login_id**: 邮箱地址或用户名
-    - **password**: 密码
+    - **password**: SM2加密后的密码
     """
     try:
+        # 解密密码
+        sm2_service = get_sm2_service()
+        decrypted_password = sm2_service.decrypt(request.password)
+        
+        # 检查解密结果
+        if not decrypted_password:
+            raise ValueError("密码解密后为空")
+
         # 认证用户
-        user = await user_service.authenticate_user(request.login_id, request.password)
-        logger.info(user)
+        user = await user_service.authenticate_user(request.login_id, decrypted_password)
+        # logger.info(user)
         # 创建令牌
         token_response = await auth_service._create_token_response(user)
 
         return ApiResponse.success_response(token_response, "登录成功")
 
+    except ValueError as e:
+        # SM2解密失败
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"密码解密失败: {e}"
+        )
     except InvalidCredentialsException:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
