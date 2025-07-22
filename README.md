@@ -2,6 +2,8 @@
 
 一个基于微服务架构的模型即服务(Model-as-a-Service)平台，采用前后端分离设计。
 
+This is a vibe coding project.
+
 ## 项目架构
 
 ```
