@@ -177,8 +177,8 @@ export const useUserStore = defineStore('user', () => {
 
     // 检查token是否过期
     if (isTokenExpired(tokens.value.access_token)) {
-      // token已过期，清除认证状态
-      clearAuth()
+      // access_token已过期，但不直接清除认证状态
+      // 让HTTP拦截器处理自动刷新
       return null
     }
 

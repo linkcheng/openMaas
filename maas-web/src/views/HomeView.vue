@@ -30,7 +30,7 @@ import {
   ArrowDown,
 } from '@element-plus/icons-vue'
 
-const { isAuthenticated, user, logout } = useAuth()
+const { isAuthenticated, currentUser, logout } = useAuth()
 </script>
 
 <template>
@@ -62,10 +62,10 @@ const { isAuthenticated, user, logout } = useAuth()
           <template v-else>
             <el-dropdown trigger="click" placement="bottom-end">
               <div class="user-info">
-                <el-avatar :size="32" :src="user?.avatar">
+                <el-avatar :size="32" :src="currentUser?.profile?.avatar_url">
                   <el-icon><UserFilled /></el-icon>
                 </el-avatar>
-                <span class="username">{{ user?.username || '用户' }}</span>
+                <span class="username">{{ currentUser?.username || '用户' }}</span>
                 <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
               </div>
               <template #dropdown>
@@ -201,7 +201,7 @@ const { isAuthenticated, user, logout } = useAuth()
     <!-- 页面底部 -->
     <el-footer class="footer">
       <div class="footer-content">
-        <p>&copy; 2024 MaaS 平台. 保留所有权利.</p>
+        <p>&copy; 2025 MaaS 平台. 保留所有权利.</p>
       </div>
     </el-footer>
   </div>

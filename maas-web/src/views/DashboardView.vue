@@ -1,766 +1,346 @@
-<!--
-Copyright 2025 MaaS Team
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
 <template>
-  <div class="dashboard">
-    <div class="container">
-      <!-- 页面头部 -->
-      <div class="dashboard-header">
-        <div class="header-left">
-          <h1>仪表板</h1>
-          <div class="real-time-indicator">
-            <div class="indicator-dot" :class="{ active: !error }"></div>
-            <span class="indicator-text">
-              {{ error ? '连接异常' : '实时监控' }}
-            </span>
-          </div>
-        </div>
-        <div class="header-actions">
-          <div v-if="error" class="connection-status error">
-            <el-icon><WarnTriangleFilled /></el-icon>
-            {{ error }}
-          </div>
-          <el-text v-else-if="lastUpdated" type="info" size="small">
-            最后更新: {{ formatTime(lastUpdated.toISOString()) }}
-          </el-text>
-          <el-button
-            :icon="RefreshRight"
-            :loading="refreshing"
-            @click="refreshData"
-            circle
-            title="刷新数据"
-          />
-        </div>
-      </div>
-
-      <!-- 加载状态 -->
-      <div v-if="loading" class="loading-container">
-        <el-skeleton :rows="5" animated />
-      </div>
-
-      <!-- 主要内容 -->
-      <div v-else>
-        <!-- 管理员仪表板 -->
-        <div v-if="isAdmin" class="admin-section">
-          <!-- 统计卡片 -->
-          <div class="stats-overview">
-            <StatCard
-              :value="adminStats.total_users || 0"
-              label="总用户数"
-              subtitle="系统注册用户总数"
-              :icon-component="User"
-              icon-color="#6366f1"
-              icon-text-color="white"
-              :trend="calculateTrend('users')"
-              comparison="+12% vs 上月"
-              format-type="number"
-              clickable
-              action-text="查看详情"
-              @click="navigateToUserManagement"
-            />
-
-            <StatCard
-              :value="adminStats.total_api_keys || 0"
-              label="API密钥数"
-              subtitle="已创建的API密钥总数"
-              :icon-component="Key"
-              icon-color="#10b981"
-              icon-text-color="white"
-              :trend="calculateTrend('api_keys')"
-              comparison="+5% vs 上月"
-              format-type="number"
-              clickable
-              @click="navigateToApiKeys"
-            />
-
-            <StatCard
-              :value="adminStats.total_requests || 0"
-              label="总请求数"
-              subtitle="累计API调用次数"
-              :icon-component="TrendCharts"
-              icon-color="#f59e0b"
-              icon-text-color="white"
-              :trend="calculateTrend('requests')"
-              comparison="+8% vs 上月"
-              format-type="number"
-              clickable
-              @click="navigateToAnalytics"
-            />
-
-            <StatCard
-              :value="adminStats.active_users || 0"
-              label="活跃用户"
-              subtitle="过去30天内活跃用户"
-              :icon-component="User"
-              icon-color="#8b5cf6"
-              icon-text-color="white"
-              :trend="calculateTrend('active_users')"
-              comparison="+15% vs 上月"
-              format-type="number"
-              clickable
-              @click="navigateToUserActivity"
-            />
-          </div>
-
-          <!-- 管理员图表区域 -->
-          <DashboardCharts
-            title="数据分析"
-            :loading="loading"
-            @period-change="handlePeriodChange"
-            @refresh="refreshData"
-          />
-
-          <!-- 管理员快速操作 -->
-          <QuickActions
-            title="管理员操作"
-            :actions="adminQuickActions"
-            :show-recent-actions="true"
-            :recent-actions="recentAdminActions"
-            @action-click="handleQuickActionClick"
-          />
-        </div>
-
-        <!-- 普通用户仪表板 -->
-        <div v-else class="user-section">
-          <div class="welcome-card">
-            <h2>欢迎回来, {{ currentUser?.username || '用户' }}!</h2>
-            <p>这是您的个人仪表板，您可以在这里管理您的设置和查看使用情况。</p>
-          </div>
-
-          <div class="user-stats">
-            <StatCard
-              :value="userStats.api_keys_count || 0"
-              label="API密钥"
-              subtitle="您创建的API密钥数量"
-              :icon-component="Key"
-              icon-color="#6366f1"
-              icon-text-color="white"
-              format-type="number"
-              clickable
-              action-text="管理密钥"
-              @click="navigateToUserApiKeys"
-            />
-
-            <StatCard
-              :value="userStats.requests_count || 0"
-              label="本月请求"
-              subtitle="当月API调用次数"
-              :icon-component="TrendCharts"
-              icon-color="#10b981"
-              icon-text-color="white"
-              :trend="calculateUserTrend('requests')"
-              comparison="+12% vs 上月"
-              format-type="number"
-              clickable
-              @click="navigateToUserAnalytics"
-            />
-
-            <StatCard
-              :value="userStats.usage_cost || 0"
-              label="本月费用"
-              subtitle="当月使用费用统计"
-              :icon-component="Monitor"
-              icon-color="#f59e0b"
-              icon-text-color="white"
-              :trend="calculateUserTrend('cost')"
-              comparison="-5% vs 上月"
-              format-type="currency"
-              :precision="2"
-              clickable
-              action-text="查看账单"
-              @click="navigateToUserBilling"
-            />
-          </div>
-
-          <!-- 普通用户快速操作 -->
-          <QuickActions
-            title="快速操作"
-            :actions="userQuickActions"
-            :show-recent-actions="true"
-            :recent-actions="recentUserActions"
-            @action-click="handleQuickActionClick"
-          />
-        </div>
-
-        <!-- 最近活动（所有用户） -->
-        <ActivityLog
-          title="最近活动"
-          :activities="enrichedActivities"
-          :loading="loading"
-          :has-more="hasMoreActivities"
-          :total-count="totalActivitiesCount"
-          @refresh="refreshData"
-          @load-more="loadMoreActivities"
-          @filter-change="handleActivityFilterChange"
-        />
+  <div class="dashboard-container">
+    <!-- 页面标题 -->
+    <div class="title-section">
+      <h1>仪表盘</h1>
+      <div class="real-time-indicator">
+        <el-icon><DataAnalysis /></el-icon>
+        <span>实时监控</span>
       </div>
     </div>
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="24" class="stats-cards">
+      <el-col v-for="(stat, index) in stats" :key="index" :xs="24" :sm="12" :md="12" :lg="6">
+        <el-card class="stat-card">
+          <div class="stat-content">
+            <div class="stat-info">
+              <p class="stat-label">{{ stat.label }}</p>
+              <p class="stat-value">{{ stat.value }}</p>
+            </div>
+            <el-icon class="stat-icon" :style="{ color: stat.iconColor }">
+              <component :is="stat.icon" />
+            </el-icon>
+          </div>
+          <div class="stat-change">
+            <el-icon class="trend-icon"><TrendCharts /></el-icon>
+            <span class="change-value">{{ stat.change }}</span>
+            <span class="change-period">vs 上月</span>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 主要内容区域 -->
+    <el-row :gutter="24" class="main-content">
+      <!-- 模型性能图表 -->
+      <el-col :xs="24" :lg="12">
+        <el-card class="chart-card">
+          <template #header>
+            <span class="card-title">模型性能趋势</span>
+          </template>
+          <div class="chart-placeholder">
+            <p>图表区域 - 集成实际图表库</p>
+          </div>
+        </el-card>
+      </el-col>
+
+      <!-- 最近活动 -->
+      <el-col :xs="24" :lg="12">
+        <el-card class="activity-card">
+          <template #header>
+            <span class="card-title">最近活动</span>
+          </template>
+          <div class="activity-list">
+            <div v-for="(activity, index) in recentActivity" :key="index" class="activity-item">
+              <div class="activity-avatar">
+                <el-icon><DataAnalysis /></el-icon>
+              </div>
+              <div class="activity-content">
+                <p class="activity-text">
+                  {{ activity.action }}
+                  <span class="activity-name">{{ activity.name }}</span>
+                </p>
+                <p class="activity-time">{{ activity.time }}</p>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 快速操作 -->
+    <el-card class="quick-actions-card">
+      <template #header>
+        <span class="card-title">快速操作</span>
+      </template>
+      <el-row :gutter="16">
+        <el-col :xs="24" :sm="8">
+          <el-button type="primary" size="large" class="quick-action-btn"> 创建新模型 </el-button>
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <el-button type="success" size="large" class="quick-action-btn"> 上传数据集 </el-button>
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <el-button color="#8b5cf6" size="large" class="quick-action-btn"> 部署应用 </el-button>
+        </el-col>
+      </el-row>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { RefreshRight, WarnTriangleFilled } from '@element-plus/icons-vue'
-import { useAuth } from '@/composables/useAuth'
-import { useDashboard } from '@/composables/useDashboard'
-import StatCard from '@/components/dashboard/StatCard.vue'
-import DashboardCharts from '@/components/dashboard/DashboardCharts.vue'
-import ActivityLog from '@/components/dashboard/ActivityLog.vue'
-import QuickActions from '@/components/dashboard/QuickActions.vue'
-import {
-  Monitor,
-  Key,
-  TrendCharts,
-  User,
-  Setting,
-  UserFilled,
-  House,
-} from '@element-plus/icons-vue'
+import { ref } from 'vue'
+import { DataAnalysis, Coin, Cpu, Monitor, User, TrendCharts } from '@element-plus/icons-vue'
 
-interface ActivityMetadata {
-  [key: string]: string | number
+interface StatItem {
+  icon: typeof DataAnalysis
+  iconColor: string
+  label: string
+  value: string
+  change: string
 }
 
-interface QuickActionType {
-  id: string
-  title: string
-  description: string
-  iconComponent?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  color: string
-  lastUsed?: string
-  route: string
-  badge?: string
-  badgeType?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
-  shortcut?: string
-  stats?: { label: string; value: string | number }[]
-  showFooter?: boolean
+interface ActivityItem {
+  type: string
+  action: string
+  name: string
+  time: string
 }
 
-const { isAdmin, currentUser } = useAuth()
-
-const {
-  // 状态
-  loading,
-  refreshing,
-  lastUpdated,
-  error,
-
-  // 数据
-  userStats,
-  adminStats,
-  recentActivities,
-
-  // 方法
-  refreshData,
-  formatTime,
-  handlePeriodChange,
-} = useDashboard()
-
-// 增强的活动数据
-const enrichedActivities = computed(() => {
-  return recentActivities.value.map((activity) => ({
-    ...activity,
-    user: isAdmin.value ? 'admin' : currentUser.value?.username,
-    details: getActivityDetails(activity),
-    metadata: getActivityMetadata(activity),
-  }))
-})
-
-// 活动分页状态
-const hasMoreActivities = ref(false)
-const totalActivitiesCount = ref(0)
-
-// 快速操作数据
-const adminQuickActions = computed(() => [
+const stats = ref<StatItem[]>([
   {
-    id: 'admin-dashboard',
-    title: '管理后台',
-    description: '进入完整的管理员后台系统',
-    iconComponent: House,
-    color: '#6366f1',
-    badge: '管理',
-    badgeType: 'primary' as const,
-    stats: [
-      { label: '在线用户', value: '67' },
-      { label: '系统负载', value: '32%' },
-    ],
-    route: '/admin/dashboard',
+    icon: Coin,
+    iconColor: '#409eff',
+    label: '数据集',
+    value: '156',
+    change: '+12%',
   },
   {
-    id: 'user-management',
-    title: '用户管理',
-    description: '管理系统用户和权限设置',
-    iconComponent: UserFilled,
-    color: '#10b981',
-    stats: [
-      { label: '总用户', value: adminStats.total_users || 0 },
-      { label: '今日新增', value: '5' },
-    ],
-    route: '/admin/users',
+    icon: Cpu,
+    iconColor: '#409eff',
+    label: '模型',
+    value: '89',
+    change: '+5%',
   },
   {
-    id: 'system-settings',
-    title: '系统设置',
-    description: '配置系统参数和安全策略',
-    iconComponent: Setting,
-    color: '#f59e0b',
-    badge: '重要',
-    badgeType: 'warning' as const,
-    shortcut: 'Ctrl+S',
-    route: '/admin/settings',
+    icon: Monitor,
+    iconColor: '#409eff',
+    label: '部署实例',
+    value: '34',
+    change: '+8%',
+  },
+  {
+    icon: User,
+    iconColor: '#409eff',
+    label: '活跃用户',
+    value: '1,234',
+    change: '+15%',
   },
 ])
 
-const userQuickActions = computed(() => [
-  {
-    id: 'user-profile',
-    title: '个人资料',
-    description: '查看和编辑个人信息设置',
-    iconComponent: UserFilled,
-    color: '#6366f1',
-    stats: [{ label: '完整度', value: '85%' }],
-    route: '/user/profile',
-  },
-  {
-    id: 'user-settings',
-    title: '账户设置',
-    description: '管理账户设置和安全偏好',
-    iconComponent: Setting,
-    color: '#10b981',
-    shortcut: 'Ctrl+,',
-    route: '/user/settings',
-  },
+const recentActivity = ref<ActivityItem[]>([
+  { type: 'model', action: '部署了模型', name: 'ChatGLM-6B', time: '2 分钟前' },
+  { type: 'data', action: '上传了数据集', name: '对话数据集v2', time: '5 分钟前' },
+  { type: 'finetune', action: '开始微调', name: 'BERT-Base', time: '10 分钟前' },
+  { type: 'knowledge', action: '同步知识库', name: '产品文档', time: '15 分钟前' },
 ])
-
-const recentAdminActions = ref<QuickActionType[]>([
-  {
-    id: 'recent-1',
-    title: '用户管理',
-    description: '管理系统用户和权限设置',
-    iconComponent: UserFilled,
-    color: '#10b981',
-    lastUsed: '2分钟前',
-    route: '/admin/users',
-  },
-])
-
-const recentUserActions = ref<QuickActionType[]>([
-  {
-    id: 'recent-user-1',
-    title: '个人资料',
-    description: '查看和编辑个人信息设置',
-    iconComponent: UserFilled,
-    color: '#6366f1',
-    lastUsed: '5分钟前',
-    route: '/user/profile',
-  },
-])
-
-// 计算趋势百分比
-const calculateTrend = (type: string): number => {
-  // 这里应该基于历史数据计算实际趋势
-  const trendMap: Record<string, number> = {
-    users: 12,
-    api_keys: 5,
-    requests: 8,
-    active_users: 15,
-  }
-  return trendMap[type] || 0
-}
-
-const calculateUserTrend = (type: string): number => {
-  const trendMap: Record<string, number> = {
-    requests: 12,
-    cost: -5,
-  }
-  return trendMap[type] || 0
-}
-
-// 获取活动详情
-const getActivityDetails = (activity: { type: string }): string | undefined => {
-  if (activity.type === 'api_call') {
-    return '成功处理API请求，响应时间245ms'
-  }
-  if (activity.type === 'system_warning') {
-    return '系统负载达到80%，建议关注资源使用情况'
-  }
-  return undefined
-}
-
-// 获取活动元数据
-const getActivityMetadata = (activity: { type: string }): ActivityMetadata | undefined => {
-  if (activity.type === 'api_call') {
-    return {
-      端点: '/api/v1/models/predict',
-      方法: 'POST',
-      状态码: '200',
-      IP地址: '192.168.1.100',
-    }
-  }
-  return undefined
-}
-
-// 导航方法
-const navigateToUserManagement = () => {
-  console.log('导航到用户管理')
-}
-
-const navigateToApiKeys = () => {
-  console.log('导航到API密钥管理')
-}
-
-const navigateToAnalytics = () => {
-  console.log('导航到分析页面')
-}
-
-const navigateToUserActivity = () => {
-  console.log('导航到用户活动')
-}
-
-const navigateToUserApiKeys = () => {
-  console.log('导航到用户API密钥')
-}
-
-const navigateToUserAnalytics = () => {
-  console.log('导航到用户分析')
-}
-
-const navigateToUserBilling = () => {
-  console.log('导航到用户账单')
-}
-
-// 活动相关方法
-const loadMoreActivities = () => {
-  console.log('加载更多活动')
-}
-
-const handleActivityFilterChange = (filter: string) => {
-  console.log('活动过滤变更:', filter)
-}
-
-// 快速操作点击处理
-const handleQuickActionClick = (action: QuickActionType) => {
-  console.log('快速操作点击:', action)
-  if (action.route) {
-    // 这里应该使用路由导航
-    console.log('导航到:', action.route)
-  }
-}
 </script>
 
 <style scoped>
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+.dashboard-container {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
 }
 
-/* 页面头部样式 */
-.dashboard-header {
+.title-section {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--el-border-color);
+  margin-bottom: 24px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.dashboard-header h1 {
+.title-section h1 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #303133;
   margin: 0;
-  color: var(--el-text-color-primary);
-  font-size: 2rem;
-  font-weight: 700;
 }
 
-/* 实时监控指示器 */
 .real-time-indicator {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--el-fill-color-extra-light);
-  border-radius: 20px;
-  border: 1px solid var(--el-border-color-light);
+  gap: 8px;
+  color: #909399;
+  font-size: 14px;
 }
 
-.indicator-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--el-color-danger);
-  animation: pulse-inactive 2s infinite ease-in-out;
+.stats-cards {
+  margin-bottom: 24px;
 }
 
-.indicator-dot.active {
-  background: var(--el-color-success);
-  animation: pulse-active 2s infinite ease-in-out;
-}
-
-.indicator-text {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--el-text-color-regular);
-}
-
-@keyframes pulse-active {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.2);
-  }
-}
-
-@keyframes pulse-inactive {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-/* 连接状态样式 */
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.connection-status.error {
-  background: var(--el-color-warning-light-9);
-  color: var(--el-color-warning);
-  border: 1px solid var(--el-color-warning-light-7);
-}
-
-.connection-status.partial {
-  background: var(--el-color-info-light-9);
-  color: var(--el-color-info);
-  border: 1px solid var(--el-color-info-light-7);
-}
-
-.connection-status.connected {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
-  border: 1px solid var(--el-color-success-light-7);
-}
-
-/* 加载状态 */
-.loading-container {
-  padding: 2rem;
-}
-
-/* 空状态样式 */
-.empty-activities {
-  padding: 2rem;
-  text-align: center;
-}
-
-.welcome-card {
-  background: var(--el-bg-color-overlay);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.welcome-card h2 {
-  color: var(--el-color-primary);
-  margin-bottom: 0.5rem;
-}
-
-.stats-overview,
-.user-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-/* 快速操作样式优化 */
-.quick-actions {
-  background: var(--el-bg-color-overlay);
-  border: 1px solid var(--el-border-color);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.quick-actions h2 {
-  color: var(--el-text-color-primary);
-  margin: 0 0 1.5rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.action-card {
-  background: var(--el-fill-color-extra-light);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 12px;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
+.stat-card {
   transition: all 0.3s ease;
-  display: block;
 }
 
-.action-card:hover {
-  background: var(--el-fill-color-light);
-  border-color: var(--el-color-primary);
-  transform: translateY(-3px);
-  box-shadow: var(--el-box-shadow);
-  text-decoration: none;
-  color: inherit;
+.stat-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.action-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  display: block;
+.stat-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.action-card h3 {
-  margin: 0 0 0.75rem 0;
-  color: var(--el-text-color-primary);
-  font-size: 1.125rem;
-  font-weight: 600;
+.stat-info .stat-label {
+  color: #909399;
+  font-size: 14px;
+  margin: 0 0 4px 0;
 }
 
-.action-card p {
+.stat-info .stat-value {
+  color: #303133;
+  font-size: 24px;
+  font-weight: bold;
   margin: 0;
-  font-size: 0.875rem;
-  color: var(--el-text-color-regular);
-  line-height: 1.5;
 }
 
-/* 响应式设计 */
+.stat-icon {
+  font-size: 32px;
+}
+
+.stat-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.trend-icon {
+  color: #67c23a;
+}
+
+.change-value {
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.change-period {
+  color: #909399;
+  font-size: 14px;
+}
+
+.main-content {
+  margin-bottom: 24px;
+}
+
+.chart-card,
+.activity-card {
+  height: 400px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.chart-placeholder {
+  height: 280px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 280px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+}
+
+.activity-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #409eff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-text {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #303133;
+}
+
+.activity-name {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.activity-time {
+  margin: 0;
+  font-size: 12px;
+  color: #909399;
+}
+
+.quick-actions-card .card-title {
+  margin-bottom: 16px;
+}
+
+.quick-action-btn {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
 @media (max-width: 768px) {
-  .container {
-    padding: 1rem;
+  .dashboard-container {
+    padding: 16px;
   }
 
-  .dashboard-header {
+  .title-section {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 12px;
   }
 
-  .header-left {
-    width: 100%;
-    justify-content: space-between;
+  .chart-card,
+  .activity-card {
+    height: auto;
+    margin-bottom: 16px;
   }
 
-  .dashboard-header h1 {
-    font-size: 1.5rem;
+  .chart-placeholder {
+    height: 200px;
   }
 
-  .real-time-indicator {
-    padding: 0.375rem 0.625rem;
-  }
-
-  .indicator-text {
-    font-size: 0.6875rem;
-  }
-
-  .header-actions {
-    justify-content: flex-end;
-    width: 100%;
-  }
-
-  .stats-overview,
-  .user-stats {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .activity-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .activity-status {
-    align-self: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-    gap: 0.75rem;
-  }
-
-  .action-card {
-    text-align: center;
-  }
-
-  .activity-item {
-    padding: 1rem 0.5rem;
-  }
-}
-
-/* 主题适配 */
-@media (prefers-color-scheme: dark) {
-  .welcome-card {
-    background: var(--el-bg-color-overlay);
-  }
-
-  .stat-card {
-    background: var(--el-bg-color-overlay);
-  }
-
-  .action-card {
-    background: var(--el-fill-color);
-  }
-
-  .action-card:hover {
-    background: var(--el-fill-color-light);
+  .activity-list {
+    height: auto;
+    max-height: 300px;
   }
 }
 </style>

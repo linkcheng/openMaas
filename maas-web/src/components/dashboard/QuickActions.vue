@@ -124,7 +124,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  // eslint-disable-line @typescript-eslint/no-unused-vars
+   
   title: '快速操作',
   showViewAll: false,
   showRecentActions: false,

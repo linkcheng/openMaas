@@ -188,7 +188,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  // eslint-disable-line @typescript-eslint/no-unused-vars
+   
   title: '数据分析',
   loading: false,
 })

@@ -23,6 +23,8 @@ import type {
   UserLoginRequest,
   PasswordResetRequest,
   PasswordResetConfirmRequest,
+  LoginResponse,
+  AuthTokens,
 } from '@/utils/api'
 
 export const useAuth = () => {
@@ -88,7 +90,7 @@ export const useAuth = () => {
       const response = await apiClient.auth.login(encryptedData)
 
       if (response.data.success && response.data.data) {
-        const tokenData = response.data.data
+        const tokenData: LoginResponse = response.data.data
 
         // 存储token和用户信息
         userStore.setTokens({
@@ -136,7 +138,7 @@ export const useAuth = () => {
       const response = await apiClient.auth.refreshToken()
 
       if (response.data.success && response.data.data) {
-        const tokenData = response.data.data
+        const tokenData: AuthTokens = response.data.data
 
         userStore.setTokens({
           access_token: tokenData.access_token,
@@ -161,11 +163,12 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.getCurrentUser()
+      const response = await apiClient.users.getProfile()
 
       if (response.data.success && response.data.data) {
-        userStore.setUser(response.data.data)
-        return { success: true, data: response.data.data }
+        const userData: LoginResponse['user'] = response.data.data
+        userStore.setUser(userData)
+        return { success: true, data: userData }
       } else {
         error.value = response.data.error || '获取用户信息失败'
         // 如果获取用户信息失败，清除认证状态

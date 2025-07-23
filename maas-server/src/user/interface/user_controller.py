@@ -27,6 +27,8 @@ from shared.interface.auth_middleware import (
     get_current_user_id,
     require_admin,
 )
+
+from shared.infrastructure.crypto_service import get_sm2_service
 from shared.interface.dependencies import get_user_application_service
 from user.application.schemas import (
     ApiKeyCreateRequest,
@@ -40,7 +42,10 @@ from user.application.schemas import (
     UserUpdateCommand,
     UserUpdateRequest,
 )
-from user.application.services import UserApplicationService
+from user.application.services import (
+    PasswordHashService,
+    UserApplicationService,
+)
 from user.domain.models import InvalidCredentialsException
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -111,14 +116,17 @@ async def change_password(
 ):
     """修改密码"""
     try:
-        from user.application.services import PasswordHashService
-
+        
+        sm2_service = get_sm2_service()
+        current_password = sm2_service.decrypt(request.current_password)
+        new_password = sm2_service.decrypt(request.new_password)
+        
         # 哈希新密码
-        new_password_hash = PasswordHashService.hash_password(request.new_password)
+        new_password_hash = PasswordHashService.hash_password(new_password)
 
         command = PasswordChangeCommand(
             user_id=user_id,
-            current_password=request.current_password,
+            current_password=current_password,
             new_password_hash=new_password_hash,
         )
 
@@ -130,7 +138,8 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="当前密码错误"
         )
-    except Exception:
+    except Exception as e:
+        logger.error(f"密码修改失败: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="密码修改失败"

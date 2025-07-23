@@ -443,8 +443,8 @@ const passwordRules = {
 
 const loadProfile = async () => {
   try {
-    // 首先尝试调用 /auth/me API 获取当前用户信息
-    const response = await apiClient.auth.getCurrentUser()
+    // 调用 /users/me API 获取当前用户信息
+    const response = await apiClient.users.getProfile()
 
     if (response.data.success && response.data.data) {
       const userData = response.data.data as User
@@ -461,25 +461,7 @@ const loadProfile = async () => {
         avatar_url: userData.profile?.avatar_url || '',
       })
     } else {
-      // 如果 /auth/me 也失败，尝试 /users/me
-      const userResponse = await apiClient.users.getProfile()
-      if (userResponse.data.success && userResponse.data.data) {
-        const userData = userResponse.data.data as User
-        user.value = userData
-
-        // 将用户数据映射到表单，优先使用 profile 中的信息
-        Object.assign(form, {
-          username: userData.username || '',
-          email: userData.email || '',
-          first_name: userData.profile?.first_name || '',
-          last_name: userData.profile?.last_name || '',
-          organization: userData.profile?.organization || '',
-          bio: userData.profile?.bio || '',
-          avatar_url: userData.profile?.avatar_url || '',
-        })
-      } else {
-        throw new Error(userResponse.data.message || '获取用户信息失败')
-      }
+      throw new Error(response.data.message || '获取用户信息失败')
     }
   } catch (error) {
     const errorMessage = handleApiError(error)

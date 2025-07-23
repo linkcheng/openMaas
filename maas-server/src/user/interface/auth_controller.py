@@ -212,9 +212,6 @@ async def refresh_token(
         )
 
 
-
-
-
 @router.post("/logout", response_model=ApiResponse[bool], summary="退出登录")
 async def logout(
     user_id: Annotated[str, Depends(get_current_user_id)],
@@ -237,26 +234,3 @@ async def logout(
         )
 
 
-@router.get("/me", response_model=ApiResponse[UserResponse], summary="获取当前用户信息")
-async def get_current_user(
-    user_id: Annotated[str, Depends(get_current_user_id)],
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """
-    获取当前用户信息
-    """
-    try:
-        user = await user_service.get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户不存在"
-            )
-
-        return ApiResponse.success_response(user, "获取用户信息成功")
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取用户信息失败"
-        )

@@ -126,7 +126,7 @@ limitations under the License.
     <!-- 页面底部（与首页一致） -->
     <el-footer class="footer">
       <div class="footer-content">
-        <p>&copy; 2024 MaaS 平台. 保留所有权利.</p>
+        <p>&copy; 2025 MaaS 平台. 保留所有权利.</p>
       </div>
     </el-footer>
   </div>

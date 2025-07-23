@@ -66,17 +66,7 @@ class UserUpdateRequest(BaseModel):
 class PasswordChangeRequest(BaseModel):
     """密码修改请求"""
     current_password: str = Field(..., description="当前密码")
-    new_password: str = Field(..., min_length=8, max_length=100, description="新密码")
-
-    @validator("new_password")
-    def validate_new_password(cls, v):
-        if not any(c.isupper() for c in v):
-            raise ValueError("密码必须包含至少一个大写字母")
-        if not any(c.islower() for c in v):
-            raise ValueError("密码必须包含至少一个小写字母")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("密码必须包含至少一个数字")
-        return v
+    new_password: str = Field(..., description="新密码")
 
 
 class EmailVerificationRequest(BaseModel):

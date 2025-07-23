@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import axios, { type AxiosInstance, type AxiosResponse, AxiosError } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, type AxiosRequestConfig, AxiosError } from 'axios'
 import { useUserStore } from '@/stores/userStore'
 
 // API响应接口
@@ -68,6 +68,58 @@ export interface PasswordResetConfirmRequest {
   new_password: string
 }
 
+// 认证响应接口
+export interface AuthTokens {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_in: number
+}
+
+export interface LoginResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_in: number
+  user: {
+    id: string
+    username: string
+    email: string
+    profile: {
+      first_name: string
+      last_name: string
+      full_name: string
+      avatar_url?: string
+      organization?: string
+      bio?: string
+    }
+    status: 'active' | 'inactive' | 'suspended'
+    email_verified: boolean
+    roles: Array<{
+      id: string
+      name: string
+      description: string
+      permissions: string[]
+    }>
+    quota?: {
+      api_calls_limit: number
+      api_calls_used: number
+      api_calls_remaining: number
+      api_usage_percentage: number
+      storage_limit: number
+      storage_used: number
+      storage_remaining: number
+      storage_usage_percentage: number
+      compute_hours_limit: number
+      compute_hours_used: number
+      compute_hours_remaining: number
+    }
+    created_at: string
+    updated_at: string
+    last_login_at?: string
+  }
+}
+
 // 统计数据相关接口
 export interface UserStatsResponse {
   total_api_calls: number
@@ -119,6 +171,11 @@ export interface SystemHealthResponse {
 
 class ApiClient {
   private client: AxiosInstance
+  private isRefreshing = false
+  private failedQueue: Array<{
+    resolve: (value: string | null) => void
+    reject: (error: AxiosError) => void
+  }> = []
 
   constructor() {
     this.client = axios.create({
@@ -130,6 +187,18 @@ class ApiClient {
     })
 
     this.setupInterceptors()
+  }
+
+  private processQueue(error: AxiosError | null, token: string | null = null) {
+    this.failedQueue.forEach(({ resolve, reject }) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(token)
+      }
+    })
+    
+    this.failedQueue = []
   }
 
   private setupInterceptors() {
@@ -156,16 +225,92 @@ class ApiClient {
         return response
       },
       async (error: AxiosError) => {
+        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
         const userStore = useUserStore()
 
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          // 401/403 未授权，清除认证状态
-          userStore.clearAuth()
-          
-          // 重定向到登录页
-          if (typeof window !== 'undefined') {
-            window.location.href = '/#/auth/login'
+        // 处理401未授权错误
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          // 如果是刷新token接口本身失败，直接登出
+          if (originalRequest.url?.includes('/auth/refresh')) {
+            userStore.clearAuth()
+            if (typeof window !== 'undefined') {
+              window.location.href = '/#/auth/login'
+            }
+            return Promise.reject(error)
           }
+
+          // 如果正在刷新token，将请求加入队列
+          if (this.isRefreshing) {
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject })
+            }).then(token => {
+              if (token && originalRequest.headers) {
+                originalRequest.headers['Authorization'] = `Bearer ${token}`
+              }
+              return this.client(originalRequest)
+            }).catch(err => {
+              return Promise.reject(err)
+            })
+          }
+
+          originalRequest._retry = true
+          this.isRefreshing = true
+
+          try {
+            // 获取refresh token
+            const tokens = userStore.tokens
+            if (!tokens?.refresh_token) {
+              throw new Error('No refresh token available')
+            }
+
+            // 调用刷新接口
+            const response = await this.client.post<ApiResponse<AuthTokens>>('/auth/refresh', {}, {
+              headers: {
+                'Authorization': `Bearer ${tokens.refresh_token}`
+              }
+            })
+
+            if (response.data.success && response.data.data) {
+              const newTokens = response.data.data
+              
+              // 更新token
+              userStore.setTokens({
+                access_token: newTokens.access_token,
+                refresh_token: newTokens.refresh_token,
+                token_type: newTokens.token_type,
+                expires_in: newTokens.expires_in,
+              })
+
+              // 处理队列中的请求
+              this.processQueue(null, newTokens.access_token)
+
+              // 重新发送原请求
+              if (originalRequest.headers) {
+                originalRequest.headers['Authorization'] = `Bearer ${newTokens.access_token}`
+              }
+              return this.client(originalRequest)
+            } else {
+              throw new Error('Token refresh failed')
+            }
+          } catch (refreshError) {
+            // 刷新失败，清除认证状态
+            this.processQueue(refreshError as AxiosError, null)
+            userStore.clearAuth()
+            
+            if (typeof window !== 'undefined') {
+              window.location.href = '/#/auth/login'
+            }
+            
+            return Promise.reject(refreshError)
+          } finally {
+            this.isRefreshing = false
+          }
+        }
+
+        // 处理403禁止访问错误
+        if (error.response?.status === 403) {
+          // 403通常表示权限不足，不需要刷新token
+          return Promise.reject(error)
         }
 
         return Promise.reject(error)
@@ -177,9 +322,9 @@ class ApiClient {
   auth = {
     register: (data: UserRegisterRequest) => this.client.post<ApiResponse>('/auth/register', data),
 
-    login: (data: UserLoginRequest) => this.client.post<ApiResponse>('/auth/login', data),
+    login: (data: UserLoginRequest) => this.client.post<ApiResponse<LoginResponse>>('/auth/login', data),
 
-    refreshToken: () => this.client.post<ApiResponse>('/auth/refresh'),
+    refreshToken: () => this.client.post<ApiResponse<AuthTokens>>('/auth/refresh'),
 
     logout: () => this.client.post<ApiResponse>('/auth/logout'),
 
@@ -191,7 +336,6 @@ class ApiClient {
 
     verifyEmail: (token: string) => this.client.post<ApiResponse>('/auth/verify-email', { token }),
 
-    getCurrentUser: () => this.client.get<ApiResponse>('/auth/me'),
 
     getPublicKey: () => this.client.get<ApiResponse>('/auth/crypto/public-key'),
   }

@@ -42,7 +42,7 @@ limitations under the License.
       <el-footer v-if="showFooter" class="app-footer" height="auto">
         <div class="footer-content">
           <el-text type="info" size="small">
-            © 2024 AI MaaS 平台 |
+            © 2025 AI MaaS 平台 |
             <el-link type="primary" :underline="false" size="small">帮助文档</el-link> |
             <el-link type="primary" :underline="false" size="small">联系我们</el-link>
           </el-text>
