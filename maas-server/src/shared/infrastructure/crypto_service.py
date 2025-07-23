@@ -16,11 +16,10 @@ limitations under the License.
 
 """国密SM2加密服务"""
 
-import base64
 import pathlib
 
 from loguru import logger
-from pysmx.SM2 import generate_keypair, Encrypt, Decrypt
+from pysmx.SM2 import Decrypt, Encrypt, generate_keypair
 
 
 class SM2CryptoService:
@@ -82,7 +81,7 @@ class SM2CryptoService:
         try:
             # 生成SM2密钥对
             self._public_key, self._private_key = generate_keypair()
-            
+
             # 保存私钥到文件
             with open(self.private_key_file, "wb") as f:
                 f.write(self._private_key)
@@ -116,10 +115,10 @@ class SM2CryptoService:
         """
         if not plaintext:
             return plaintext
-    
+
         if not self._private_key or not self._public_key:
             raise ValueError("密钥未初始化")
-        
+
         try:
 
             ciphertext = Encrypt(plaintext, self._public_key, self.len_para, 0)
@@ -142,15 +141,15 @@ class SM2CryptoService:
         """
         if not ciphertext:
             return ciphertext
-        
+
         if not self._private_key or not self._public_key:
             raise ValueError("密钥未初始化")
-    
+
         try:
-            
+
             # SM2解密，len_para固定为64
             decrypted_text = Decrypt(ciphertext, self._private_key, 64, 0)
-            
+
             return decrypted_text.decode()
 
         except Exception as e:
@@ -178,10 +177,10 @@ def get_sm2_service() -> SM2CryptoService:
     return _sm2_service
 
 
-if __name__ == '__main__':    
+if __name__ == "__main__":
     sm2_svc = get_sm2_service()
-    s = sm2_svc.encrypt('hello')
+    s = sm2_svc.encrypt("hello")
     print(s)
- 
+
     c = sm2_svc.decrypt(s)
     print(c)

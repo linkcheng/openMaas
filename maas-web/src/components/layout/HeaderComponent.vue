@@ -33,7 +33,11 @@ limitations under the License.
       <!-- 右侧用户区域 -->
       <div class="header-right">
         <!-- 通知 -->
-        <el-badge :value="notificationCount" :hidden="notificationCount === 0" class="notification-badge">
+        <el-badge
+          :value="notificationCount"
+          :hidden="notificationCount === 0"
+          class="notification-badge"
+        >
           <el-button
             :icon="Bell"
             circle
@@ -55,11 +59,7 @@ limitations under the License.
         <!-- 用户信息下拉菜单 -->
         <el-dropdown @command="handleUserMenuCommand" class="user-dropdown">
           <div class="user-info">
-            <el-avatar
-              :size="32"
-              :src="currentUser?.profile?.avatar_url"
-              class="user-avatar"
-            >
+            <el-avatar :size="32" :src="currentUser?.profile?.avatar_url" class="user-avatar">
               <el-icon><User /></el-icon>
             </el-avatar>
             <span class="username">{{ currentUser?.username || '用户' }}</span>
@@ -67,12 +67,8 @@ limitations under the License.
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile" :icon="User">
-                个人资料
-              </el-dropdown-item>
-              <el-dropdown-item command="settings" :icon="Setting">
-                设置
-              </el-dropdown-item>
+              <el-dropdown-item command="profile" :icon="User"> 个人资料 </el-dropdown-item>
+              <el-dropdown-item command="settings" :icon="Setting"> 设置 </el-dropdown-item>
               <el-dropdown-item divided command="logout" :icon="SwitchButton">
                 退出登录
               </el-dropdown-item>
@@ -88,14 +84,7 @@ limitations under the License.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  Search,
-  Bell,
-  Setting,
-  User,
-  ArrowDown,
-  SwitchButton
-} from '@element-plus/icons-vue'
+import { Search, Bell, Setting, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
@@ -250,15 +239,15 @@ const handleUserMenuCommand = async (command: string) => {
   .app-header {
     padding: 0 12px;
   }
-  
+
   .search-container {
     max-width: 200px;
   }
-  
+
   .username {
     display: none;
   }
-  
+
   .header-right {
     gap: 8px;
   }
@@ -268,7 +257,7 @@ const handleUserMenuCommand = async (command: string) => {
   .search-container {
     max-width: 150px;
   }
-  
+
   .search-input :deep(.el-input__wrapper) {
     font-size: 12px;
   }

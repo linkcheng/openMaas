@@ -33,7 +33,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   height: '300px',
   width: '100%',
-  theme: 'default'
+  theme: 'default',
 })
 
 const chartContainer = ref<HTMLElement>()
@@ -45,7 +45,7 @@ const initChart = async () => {
   if (!chartContainer.value) return
 
   await nextTick()
-  
+
   // 销毁已存在的图表实例
   if (chart) {
     chart.dispose()
@@ -76,7 +76,7 @@ watch(
   () => {
     updateChart()
   },
-  { deep: true }
+  { deep: true },
 )
 
 // 监听主题变化
@@ -84,7 +84,7 @@ watch(
   () => props.theme,
   () => {
     initChart()
-  }
+  },
 )
 
 onMounted(() => {
@@ -106,7 +106,7 @@ onUnmounted(() => {
 defineExpose({
   chart,
   updateChart,
-  initChart
+  initChart,
 })
 </script>
 

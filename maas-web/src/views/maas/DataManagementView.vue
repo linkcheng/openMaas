@@ -23,12 +23,8 @@ limitations under the License.
           <p class="page-description">管理训练数据集和知识库数据</p>
         </div>
         <div class="header-actions">
-          <el-button type="primary" :icon="Plus" @click="showUploadDialog">
-            上传数据集
-          </el-button>
-          <el-button :icon="Upload" @click="importData">
-            导入数据
-          </el-button>
+          <el-button type="primary" :icon="Plus" @click="showUploadDialog"> 上传数据集 </el-button>
+          <el-button :icon="Upload" @click="importData"> 导入数据 </el-button>
         </div>
       </div>
     </div>
@@ -102,9 +98,9 @@ limitations under the License.
               placeholder="搜索数据集..."
               :prefix-icon="Search"
               clearable
-              style="width: 240px; margin-right: 12px;"
+              style="width: 240px; margin-right: 12px"
             />
-            <el-select v-model="filterType" placeholder="数据类型" style="width: 120px;">
+            <el-select v-model="filterType" placeholder="数据类型" style="width: 120px">
               <el-option label="全部" value="" />
               <el-option label="文本" value="text" />
               <el-option label="图像" value="image" />
@@ -115,12 +111,7 @@ limitations under the License.
         </div>
       </template>
 
-      <el-table
-        :data="filteredDatasets"
-        v-loading="loading"
-        stripe
-        style="width: 100%"
-      >
+      <el-table :data="filteredDatasets" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="name" label="数据集名称" min-width="180">
           <template #default="{ row }">
             <div class="dataset-name">
@@ -176,7 +167,7 @@ import {
   FolderOpened,
   Coin,
   Document,
-  CircleCheck
+  CircleCheck,
 } from '@element-plus/icons-vue'
 
 interface Dataset {
@@ -201,7 +192,7 @@ const stats = reactive({
   totalDatasets: 0,
   totalStorage: '0 GB',
   totalRecords: 0,
-  activeDatasets: 0
+  activeDatasets: 0,
 })
 
 // 数据集列表
@@ -213,13 +204,13 @@ const filteredDatasets = computed(() => {
   let filtered = datasets.value
 
   if (searchQuery.value) {
-    filtered = filtered.filter(dataset =>
-      dataset.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    filtered = filtered.filter((dataset) =>
+      dataset.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
     )
   }
 
   if (filterType.value) {
-    filtered = filtered.filter(dataset => dataset.type === filterType.value)
+    filtered = filtered.filter((dataset) => dataset.type === filterType.value)
   }
 
   return filtered
@@ -231,7 +222,7 @@ const getTypeTagType = (type: string) => {
     text: '',
     image: 'success',
     audio: 'warning',
-    video: 'info'
+    video: 'info',
   }
   return typeMap[type] || ''
 }
@@ -241,7 +232,7 @@ const getStatusTagType = (status: string) => {
     active: 'success',
     processing: 'warning',
     error: 'danger',
-    archived: 'info'
+    archived: 'info',
   }
   return statusMap[status] || ''
 }
@@ -251,7 +242,7 @@ const getStatusText = (status: string) => {
     active: '活跃',
     processing: '处理中',
     error: '错误',
-    archived: '已归档'
+    archived: '已归档',
   }
   return statusText[status] || status
 }
@@ -260,8 +251,8 @@ const loadData = async () => {
   loading.value = true
   try {
     // 模拟数据加载
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     // 模拟数据
     datasets.value = [
       {
@@ -271,7 +262,7 @@ const loadData = async () => {
         size: '2.3 GB',
         records: 15420,
         created_at: '2024-01-15',
-        status: 'active'
+        status: 'active',
       },
       {
         id: '2',
@@ -280,7 +271,7 @@ const loadData = async () => {
         size: '8.7 GB',
         records: 50000,
         created_at: '2024-01-10',
-        status: 'active'
+        status: 'active',
       },
       {
         id: '3',
@@ -289,16 +280,15 @@ const loadData = async () => {
         size: '1.2 GB',
         records: 3500,
         created_at: '2024-01-08',
-        status: 'processing'
-      }
+        status: 'processing',
+      },
     ]
 
     stats.totalDatasets = datasets.value.length
     stats.totalStorage = '12.2 GB'
     stats.totalRecords = datasets.value.reduce((sum, item) => sum + item.records, 0)
-    stats.activeDatasets = datasets.value.filter(item => item.status === 'active').length
+    stats.activeDatasets = datasets.value.filter((item) => item.status === 'active').length
     totalItems.value = datasets.value.length
-
   } catch {
     ElMessage.error('数据加载失败')
   } finally {
@@ -330,8 +320,8 @@ const deleteDataset = async (dataset: Dataset) => {
       {
         confirmButtonText: '删除',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     )
     ElMessage.success(`数据集 "${dataset.name}" 删除成功`)
     loadData()

@@ -20,6 +20,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from loguru import logger
 
 from shared.application.response import ApiResponse
 from shared.interface.auth_middleware import (
@@ -59,7 +60,7 @@ async def get_current_user(
                 detail="用户不存在"
             )
 
-        return ApiResponse.success_response_response(user, "获取用户信息成功")
+        return ApiResponse.success_response(user, "获取用户信息成功")
 
     except Exception:
         raise HTTPException(
@@ -88,7 +89,14 @@ async def update_current_user(
         user = await user_service.update_user_profile(command)
         return ApiResponse.success_response(user, "用户信息更新成功")
 
-    except Exception:
+    except ValueError as e:
+        logger.warning(f"用户信息更新数据验证失败: {e!s} - 用户ID: {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"数据验证失败: {e!s}"
+        )
+    except Exception as e:
+        logger.error(f"更新用户信息失败: {e!s} - 用户ID: {user_id}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新用户信息失败"

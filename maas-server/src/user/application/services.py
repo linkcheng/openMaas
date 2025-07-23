@@ -20,6 +20,7 @@ import hashlib
 import secrets
 from datetime import datetime
 from uuid import UUID
+
 from loguru import logger
 
 from shared.application.exceptions import ApplicationException
@@ -65,7 +66,7 @@ class PasswordHashService:
         # 检查输入参数
         if not password or not hashed_password:
             return False
-            
+
         try:
             salt, stored_hash = hashed_password.split(":")
             password_hash = hashlib.pbkdf2_hmac(

@@ -42,7 +42,7 @@ limitations under the License.
       <el-footer v-if="showFooter" class="app-footer" height="auto">
         <div class="footer-content">
           <el-text type="info" size="small">
-            © 2024 AI MaaS 平台 | 
+            © 2024 AI MaaS 平台 |
             <el-link type="primary" :underline="false" size="small">帮助文档</el-link> |
             <el-link type="primary" :underline="false" size="small">联系我们</el-link>
           </el-text>
@@ -51,11 +51,7 @@ limitations under the License.
     </el-container>
 
     <!-- 移动端遮罩层 -->
-    <div 
-      v-if="isMobile && sidebarVisible" 
-      class="mobile-overlay"
-      @click="closeSidebar"
-    />
+    <div v-if="isMobile && sidebarVisible" class="mobile-overlay" @click="closeSidebar" />
   </el-container>
 </template>
 
@@ -77,7 +73,7 @@ const keepAliveComponents = ref([
   'DashboardView',
   'DataManagement',
   'ModelManagement',
-  'KnowledgeBase'
+  'KnowledgeBase',
 ])
 
 // 窗口大小变化处理
@@ -194,11 +190,11 @@ onUnmounted(() => {
   .content-wrapper {
     padding: 16px;
   }
-  
+
   .main-layout {
     position: relative;
   }
-  
+
   /* 移动端时主内容占满宽度 */
   .main-content {
     width: 100%;
@@ -209,11 +205,11 @@ onUnmounted(() => {
   .content-wrapper {
     padding: 12px;
   }
-  
+
   .app-footer {
     padding: 8px 12px;
   }
-  
+
   .footer-content {
     font-size: 12px;
   }
@@ -224,15 +220,15 @@ onUnmounted(() => {
   .main-layout {
     background: var(--el-bg-color-page);
   }
-  
+
   .content-area {
     background: var(--el-bg-color-page);
   }
-  
+
   .content-wrapper {
     background: var(--el-bg-color-page);
   }
-  
+
   .mobile-overlay {
     background: rgba(0, 0, 0, 0.5);
   }
@@ -243,7 +239,7 @@ onUnmounted(() => {
   .content-area::-webkit-scrollbar-thumb {
     background: var(--el-text-color-primary);
   }
-  
+
   .mobile-overlay {
     background: rgba(0, 0, 0, 0.8);
   }
@@ -263,11 +259,11 @@ onUnmounted(() => {
     background: white;
     color: black;
   }
-  
+
   .app-footer {
     display: none;
   }
-  
+
   .content-wrapper {
     padding: 0;
   }

@@ -43,13 +43,19 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   height: '350px',
-  showLegend: true
+  showLegend: true,
 })
 
 // 默认颜色调色板
 const defaultColors = [
-  '#6366f1', '#8b5cf6', '#06b6d4', '#10b981', 
-  '#f59e0b', '#ef4444', '#ec4899', '#84cc16'
+  '#6366f1',
+  '#8b5cf6',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#ec4899',
+  '#84cc16',
 ]
 
 // 计算图表配置
@@ -57,19 +63,19 @@ const chartOption = computed((): EChartsOption => {
   const processedData = props.data.map((item, index) => ({
     ...item,
     itemStyle: {
-      color: item.color || defaultColors[index % defaultColors.length]
-    }
+      color: item.color || defaultColors[index % defaultColors.length],
+    },
   }))
 
   const option: EChartsOption = {
     title: {
-      show: false
+      show: false,
     },
     tooltip: {
       trigger: 'item',
-      formatter: function(params: any) {
+      formatter: function (params: any) {
         return `${params.seriesName}<br/>${params.name}: ${params.value} (${params.percent}%)`
-      }
+      },
     },
     legend: {
       show: props.showLegend,
@@ -77,8 +83,8 @@ const chartOption = computed((): EChartsOption => {
       right: '10%',
       top: 'center',
       textStyle: {
-        color: 'var(--el-text-color-primary)'
-      }
+        color: 'var(--el-text-color-primary)',
+      },
     },
     series: [
       {
@@ -91,20 +97,20 @@ const chartOption = computed((): EChartsOption => {
           itemStyle: {
             shadowBlur: 10,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+          },
         },
         label: {
           show: !props.showLegend,
           position: 'outside',
           formatter: '{b}: {c} ({d}%)',
-          color: 'var(--el-text-color-primary)'
+          color: 'var(--el-text-color-primary)',
         },
         labelLine: {
-          show: !props.showLegend
-        }
-      }
-    ]
+          show: !props.showLegend,
+        },
+      },
+    ],
   }
 
   return option

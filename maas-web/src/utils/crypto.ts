@@ -45,8 +45,8 @@ export class SM2CryptoUtil {
   /**
    * localStorage缓存key
    */
-  private static readonly LOCAL_KEY = 'sm2_public_key_cache';
-  private static readonly CACHE_EXPIRE_MS = 24 * 60 * 60 * 1000; // 24小时
+  private static readonly LOCAL_KEY = 'sm2_public_key_cache'
+  private static readonly CACHE_EXPIRE_MS = 24 * 60 * 60 * 1000 // 24小时
 
   /**
    * 使用SM2公钥加密数据
@@ -61,7 +61,7 @@ export class SM2CryptoUtil {
       if (!publicKey.startsWith('04')) {
         formattedPublicKey = '04' + publicKey
       }
-      
+
       // 使用sm-crypto库进行SM2加密
       // 模式1表示C1C3C2格式
       const encrypted = sm2.doEncrypt(data, formattedPublicKey, 1)
@@ -79,7 +79,6 @@ export class SM2CryptoUtil {
    * @returns Promise<SM2PublicKey> 公钥信息
    */
   static async getPublicKey(): Promise<SM2PublicKey> {
-
     // 1. 先查localStorage缓存
     const cacheStr = localStorage.getItem(this.LOCAL_KEY)
     if (cacheStr) {

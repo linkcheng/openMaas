@@ -118,7 +118,6 @@ limitations under the License.
                 </el-col>
               </el-row>
             </section>
-
           </el-col>
         </el-row>
       </el-main>
@@ -272,7 +271,6 @@ limitations under the License.
   line-height: 1.6;
   margin: 0;
 }
-
 
 /* 移动端适配 */
 @media (max-width: 640px) {

@@ -17,8 +17,7 @@ limitations under the License.
 """共享应用层 - 响应模型"""
 
 from datetime import datetime
-from typing import Any, Generic, TypeVar
-from uuid import UUID
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -64,7 +63,7 @@ class ApiResponse(BaseModel, Generic[T]):
             message=message,
             code=code
         )
-                  
+
     @classmethod
     def paginated_response(
         cls,
@@ -74,7 +73,7 @@ class ApiResponse(BaseModel, Generic[T]):
         code: int = 200
     ) -> "ApiResponse[T]":
         """构建分页响应"""
-        
+
         return cls(
             success=False,
             data=items,

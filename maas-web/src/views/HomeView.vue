@@ -15,7 +15,22 @@ limitations under the License.
 -->
 
 <script setup lang="ts">
-// MaaS 平台首页
+import { useAuth } from '@/composables/useAuth'
+import {
+  Platform,
+  Odometer,
+  InfoFilled,
+  Monitor,
+  SetUp,
+  User,
+  Tools,
+  UserFilled,
+  Setting,
+  SwitchButton,
+  ArrowDown,
+} from '@element-plus/icons-vue'
+
+const { isAuthenticated, user, logout } = useAuth()
 </script>
 
 <template>
@@ -37,8 +52,44 @@ limitations under the License.
           </el-menu>
         </div>
         <div class="user-actions">
-          <el-button type="primary" @click="$router.push('/auth/login')"> 登录 </el-button>
-          <el-button @click="$router.push('/auth/register')"> 注册 </el-button>
+          <!-- 未登录用户显示登录注册按钮 -->
+          <template v-if="!isAuthenticated">
+            <el-button type="primary" @click="$router.push('/auth/login')">登录</el-button>
+            <el-button @click="$router.push('/auth/register')">注册</el-button>
+          </template>
+
+          <!-- 已登录用户显示用户菜单 -->
+          <template v-else>
+            <el-dropdown trigger="click" placement="bottom-end">
+              <div class="user-info">
+                <el-avatar :size="32" :src="user?.avatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <span class="username">{{ user?.username || '用户' }}</span>
+                <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="$router.push('/dashboard')">
+                    <el-icon><Odometer /></el-icon>
+                    控制台
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="$router.push('/user/profile')">
+                    <el-icon><User /></el-icon>
+                    个人资料
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="$router.push('/user/settings')">
+                    <el-icon><Setting /></el-icon>
+                    设置
+                  </el-dropdown-item>
+                  <el-dropdown-item divided @click="logout">
+                    <el-icon><SwitchButton /></el-icon>
+                    退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
         </div>
       </div>
     </el-header>
@@ -216,6 +267,38 @@ limitations under the License.
   display: flex;
   gap: var(--space-sm);
   flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.user-info:hover {
+  background-color: var(--el-color-primary-light-9);
+}
+
+.username {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.dropdown-icon {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+}
+
+.user-info:hover .dropdown-icon {
+  color: var(--color-text-primary);
 }
 
 .main-content {

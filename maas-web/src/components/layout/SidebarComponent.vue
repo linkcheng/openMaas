@@ -15,20 +15,20 @@ limitations under the License.
 -->
 
 <template>
-  <el-aside 
+  <el-aside
     :width="collapsed ? '64px' : '240px'"
     class="app-sidebar"
     :class="{ 'is-collapsed': collapsed }"
   >
     <!-- 平台标题 -->
     <div class="sidebar-header">
-      <div class="brand">
+      <div class="brand" @click="goToHome">
         <el-icon class="brand-icon" :size="24" color="var(--el-color-primary)">
           <TrendCharts />
         </el-icon>
         <h1 v-show="!collapsed" class="brand-title">AI MaaS 平台</h1>
       </div>
-      
+
       <!-- 折叠按钮 -->
       <el-button
         :icon="collapsed ? Expand : Fold"
@@ -129,9 +129,7 @@ limitations under the License.
     <!-- 底部信息 -->
     <div v-show="!collapsed" class="sidebar-footer">
       <div class="footer-info">
-        <el-text type="info" size="small">
-          © 2024 AI MaaS 平台
-        </el-text>
+        <el-text type="info" size="small"> © 2024 AI MaaS 平台 </el-text>
       </div>
     </div>
   </el-aside>
@@ -139,7 +137,7 @@ limitations under the License.
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   TrendCharts,
   Expand,
@@ -157,20 +155,24 @@ import {
   Connection,
   Tools,
   Monitor,
-  UserFilled
+  UserFilled,
 } from '@element-plus/icons-vue'
 import { useAuth } from '@/composables/useAuth'
 
 const route = useRoute()
+const router = useRouter()
 const { isAdmin } = useAuth()
 
 const collapsed = ref(false)
 const activeMenu = ref(route.path)
 
 // 监听路由变化更新活跃菜单
-watch(() => route.path, (newPath) => {
-  activeMenu.value = newPath
-})
+watch(
+  () => route.path,
+  (newPath) => {
+    activeMenu.value = newPath
+  },
+)
 
 const toggleCollapse = () => {
   collapsed.value = !collapsed.value
@@ -178,6 +180,10 @@ const toggleCollapse = () => {
 
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
+}
+
+const goToHome = () => {
+  router.push('/')
 }
 </script>
 
@@ -208,6 +214,12 @@ const handleMenuSelect = (index: string) => {
   gap: 12px;
   flex: 1;
   min-width: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.brand:hover {
+  opacity: 0.8;
 }
 
 .brand-icon {
@@ -301,11 +313,11 @@ const handleMenuSelect = (index: string) => {
     transform: translateX(-100%);
     transition: transform 0.3s;
   }
-  
+
   .app-sidebar.is-mobile-open {
     transform: translateX(0);
   }
-  
+
   .app-sidebar:not(.is-collapsed) {
     width: 240px !important;
   }
@@ -358,7 +370,7 @@ const handleMenuSelect = (index: string) => {
   .app-sidebar {
     background: var(--el-bg-color-page);
   }
-  
+
   .sidebar-footer {
     background: var(--el-bg-color-overlay);
   }

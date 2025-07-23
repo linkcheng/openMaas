@@ -158,7 +158,7 @@ async def login(
         # 解密密码
         sm2_service = get_sm2_service()
         decrypted_password = sm2_service.decrypt(request.password)
-        
+
         # 检查解密结果
         if not decrypted_password:
             raise ValueError("密码解密后为空")

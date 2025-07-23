@@ -53,9 +53,9 @@ export const useAuth = () => {
 
       const encryptedData = {
         ...data,
-        password: encryptedPassword
+        password: encryptedPassword,
       }
-      
+
       const response = await apiClient.auth.register(encryptedData)
 
       if (response.data.success) {
@@ -82,9 +82,9 @@ export const useAuth = () => {
       const encryptedPassword = await SM2CryptoUtil.encryptPassword(data.password)
       const encryptedData = {
         ...data,
-        password: encryptedPassword
+        password: encryptedPassword,
       }
-      
+
       const response = await apiClient.auth.login(encryptedData)
 
       if (response.data.success && response.data.data) {
@@ -168,10 +168,14 @@ export const useAuth = () => {
         return { success: true, data: response.data.data }
       } else {
         error.value = response.data.error || '获取用户信息失败'
+        // 如果获取用户信息失败，清除认证状态
+        userStore.clearAuth()
         return { success: false, error: error.value }
       }
     } catch (err) {
       error.value = handleApiError(err)
+      // 认证失败，清除状态
+      userStore.clearAuth()
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -258,9 +262,13 @@ export const useAuth = () => {
   const initializeAuth = async () => {
     userStore.initializeAuth()
 
-    // 如果有token，尝试获取用户信息
-    if (userStore.tokens) {
-      await getCurrentUser()
+    // 如果有token，尝试获取用户信息验证token有效性
+    if (userStore.tokens && userStore.isAuthenticated) {
+      const result = await getCurrentUser()
+      if (!result.success) {
+        // 获取用户信息失败，说明token无效，已在getCurrentUser中清除了认证状态
+        console.warn('Token validation failed, user logged out')
+      }
     }
   }
 

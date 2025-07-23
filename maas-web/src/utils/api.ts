@@ -158,11 +158,14 @@ class ApiClient {
       async (error: AxiosError) => {
         const userStore = useUserStore()
 
-        if (error.response?.status === 401) {
-          // 401 未授权，清除认证状态并重定向到登录页
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          // 401/403 未授权，清除认证状态
           userStore.clearAuth()
-          // 这里可以添加路由跳转到登录页
-          // router.push('/login')
+          
+          // 重定向到登录页
+          if (typeof window !== 'undefined') {
+            window.location.href = '/#/auth/login'
+          }
         }
 
         return Promise.reject(error)
@@ -239,19 +242,23 @@ class ApiClient {
     getAdminStats: () => this.client.get<ApiResponse<AdminStatsResponse>>('/admin/stats'),
 
     // 获取用户活动日志
-    getUserActivityLogs: (params: {
-      page?: number
-      limit?: number
-      type?: string
-    } = {}) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/users/me/activity-logs', { params }),
+    getUserActivityLogs: (
+      params: {
+        page?: number
+        limit?: number
+        type?: string
+      } = {},
+    ) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/users/me/activity-logs', { params }),
 
     // 获取所有用户活动日志（管理员）
-    getAllActivityLogs: (params: {
-      page?: number
-      limit?: number
-      user_id?: string
-      type?: string
-    } = {}) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/admin/activity-logs', { params }),
+    getAllActivityLogs: (
+      params: {
+        page?: number
+        limit?: number
+        user_id?: string
+        type?: string
+      } = {},
+    ) => this.client.get<ApiResponse<ActivityLogResponse[]>>('/admin/activity-logs', { params }),
   }
 
   // 系统监控API

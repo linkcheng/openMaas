@@ -381,15 +381,14 @@ class User(AggregateRoot):
             event_type="user.profile_updated",
             aggregate_id=self.id,
             aggregate_type="User",
-            event_data={
-                "user_id": str(self.id),
-                "old_profile": old_profile,
-                "new_profile": {
-                    "first_name": profile.first_name,
-                    "last_name": profile.last_name,
-                    "organization": profile.organization,
-                    "bio": profile.bio
-                }
+            event_data={},
+            user_id=self.id,
+            old_profile=old_profile,
+            new_profile={
+                "first_name": profile.first_name,
+                "last_name": profile.last_name,
+                "organization": profile.organization,
+                "bio": profile.bio
             }
         ))
 

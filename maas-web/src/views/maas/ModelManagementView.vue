@@ -23,12 +23,8 @@ limitations under the License.
           <p class="page-description">管理AI模型的训练、部署和版本控制</p>
         </div>
         <div class="header-actions">
-          <el-button type="primary" :icon="Plus" @click="createModel">
-            创建模型
-          </el-button>
-          <el-button :icon="Upload" @click="importModel">
-            导入模型
-          </el-button>
+          <el-button type="primary" :icon="Plus" @click="createModel"> 创建模型 </el-button>
+          <el-button :icon="Upload" @click="importModel"> 导入模型 </el-button>
         </div>
       </div>
     </div>
@@ -94,14 +90,7 @@ limitations under the License.
     <!-- 模型卡片视图 -->
     <div class="models-grid">
       <el-row :gutter="24">
-        <el-col
-          v-for="model in filteredModels"
-          :key="model.id"
-          :xs="24"
-          :sm="12"
-          :lg="8"
-          :xl="6"
-        >
+        <el-col v-for="model in filteredModels" :key="model.id" :xs="24" :sm="12" :lg="8" :xl="6">
           <el-card class="model-card" shadow="hover">
             <template #header>
               <div class="model-header">
@@ -145,9 +134,7 @@ limitations under the License.
 
             <template #footer>
               <div class="model-actions">
-                <el-button size="small" @click="viewModel(model)">
-                  查看详情
-                </el-button>
+                <el-button size="small" @click="viewModel(model)"> 查看详情 </el-button>
                 <el-dropdown @command="handleModelAction">
                   <el-button size="small" type="primary">
                     操作
@@ -193,15 +180,7 @@ limitations under the License.
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus,
-  Upload,
-  Box,
-  Cloud,
-  Setting,
-  TrendCharts,
-  ArrowDown
-} from '@element-plus/icons-vue'
+import { Plus, Upload, Box, Cloud, Setting, TrendCharts, ArrowDown } from '@element-plus/icons-vue'
 
 interface Model {
   id: string
@@ -223,7 +202,7 @@ const stats = reactive({
   totalModels: 0,
   deployedModels: 0,
   trainingModels: 0,
-  avgPerformance: '0%'
+  avgPerformance: '0%',
 })
 
 // 模型列表
@@ -243,7 +222,7 @@ const getStatusTagType = (status: string) => {
     training: 'warning',
     ready: 'success',
     deployed: 'info',
-    error: 'danger'
+    error: 'danger',
   }
   return statusMap[status] || ''
 }
@@ -253,7 +232,7 @@ const getStatusText = (status: string) => {
     training: '训练中',
     ready: '就绪',
     deployed: '已部署',
-    error: '错误'
+    error: '错误',
   }
   return statusText[status] || status
 }
@@ -262,8 +241,8 @@ const loadData = async () => {
   loading.value = true
   try {
     // 模拟数据加载
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     // 模拟数据
     models.value = [
       {
@@ -273,7 +252,7 @@ const loadData = async () => {
         version: 'v1.2.0',
         accuracy: '92.5%',
         status: 'deployed',
-        created_at: '2024-01-15'
+        created_at: '2024-01-15',
       },
       {
         id: '2',
@@ -282,7 +261,7 @@ const loadData = async () => {
         version: 'v1.0.0',
         accuracy: '89.3%',
         status: 'ready',
-        created_at: '2024-01-12'
+        created_at: '2024-01-12',
       },
       {
         id: '3',
@@ -291,7 +270,7 @@ const loadData = async () => {
         version: 'v2.1.0',
         accuracy: '95.7%',
         status: 'training',
-        created_at: '2024-01-10'
+        created_at: '2024-01-10',
       },
       {
         id: '4',
@@ -300,16 +279,15 @@ const loadData = async () => {
         version: 'v1.0.0',
         accuracy: '88.9%',
         status: 'deployed',
-        created_at: '2024-01-08'
-      }
+        created_at: '2024-01-08',
+      },
     ]
 
     stats.totalModels = models.value.length
-    stats.deployedModels = models.value.filter(item => item.status === 'deployed').length
-    stats.trainingModels = models.value.filter(item => item.status === 'training').length
+    stats.deployedModels = models.value.filter((item) => item.status === 'deployed').length
+    stats.trainingModels = models.value.filter((item) => item.status === 'training').length
     stats.avgPerformance = '91.6%'
     totalItems.value = models.value.length
-
   } catch {
     ElMessage.error('数据加载失败')
   } finally {
@@ -348,8 +326,8 @@ const handleModelAction = async ({ action, model }: { action: string; model: Mod
           {
             confirmButtonText: '删除',
             cancelButtonText: '取消',
-            type: 'warning'
-          }
+            type: 'warning',
+          },
         )
         ElMessage.success(`模型 "${model.name}" 删除成功`)
         loadData()

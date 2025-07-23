@@ -131,11 +131,18 @@ export const useUserStore = defineStore('user', () => {
     const refreshToken = localStorage.getItem('refresh_token')
 
     if (accessToken && refreshToken) {
+      // 检查token是否过期
+      if (isTokenExpired(accessToken)) {
+        // token已过期，清除localStorage
+        clearAuth()
+        return
+      }
+
       tokens.value = {
         access_token: accessToken,
         refresh_token: refreshToken,
         token_type: 'Bearer',
-        expires_in: 0, // 这里需要从JWT解析实际过期时间
+        expires_in: 0, // 从JWT解析过期时间
       }
       isAuthenticated.value = true
     }
@@ -153,12 +160,27 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 检查token是否过期
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      return payload.exp ? payload.exp < currentTime : false
+    } catch {
+      return true
+    }
+  }
+
   // 获取访问令牌（自动处理刷新）
   const getAccessToken = async (): Promise<string | null> => {
     if (!tokens.value) return null
 
-    // TODO: 检查token是否即将过期，如果是则刷新
-    // 这里需要解析JWT token来检查过期时间
+    // 检查token是否过期
+    if (isTokenExpired(tokens.value.access_token)) {
+      // token已过期，清除认证状态
+      clearAuth()
+      return null
+    }
 
     return tokens.value.access_token
   }

@@ -19,11 +19,7 @@ limitations under the License.
     <div class="chart-header">
       <h3>{{ title }}</h3>
       <div class="chart-actions">
-        <el-select
-          v-model="selectedPeriod"
-          size="small"
-          @change="handlePeriodChange"
-        >
+        <el-select v-model="selectedPeriod" size="small" @change="handlePeriodChange">
           <el-option label="最近7天" value="7days" />
           <el-option label="最近30天" value="30days" />
           <el-option label="最近3个月" value="3months" />
@@ -50,7 +46,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   height: '350px',
   color: '#6366f1',
-  type: 'line'
+  type: 'line',
 })
 
 const emit = defineEmits<{
@@ -72,55 +68,55 @@ const chartOption = computed((): EChartsOption => {
 
   const option: EChartsOption = {
     title: {
-      show: false
+      show: false,
     },
     tooltip: {
       trigger: 'axis',
       axisPointer: {
         type: 'cross',
         label: {
-          backgroundColor: props.color
-        }
+          backgroundColor: props.color,
+        },
       },
-      formatter: function(params: any) {
+      formatter: function (params: any) {
         if (Array.isArray(params) && params.length > 0) {
           const param = params[0]
           return `${param.axisValueLabel}<br/>${param.seriesName}: ${param.value}`
         }
         return ''
-      }
+      },
     },
     legend: {
-      show: false
+      show: false,
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
-      containLabel: true
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
       boundaryGap: props.type === 'bar',
       data: dates,
       axisLabel: {
-        formatter: function(value: string) {
+        formatter: function (value: string) {
           // 格式化日期显示
           const date = new Date(value)
           return `${date.getMonth() + 1}/${date.getDate()}`
-        }
-      }
+        },
+      },
     },
     yAxis: {
       type: 'value',
       axisLabel: {
-        formatter: function(value: number) {
+        formatter: function (value: number) {
           if (value >= 1000) {
             return `${(value / 1000).toFixed(1)}k`
           }
           return value.toString()
-        }
-      }
+        },
+      },
     },
     series: [
       {
@@ -129,33 +125,39 @@ const chartOption = computed((): EChartsOption => {
         smooth: props.type === 'line',
         data: values,
         itemStyle: {
-          color: props.color
-        },
-        lineStyle: props.type === 'line' ? {
           color: props.color,
-          width: 2
-        } : undefined,
-        areaStyle: props.type === 'line' ? {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              {
-                offset: 0,
-                color: props.color + '40'
-              },
-              {
-                offset: 1,
-                color: props.color + '00'
+        },
+        lineStyle:
+          props.type === 'line'
+            ? {
+                color: props.color,
+                width: 2,
               }
-            ]
-          }
-        } : undefined
-      }
-    ]
+            : undefined,
+        areaStyle:
+          props.type === 'line'
+            ? {
+                color: {
+                  type: 'linear',
+                  x: 0,
+                  y: 0,
+                  x2: 0,
+                  y2: 1,
+                  colorStops: [
+                    {
+                      offset: 0,
+                      color: props.color + '40',
+                    },
+                    {
+                      offset: 1,
+                      color: props.color + '00',
+                    },
+                  ],
+                },
+              }
+            : undefined,
+      },
+    ],
   }
 
   return option
@@ -167,7 +169,7 @@ watch(
   () => {
     // 数据更新时可以添加动画效果
   },
-  { deep: true }
+  { deep: true },
 )
 </script>
 
@@ -205,7 +207,7 @@ watch(
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .chart-actions {
     width: 100%;
     justify-content: flex-end;

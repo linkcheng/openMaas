@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import HomeView from '../views/HomeView.vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',

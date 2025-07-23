@@ -18,21 +18,21 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { apiClient, handleApiError } from '@/utils/api'
 import { useAuth } from '@/composables/useAuth'
-import type { 
-  UserStatsResponse, 
-  AdminStatsResponse, 
-  ActivityLogResponse, 
-  SystemHealthResponse 
+import type {
+  UserStatsResponse,
+  AdminStatsResponse,
+  ActivityLogResponse,
+  SystemHealthResponse,
 } from '@/utils/api'
 
 export function useDashboard() {
   const { isAdmin } = useAuth()
-  
+
   // 状态管理
   const loading = ref(false)
   const refreshing = ref(false)
   const lastUpdated = ref<Date | null>(null)
-  
+
   // 数据状态
   const userStats = reactive<Partial<UserStatsResponse>>({
     total_api_calls: 0,
@@ -88,7 +88,7 @@ export function useDashboard() {
   const error = ref<string | null>(null)
   const apiError = ref<{
     userStats: boolean
-    adminStats: boolean  
+    adminStats: boolean
     activities: boolean
     systemHealth: boolean
   }>({
@@ -111,7 +111,7 @@ export function useDashboard() {
     } catch (error) {
       console.error('加载用户统计失败:', handleApiError(error))
       apiError.value.userStats = true
-      
+
       // 对于API不存在的情况，使用模拟数据
       Object.assign(userStats, {
         api_keys_count: 3,
@@ -138,7 +138,7 @@ export function useDashboard() {
     } catch (error) {
       console.error('加载管理员统计失败:', handleApiError(error))
       apiError.value.adminStats = true
-      
+
       // 对于API不存在的情况，使用模拟数据
       Object.assign(adminStats, {
         total_users: 245,
@@ -157,10 +157,10 @@ export function useDashboard() {
   const loadRecentActivities = async (): Promise<boolean> => {
     try {
       apiError.value.activities = false
-      const response = isAdmin.value 
+      const response = isAdmin.value
         ? await apiClient.stats.getAllActivityLogs({ limit: 10 })
         : await apiClient.stats.getUserActivityLogs({ limit: 10 })
-      
+
       if (response.data?.success && response.data.data) {
         recentActivities.value = response.data.data
         return true
@@ -169,7 +169,7 @@ export function useDashboard() {
     } catch (error) {
       console.error('加载最近活动失败:', handleApiError(error))
       apiError.value.activities = true
-      
+
       // 对于API不存在的情况，使用模拟数据
       const mockActivities: ActivityLogResponse[] = [
         {
@@ -203,7 +203,7 @@ export function useDashboard() {
             description: '系统负载较高',
             timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
             status: 'warning',
-          }
+          },
         )
       }
 
@@ -234,18 +234,18 @@ export function useDashboard() {
   const loadAllData = async () => {
     loading.value = true
     error.value = null
-    
+
     try {
       const promises: Promise<boolean>[] = [loadUserStats(), loadRecentActivities()]
-      
+
       if (isAdmin.value) {
         promises.push(loadAdminStats(), loadSystemHealth())
       }
 
       const results = await Promise.all(promises)
-      const successCount = results.filter(success => success).length
+      const successCount = results.filter((success) => success).length
       const totalCount = results.length
-      
+
       // 如果部分API失败但不是全部失败，只在控制台记录
       if (successCount === 0) {
         error.value = '无法连接到服务器，正在使用演示数据'
@@ -253,9 +253,9 @@ export function useDashboard() {
       } else if (successCount < totalCount) {
         console.warn(`部分API加载失败: ${successCount}/${totalCount} 成功`)
       }
-      
+
       lastUpdated.value = new Date()
-      
+
       // 生成图表数据
       generateChartData()
     } catch (error) {
@@ -271,16 +271,17 @@ export function useDashboard() {
     refreshing.value = true
     try {
       await loadAllData()
-      
+
       // 根据API状态显示不同消息
-      const hasAnyApiError = Object.values(apiError.value).some(hasError => hasError)
+      const hasAnyApiError = Object.values(apiError.value).some((hasError) => hasError)
       if (!hasAnyApiError) {
         ElMessage.success('数据已刷新')
       } else {
         ElMessage.info('数据已刷新（部分为演示数据）')
       }
-    } catch (error) {
+    } catch (err) {
       ElMessage.error('刷新数据失败')
+      console.error('刷新数据失败:', err)
     } finally {
       refreshing.value = false
     }
@@ -288,19 +289,19 @@ export function useDashboard() {
 
   // 获取连接状态
   const getConnectionStatus = () => {
-    const hasAnyApiError = Object.values(apiError.value).some(hasError => hasError)
-    
+    const hasAnyApiError = Object.values(apiError.value).some((hasError) => hasError)
+
     if (!hasAnyApiError) {
       return { status: 'connected', message: '已连接到服务器' }
     }
-    
-    const errorCount = Object.values(apiError.value).filter(hasError => hasError).length
+
+    const errorCount = Object.values(apiError.value).filter((hasError) => hasError).length
     const totalApis = Object.keys(apiError.value).length
-    
+
     if (errorCount === totalApis) {
       return { status: 'disconnected', message: '无法连接到服务器' }
     }
-    
+
     return { status: 'partial', message: `部分服务不可用 (${totalApis - errorCount}/${totalApis})` }
   }
 
@@ -309,22 +310,22 @@ export function useDashboard() {
     // 生成用户增长趋势数据（最近30天）
     const userTrend: Record<string, number> = {}
     const apiTrend: Record<string, number> = {}
-    
+
     for (let i = 29; i >= 0; i--) {
       const date = new Date()
       date.setDate(date.getDate() - i)
       const dateKey = date.toISOString().split('T')[0]
-      
+
       // 模拟用户增长数据
       userTrend[dateKey] = Math.floor(Math.random() * 10) + 5
-      
+
       // 模拟API调用数据
       apiTrend[dateKey] = Math.floor(Math.random() * 500) + 200
     }
-    
+
     chartData.userGrowthTrend = userTrend
     chartData.apiCallsTrend = apiTrend
-    
+
     // 生成模型使用分布数据
     chartData.modelUsageDistribution = [
       { name: 'GPT-4', value: 45, color: '#6366f1' },
@@ -332,7 +333,7 @@ export function useDashboard() {
       { name: 'Llama-2', value: 15, color: '#06b6d4' },
       { name: '其他模型', value: 10, color: '#10b981' },
     ]
-    
+
     // 生成用户活跃度分布
     chartData.userActivityDistribution = [
       { name: '高度活跃', value: 25, color: '#10b981' },
@@ -348,19 +349,19 @@ export function useDashboard() {
     let days = 30
     if (period === '7days') days = 7
     else if (period === '3months') days = 90
-    
+
     const newUserTrend: Record<string, number> = {}
     const newApiTrend: Record<string, number> = {}
-    
+
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date()
       date.setDate(date.getDate() - i)
       const dateKey = date.toISOString().split('T')[0]
-      
+
       newUserTrend[dateKey] = Math.floor(Math.random() * 10) + 5
       newApiTrend[dateKey] = Math.floor(Math.random() * 500) + 200
     }
-    
+
     chartData.userGrowthTrend = newUserTrend
     chartData.apiCallsTrend = newApiTrend
   }
@@ -429,14 +430,14 @@ export function useDashboard() {
     lastUpdated,
     error,
     apiError,
-    
+
     // 数据
     userStats,
     adminStats,
     recentActivities,
     systemHealth,
     chartData,
-    
+
     // 方法
     loadAllData,
     refreshData,
