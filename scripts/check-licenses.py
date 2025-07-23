@@ -45,6 +45,10 @@ COMPATIBLE_LICENSES = {
     "Unlicense",
     "Public Domain",
     "CC0-1.0",
+    "CC-BY-4.0",  # Creative Commons Attribution 4.0 用于数据
+    "MPL-2.0",    # Mozilla Public License 2.0 - 与 Apache 2.0 兼容
+    "BlueOak-1.0.0",  # Blue Oak Model License 1.0.0 - 宽松许可证
+    "Python-2.0",     # Python 2.0 许可证 - 宽松许可证
 }
 
 # 不兼容的许可证列表
@@ -158,6 +162,10 @@ def check_npm_licenses() -> Dict[str, List[str]]:
     review = []
     
     for package_name, package_info in licenses_data.items():
+        # 跳过本地项目包
+        if package_name.startswith("maas-web@") or package_name.startswith("maas-server@"):
+            continue
+            
         license_name = package_info.get("licenses", "Unknown")
         
         if isinstance(license_name, list):
