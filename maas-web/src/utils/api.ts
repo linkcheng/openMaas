@@ -169,6 +169,38 @@ export interface SystemHealthResponse {
   version: string
 }
 
+// 审计日志相关接口
+export interface AuditLogResponse {
+  audit_log_id: string
+  user_id?: string
+  username?: string
+  action: string
+  resource_type?: string
+  resource_id?: string
+  description: string
+  ip_address?: string
+  user_agent?: string
+  request_id?: string
+  result: 'success' | 'failure'
+  error_message?: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface AuditStatsResponse {
+  total_logs: number
+  today_logs: number
+  active_users: number
+  failed_operations: number
+}
+
+export interface AuditLogsListResponse {
+  items: AuditLogResponse[]
+  total: number
+  page: number
+  size: number
+}
+
 class ApiClient {
   private client: AxiosInstance
   private isRefreshing = false
@@ -423,6 +455,29 @@ class ApiClient {
     getOverview: () => this.client.get<ApiResponse>('/dashboard/overview'),
   }
 
+  // 审计日志API
+  audit = {
+    // 获取审计日志列表
+    getLogs: (
+      params: {
+        page?: number
+        size?: number
+        username?: string
+        action?: string
+        result?: string
+        start_time?: string
+        end_time?: string
+      } = {},
+    ) => this.client.get<ApiResponse<AuditLogsListResponse>>('/audit/logs', { params }),
+
+    // 获取审计日志统计
+    getStats: () => this.client.get<ApiResponse<AuditStatsResponse>>('/audit/stats'),
+
+    // 导出审计日志
+    exportLogs: (data: { log_ids: string[] }) =>
+      this.client.post<ApiResponse<AuditLogResponse[]>>('/audit/logs/export', data),
+  }
+
   // 通用请求方法
   get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<AxiosResponse<T>> {
     return this.client.get(url, { params })
@@ -443,6 +498,16 @@ class ApiClient {
 
 // 创建单例实例
 export const apiClient = new ApiClient()
+
+// 便捷的API方法导出
+export const {
+  auth: { register, login, refreshToken, logout, forgotPassword, resetPassword, verifyEmail, getPublicKey },
+  users: { getProfile, updateProfile, changePassword, getStats, getApiKeys, createApiKey, revokeApiKey, searchUsers, getUserById, suspendUser, activateUser },
+  stats: { getUserStats, getAdminStats, getUserActivityLogs, getAllActivityLogs },
+  system: { getHealth: getSystemHealth, getMetrics: getSystemMetrics, getResources: getSystemResources },
+  dashboard: { getOverview: getDashboardOverview },
+  audit: { getLogs: getAuditLogs, getStats: getAuditStats, exportLogs: exportAuditLogs },
+} = apiClient
 
 // 错误处理工具函数
 export const handleApiError = (error: unknown): string => {

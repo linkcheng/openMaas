@@ -19,7 +19,7 @@ limitations under the License.
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.config.env_utils import get_env_file_path
+from config.env_utils import get_env_file_path
 
 
 class DatabaseConfig(BaseSettings):
@@ -124,6 +124,66 @@ class ServerConfig(BaseSettings):
     )
 
 
+class PerformanceConfig(BaseSettings):
+    """性能配置"""
+    
+    # 批量操作配置
+    batch_size: int = Field(
+        default=1000,
+        description="默认批量操作大小"
+    )
+    max_batch_size: int = Field(
+        default=5000,
+        description="最大批量操作大小"
+    )
+    
+    # 异步操作配置
+    max_concurrent_operations: int = Field(
+        default=100,
+        description="最大并发操作数"
+    )
+    operation_timeout: int = Field(
+        default=30,
+        description="操作超时时间(秒)"
+    )
+    
+    # 数据清理配置
+    auto_cleanup_enabled: bool = Field(
+        default=True,
+        description="是否启用自动数据清理"
+    )
+    cleanup_retention_days: int = Field(
+        default=90,
+        description="数据保留天数"
+    )
+    cleanup_batch_size: int = Field(
+        default=1000,
+        description="清理操作批量大小"
+    )
+    cleanup_interval_hours: int = Field(
+        default=24,
+        description="清理操作间隔(小时)"
+    )
+    
+    # 健康检查配置
+    health_check_interval: int = Field(
+        default=60,
+        description="健康检查间隔(秒)"
+    )
+    health_check_timeout: int = Field(
+        default=10,
+        description="健康检查超时(秒)"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=get_env_file_path(),
+        env_file_encoding="utf-8",
+        env_prefix="MAAS_PERFORMANCE_",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
     """主配置类 - 整合所有配置模块"""
 
@@ -144,6 +204,13 @@ class Settings(BaseSettings):
     # 日志配置
     log_level: str = "INFO"
     log_file: str | None = None
+    log_dir: str = "logs"
+    log_rotation: str = "1 day"
+    log_retention: str = "30 days"
+    log_format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+    log_json_format: bool = False
+    log_console_enabled: bool = True
+    log_file_enabled: bool = True
 
     # 配置模块
     app: AppConfig = Field(default_factory=AppConfig)
@@ -151,6 +218,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
 
     # 校验器
     @field_validator("environment")
@@ -170,6 +238,14 @@ class Settings(BaseSettings):
         if v.upper() not in allowed_levels:
             raise ValueError(f"log_level必须是{allowed_levels}中的一个")
         return v.upper()
+
+    @field_validator("log_dir")
+    @classmethod
+    def validate_log_dir(cls, v: str) -> str:
+        """校验日志目录"""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("log_dir不能为空")
+        return v.strip()
 
     # Pydantic v2 配置
     model_config = SettingsConfigDict(

@@ -49,7 +49,7 @@ limitations under the License.
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon deployed">
-                <el-icon><Cloud /></el-icon>
+                <el-icon><Cloudy /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ stats.deployedModels }}</div>
@@ -180,7 +180,7 @@ limitations under the License.
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Upload, Box, Cloud, Setting, TrendCharts, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Upload, Box, Cloudy, Setting, TrendCharts, ArrowDown } from '@element-plus/icons-vue'
 
 interface Model {
   id: string

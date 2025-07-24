@@ -21,6 +21,9 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from audit.application.services import AuditLogService
+from audit.domain.repositories import AuditLogRepository
+from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
 from shared.infrastructure.database import get_db_session
 from user.application.auth_service import AuthService, EmailService
 from user.application.services import (
@@ -39,7 +42,7 @@ from user.infrastructure.repositories import (
 class DependencyContainer:
     """依赖注入容器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._password_service = PasswordHashService()
         self._email_verification_service = EmailVerificationService()
         self._api_key_service = ApiKeyService()
@@ -53,7 +56,9 @@ class DependencyContainer:
         """获取角色仓储"""
         return SQLAlchemyRoleRepository(db)
 
-    async def get_user_application_service(self, db: AsyncSession) -> UserApplicationService:
+    async def get_user_application_service(
+        self, db: AsyncSession
+    ) -> UserApplicationService:
         """获取用户应用服务"""
         user_repo = await self.get_user_repository(db)
         role_repo = await self.get_role_repository(db)
@@ -71,9 +76,14 @@ class DependencyContainer:
         user_repo = await self.get_user_repository(db)
         return AuthService(user_repo)
 
-    def get_email_service(self) -> EmailService:
-        """获取邮件服务"""
-        return self._email_service
+    async def get_audit_log_repository(self, db: AsyncSession) -> AuditLogRepository:
+        """获取审计日志仓储"""
+        return SQLAlchemyAuditLogRepository(db)
+
+    async def get_audit_log_service(self, db: AsyncSession) -> AuditLogService:
+        """获取审计日志应用服务"""
+        audit_repo = await self.get_audit_log_repository(db)
+        return AuditLogService(audit_repo)
 
 
 # 全局容器实例
@@ -82,33 +92,43 @@ container = DependencyContainer()
 
 # FastAPI依赖
 async def get_user_repository(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[UserRepository, None]:
     """获取用户仓储依赖"""
     yield await container.get_user_repository(db)
 
 
 async def get_role_repository(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[RoleRepository, None]:
     """获取角色仓储依赖"""
     yield await container.get_role_repository(db)
 
 
 async def get_user_application_service(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[UserApplicationService, None]:
     """获取用户应用服务依赖"""
     yield await container.get_user_application_service(db)
 
 
 async def get_auth_service(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[AuthService, None]:
     """获取认证服务依赖"""
     yield await container.get_auth_service(db)
 
 
-def get_email_service() -> EmailService:
-    """获取邮件服务依赖"""
-    return container.get_email_service()
+async def get_audit_log_repository(
+    db: AsyncSession = Depends(get_db_session),
+) -> AsyncGenerator[AuditLogRepository, None]:
+    """获取审计日志仓储依赖"""
+    yield await container.get_audit_log_repository(db)
+
+
+async def get_audit_log_service(
+    db: AsyncSession = Depends(get_db_session),
+) -> AsyncGenerator[AuditLogService, None]:
+    """获取审计日志应用服务依赖"""
+    yield await container.get_audit_log_service(db)
+

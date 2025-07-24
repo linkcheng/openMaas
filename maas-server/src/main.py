@@ -17,7 +17,6 @@ limitations under the License.
 """FastAPI应用入口点"""
 
 import time
-import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -26,16 +25,19 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from audit.shared.middleware import create_audit_middleware
 from config.settings import settings
 from shared.application.exceptions import ApplicationException, to_http_exception
 from shared.infrastructure.database import (
     close_database,
-    close_redis,
     init_database,
+)
+from shared.infrastructure.cache import (
+    close_redis,
     init_redis,
 )
 from user.interface import router as user_router
-
+from audit.interface import router as audit_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -100,50 +102,7 @@ app.add_middleware(
 )
 
 
-# 请求ID中间件
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    """为每个请求添加唯一ID"""
-    request_id = str(uuid.uuid4())
-    request.state.request_id = request_id
-
-    # 添加请求ID到响应头
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-
-    return response
-
-
-# 请求日志中间件
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """记录请求日志"""
-    start_time = time.time()
-
-    # 记录请求开始
-    logger.info(
-        f"请求开始: {request.method} {request.url.path} - "
-        f"客户端: {request.client.host if request.client else 'unknown'} - "
-        f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
-    )
-
-    response = await call_next(request)
-
-    # 计算处理时间
-    process_time = time.time() - start_time
-
-    # 记录请求完成
-    logger.info(
-        f"请求完成: {request.method} {request.url.path} - "
-        f"状态码: {response.status_code} - "
-        f"耗时: {process_time:.4f}s - "
-        f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
-    )
-
-    # 添加处理时间到响应头
-    response.headers["X-Process-Time"] = str(process_time)
-
-    return response
+create_audit_middleware(app)
 
 
 # 全局异常处理器
@@ -243,6 +202,7 @@ async def root():
 
 # 注册路由
 app.include_router(user_router)
+app.include_router(audit_router)
 
 
 if __name__ == "__main__":

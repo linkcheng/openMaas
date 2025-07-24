@@ -14,4 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""共享模块 - 跨领域的通用组件"""
+"""审计日志应用层"""

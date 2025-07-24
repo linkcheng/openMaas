@@ -122,6 +122,10 @@ limitations under the License.
             <el-icon><UserFilled /></el-icon>
             <template #title>用户管理</template>
           </el-menu-item>
+          <el-menu-item index="/admin/audit-logs">
+            <el-icon><Document /></el-icon>
+            <template #title>系统日志</template>
+          </el-menu-item>
         </el-sub-menu>
       </template>
     </el-menu>
@@ -156,6 +160,7 @@ import {
   Tools,
   Monitor,
   UserFilled,
+  Document,
 } from '@element-plus/icons-vue'
 import { useAuth } from '@/composables/useAuth'
 

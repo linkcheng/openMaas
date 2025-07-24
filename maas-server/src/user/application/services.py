@@ -209,6 +209,10 @@ class UserApplicationService:
             return None
         return await self._map_to_response(user)
 
+    async def get_user_entity_by_id(self, user_id: UUID) -> User | None:
+        """根据ID获取用户实体（包含完整信息）"""
+        return await self._user_repository.find_by_id(user_id)
+
     async def update_user_profile(self, command: UserUpdateCommand) -> UserResponse:
         """更新用户档案"""
         user = await self._user_repository.find_by_id(command.user_id)

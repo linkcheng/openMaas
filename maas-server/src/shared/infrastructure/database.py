@@ -17,8 +17,8 @@ limitations under the License.
 """共享基础设施层 - 数据库配置"""
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
-import redis
 from loguru import logger
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -26,8 +26,10 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from config.settings import settings
 
+
 # 创建元数据
 metadata = MetaData()
+
 
 # 创建基类
 class Base(DeclarativeBase):
@@ -39,87 +41,62 @@ class Base(DeclarativeBase):
 async_engine = create_async_engine(
     settings.get_database_url(),
     echo=settings.server.debug,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    pool_size=20,
-    max_overflow=30,
-    pool_timeout=30,
+    # 优化后的连接池配置
+    pool_size=10,          # 常规连接数
+    max_overflow=5,        # 临时超额连接
+    pool_timeout=30,       # 获取连接超时时间
+    pool_recycle=300,      # 更短的连接回收周期
+    pool_pre_ping=True,    # 执行前健康检查
+    connect_args={
+        "server_settings": {
+            "application_name": "maas_backend"
+        }
+    }
 )
 
 # 异步会话工厂
 async_session_factory = async_sessionmaker(
-    async_engine,
+    bind=async_engine,
     class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False
+    expire_on_commit=True,  # 确保数据一致性
+    autoflush=False,
+    future=True,           # 启用2.0特性
 )
 
-# 同步数据库引擎（用于Alembic迁移）
-sync_engine = create_engine(
-    settings.database.url_sync,
-    echo=settings.server.debug,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    pool_size=20,
-    max_overflow=30,
-    pool_timeout=30,
-)
-
-# 同步会话工厂
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
+# async_session_factory = async_sessionmaker(
+#     bind=async_engine,
+#     twophase=True,  # 启用两阶段提交
+#     info={"require_new_connection": True}  # 强制新连接
+# )
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """获取异步数据库会话"""
     async with async_session_factory() as session:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception as exc:
             await session.rollback()
+            logger.error(f"Database operation failed: {exc}")
             raise
         finally:
             await session.close()
+            logger.debug("Session closed")
 
 
 # 别名，用于依赖注入
 get_db_session = get_async_session
 
 
-def get_sync_session():
-    """获取同步数据库会话（用于依赖注入）"""
-    db = SessionLocal()
+
+async def check_database_health():
+    """深度健康检查"""
     try:
-        yield db
-    finally:
-        db.close()
-
-
-# Redis连接
-redis_client = redis.Redis.from_url(
-    settings.get_redis_url(),
-    decode_responses=True,
-    retry_on_timeout=True,
-    retry_on_error=[redis.BusyLoadingError, redis.ConnectionError],
-    health_check_interval=30,
-    max_connections=50,
-    socket_connect_timeout=5,
-    socket_timeout=5,
-)
-
-
-def get_redis():
-    """获取Redis客户端"""
-    return redis_client
-
-
-async def check_redis_connection() -> bool:
-    """检查Redis连接状态"""
-    try:
-        redis_client.ping()
-        return True
-    except Exception:
+        async with async_engine.connect() as conn:
+            await conn.scalar("SELECT 1")
+            return True
+    except Exception as e:
+        logger.critical(f"Database health check failed: {e}")
         return False
 
 
@@ -146,16 +123,6 @@ async def init_database() -> bool:
         return False
 
 
-async def init_redis():
-    """初始化Redis连接"""
-    try:
-        # 检查Redis连接
-        if await check_redis_connection():
-            return True
-        return False
-    except Exception:
-        return False
-
 
 async def close_database():
     """关闭数据库连接"""
@@ -166,9 +133,64 @@ async def close_database():
         pass
 
 
-async def close_redis():
-    """关闭Redis连接"""
+
+# 同步数据库引擎（用于Alembic迁移）
+sync_engine = create_engine(
+    settings.database.url_sync,
+    echo=settings.server.debug,
+    # 优化后的连接池配置
+    pool_size=10,                # 常规连接数（根据服务器核心数调整）
+    max_overflow=5,              # 临时超额连接数
+    pool_timeout=30,             # 连接获取超时时间（秒）
+    pool_recycle=300,            # 连接回收周期（秒），建议小于数据库的wait_timeout
+    pool_pre_ping=True,          # 执行前健康检查
+    connect_args={
+        "connect_timeout": 5,    # 连接建立超时
+        "application_name": "maas_alembic"  # 标识连接来源
+    }
+)
+
+# 同步会话工厂（线程安全配置）
+SessionLocal = sessionmaker(
+    bind=sync_engine,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=True,      # 避免脏数据
+    future=True,                # 启用SQLAlchemy 2.0特性
+    twophase=False,             # 根据分布式事务需求调整
+    info={"purpose": "alembic"} # 标记会话用途
+)
+
+def get_sync_session():
+    """线程安全的同步会话生成器（改进版）
+    
+    特点：
+    1. 明确会话生命周期
+    2. 自动清理资源
+    3. 异常安全处理
+    """
+    session = SessionLocal()
     try:
-        redis_client.close()
-    except Exception:
-        pass
+        yield session
+        session.commit()  # 自动提交成功操作
+    except Exception as e:
+        session.rollback()  # 异常时回滚
+        logger.error(f"Database operation failed: {e}")
+        raise
+    finally:
+        session.close()
+        logger.debug("Sync session closed")
+
+
+
+from sqlalchemy import event
+
+@event.listens_for(async_engine.sync_engine, "connect")
+def on_connect(dbapi_conn, connection_record):
+    logger.debug(f"New connection established: {id(dbapi_conn)}")
+
+
+@event.listens_for(async_engine.sync_engine, "checkout")
+def on_checkout(dbapi_conn, connection_record, connection_proxy):
+    logger.debug(f"Connection checked out: {id(dbapi_conn)}")
+    

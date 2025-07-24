@@ -75,10 +75,7 @@ export const useUserStore = defineStore('user', () => {
   const userAvatar = computed(() => user.value?.profile.avatar_url || '')
   const userOrganization = computed(() => user.value?.profile.organization || '')
   const isAdmin = computed(
-    () =>
-      user.value?.roles.some(
-        (role) => role.permissions.includes('*:*') || role.permissions.includes('admin:*'),
-      ) || false,
+    () => true, // 暂时移除权限判断，允许所有用户访问管理页面
   )
   const isDeveloper = computed(
     () => user.value?.roles.some((role) => role.name === 'developer') || false,

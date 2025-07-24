@@ -120,10 +120,18 @@ class SM2CryptoService:
             raise ValueError("密钥未初始化")
 
         try:
+            # 检查明文格式
+            if not isinstance(plaintext, str):
+                raise ValueError("明文必须是字符串格式")
 
-            ciphertext = Encrypt(plaintext, self._public_key, self.len_para, 0)
+            # 使用SM2公钥加密
+            ciphertext_bytes = Encrypt(plaintext.encode("utf-8"), self._public_key, self.len_para, 0)
 
-            return ciphertext.hex()
+            # 检查加密结果
+            if ciphertext_bytes is None:
+                raise ValueError("加密结果为空")
+
+            return ciphertext_bytes.hex()
 
         except Exception as e:
             logger.error(f"SM2加密失败: {e}")
@@ -146,11 +154,24 @@ class SM2CryptoService:
             raise ValueError("密钥未初始化")
 
         try:
+            # 检查密文格式
+            if not isinstance(ciphertext, str):
+                raise ValueError("密文必须是字符串格式")
+
+            # 将十六进制字符串转换为字节
+            try:
+                cipher_bytes = bytes.fromhex(ciphertext)
+            except ValueError:
+                raise ValueError("密文不是有效的十六进制格式")
 
             # SM2解密，len_para固定为64
-            decrypted_text = Decrypt(ciphertext, self._private_key, 64, 0)
+            decrypted_text = Decrypt(cipher_bytes, self._private_key, 64, 0)
 
-            return decrypted_text.decode()
+            # 检查解密结果
+            if decrypted_text is None:
+                raise ValueError("解密结果为空，可能密文格式不正确或密钥不匹配")
+
+            return decrypted_text.decode("utf-8")
 
         except Exception as e:
             logger.error(f"SM2解密失败: {e}", exc_info=True)

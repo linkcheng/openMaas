@@ -14,4 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""共享模块 - 跨领域的通用组件"""
+"""审计日志接口层"""
+
+
+from fastapi import APIRouter
+
+from audit.interface.controller import router as audit_router
+
+# 创建用户模块的主路由
+router = APIRouter(prefix="/api/v1", tags=["审计"])
+
+router.include_router(audit_router)
+
+
+# 导出路由
+__all__ = ["router"]

@@ -16,14 +16,15 @@ limitations under the License.
 
 """用户接口层 - 认证控制器"""
 
-import logging
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
-from pydantic import ValidationError
 
+from audit.domain.models import ActionType, ResourceType
+from audit.shared.decorators import audit_log, audit_user_operation
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
 from shared.interface.auth_middleware import get_current_user_id, jwt_bearer
@@ -43,10 +44,6 @@ from user.application.services import (
     PasswordHashService,
     UserApplicationService,
 )
-from user.domain.models import (
-    InvalidCredentialsException,
-    UserAlreadyExistsException,
-)
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -58,21 +55,23 @@ async def get_public_key():
     
     返回SM2公钥信息，前端使用此公钥加密密码后传输
     """
-    try:
-        sm2_service = get_sm2_service()
-        key_info = sm2_service.get_key_info()
 
-        return ApiResponse.success_response(key_info, "获取公钥成功")
+    sm2_service = get_sm2_service()
+    key_info = sm2_service.get_key_info()
 
-    except Exception as e:
-        logger.error(f"获取公钥失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取公钥失败"
-        )
+    return ApiResponse.success_response(key_info, "获取公钥成功")
+
 
 
 @router.post("/register", response_model=ApiResponse[UserResponse], summary="用户注册")
+@audit_log(
+    action=ActionType.USER_CREATE,
+    description="用户注册",
+    resource_type=ResourceType.USER,
+    extract_user_from_result=True,
+    success_condition=lambda result: isinstance(result, ApiResponse) and result.success,
+    custom_description=lambda request, **kwargs: f"用户 {request.username} 尝试注册"
+)
 async def register(
     request: UserCreateRequest,
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
@@ -87,64 +86,41 @@ async def register(
     - **last_name**: 姓氏
     - **organization**: 组织（可选）
     """
-    try:
-        # 解密密码
-        sm2_service = get_sm2_service()
-        decrypted_password = sm2_service.decrypt(request.password)
+    # 解密密码
+    sm2_service = get_sm2_service()
+    decrypted_password = sm2_service.decrypt(request.password)
 
-        # 哈希密码
-        password_hash = PasswordHashService.hash_password(decrypted_password)
+    # 哈希密码
+    password_hash = PasswordHashService.hash_password(decrypted_password)
 
-        # 创建用户命令
-        command = UserCreateCommand(
-            username=request.username,
-            email=request.email,
-            password_hash=password_hash,
-            first_name=request.first_name,
-            last_name=request.last_name,
-            organization=request.organization,
-        )
+    # 创建用户命令
+    command = UserCreateCommand(
+        username=request.username,
+        email=request.email,
+        password_hash=password_hash,
+        first_name=request.first_name,
+        last_name=request.last_name,
+        organization=request.organization,
+    )
 
-        # 创建用户
-        user = await user_service.create_user(command)
+    # 创建用户
+    user = await user_service.create_user(command)
 
-        return ApiResponse.success_response(user, "注册成功")
-
-    except ValueError as e:
-        # SM2解密失败
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"密码解密失败: {e}"
-        )
-    except UserAlreadyExistsException as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e)
-        )
-    except ValidationError as e:
-        # 处理 Pydantic 验证错误
-        error_messages = []
-        for error in e.errors():
-            field = error.get("loc", ["unknown"])[-1]
-            message = error.get("msg", "验证失败")
-            error_messages.append(f"{field}: {message}")
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="; ".join(error_messages)
-        )
-    except Exception as e:
-        # 记录详细错误信息
-        logging.error(f"用户注册失败: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="注册失败，请稍后重试"
-        )
+    return ApiResponse.success_response(user, "注册成功")
 
 
 @router.post("/login", response_model=ApiResponse[AuthTokenResponse], summary="用户登录")
+@audit_log(
+    action=ActionType.LOGIN,
+    description="用户登录",
+    resource_type=ResourceType.USER,
+    extract_user_from_result=True,
+    success_condition=lambda result: isinstance(result, ApiResponse) and result.success,
+    custom_description=lambda request, **kwargs: f"用户 {request.login_id} 尝试登录"
+)
 async def login(
     request: UserLoginRequest,
+    http_request: Request,
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
@@ -154,41 +130,21 @@ async def login(
     - **login_id**: 邮箱地址或用户名
     - **password**: SM2加密后的密码
     """
-    try:
-        # 解密密码
-        sm2_service = get_sm2_service()
-        decrypted_password = sm2_service.decrypt(request.password)
+    # 解密密码
+    sm2_service = get_sm2_service()
+    decrypted_password = sm2_service.decrypt(request.password)
 
-        # 检查解密结果
-        if not decrypted_password:
-            raise ValueError("密码解密后为空")
+    # 检查解密结果
+    if not decrypted_password:
+        raise ValueError("密码解密后为空")
 
-        # 认证用户
-        user = await user_service.authenticate_user(request.login_id, decrypted_password)
+    # 认证用户
+    user = await user_service.authenticate_user(request.login_id, decrypted_password)
 
-        # 创建令牌
-        token_response = await auth_service._create_token_response(user)
+    # 创建令牌
+    token_response = await auth_service._create_token_response(user)
 
-        return ApiResponse.success_response(token_response, "登录成功")
-
-    except ValueError as e:
-        # SM2解密失败
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"密码解密失败: {e}"
-        )
-    except InvalidCredentialsException:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名/邮箱或密码错误"
-        )
-
-    except Exception as e:
-        logger.error(f"登录失败: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="登录失败，请稍后重试"
-        )
+    return ApiResponse.success_response(token_response, "登录成功")
 
 
 @router.post("/refresh", response_model=ApiResponse[AuthTokenResponse], summary="刷新令牌")
@@ -201,36 +157,40 @@ async def refresh_token(
     
     使用刷新令牌获取新的访问令牌
     """
-    try:
-        token_response = await auth_service.refresh_access_token(credentials.credentials)
-        return ApiResponse.success_response(token_response, "令牌刷新成功")
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e)
-        )
+    token_response = await auth_service.refresh_access_token(credentials.credentials)
+    return ApiResponse.success_response(token_response, "令牌刷新成功")
 
 
 @router.post("/logout", response_model=ApiResponse[bool], summary="退出登录")
+@audit_user_operation(
+    action=ActionType.LOGOUT,
+    description="用户退出登录"
+)
 async def logout(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    http_request: Request,
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """
     退出登录
     
     将令牌加入黑名单（可选实现）
     """
+    # 获取用户信息并存储到request.state中，供审计装饰器使用
     try:
-        # TODO: 可以实现令牌黑名单功能
-        # 这里简化处理，客户端删除令牌即可
+        user = await user_service.get_user_by_id(user_id)
+        if user:
+            http_request.state.username = user.username
+            http_request.state.current_user = user
+    except Exception as e:
+        logger.warning(f"获取用户信息失败: {e}")
+        http_request.state.username = None
+        http_request.state.current_user = None
+    
+    # TODO: 可以实现令牌黑名单功能
+    # 这里简化处理，客户端删除令牌即可
 
-        return ApiResponse.success_response(True, "退出登录成功")
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="退出登录失败"
-        )
+    return ApiResponse.success_response(True, "退出登录成功")
 
 
