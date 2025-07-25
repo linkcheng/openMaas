@@ -156,7 +156,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, initializeAuth } = useAuth()
+  const { isAuthenticated, isAdmin, initializeAuth } = useAuth()
 
   // 初始化认证状态
   if (!isAuthenticated.value) {
@@ -175,11 +175,12 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // 检查是否需要管理员权限 (暂时注释掉权限检查)
-  // if (to.meta.requiresAdmin && !isAdmin.value) {
-  //   next('/')
-  //   return
-  // }
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin && !isAdmin.value) {
+    // 如果用户已认证但没有管理员权限，跳转到首页并显示提示
+    next('/')
+    return
+  }
 
   next()
 })

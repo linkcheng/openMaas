@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志中间件 - 请求上下文管理
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-"""审计日志中间件 - 请求上下文管理"""
 
 import time
 import uuid
@@ -31,7 +31,7 @@ from audit.shared.config import get_audit_config_manager
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """请求上下文中间件
-    
+
     自动为每个请求生成唯一ID，提取客户端信息，并存储在request.state中
     供审计装饰器使用。
     """
@@ -116,7 +116,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 class AutoAuditMiddleware(BaseHTTPMiddleware):
     """自动审计中间件
-    
+
     根据配置自动为特定路径记录审计日志，适用于不便使用装饰器的场景。
     """
 
@@ -210,12 +210,12 @@ def create_audit_middleware(
     enable_auto_audit: bool = False,
 ) -> ASGIApp:
     """创建审计中间件组合
-    
+
     Args:
         app: ASGI应用
         enable_request_context: 是否启用请求上下文中间件
         enable_auto_audit: 是否启用自动审计中间件
-    
+
     Returns:
         包装后的ASGI应用
     """

@@ -27,10 +27,10 @@ class DataInitializer(ABC):
     @abstractmethod
     async def initialize(self, session: AsyncSession) -> bool:
         """初始化模块数据
-        
+
         Args:
             session: 数据库会话
-            
+
         Returns:
             bool: 初始化是否成功
         """
@@ -44,7 +44,7 @@ class DataInitializer(ABC):
     @abstractmethod
     def get_dependencies(self) -> list[str]:
         """获取依赖的模块列表
-        
+
         Returns:
             list[str]: 依赖模块名称列表，空列表表示无依赖
         """

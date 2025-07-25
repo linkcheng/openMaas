@@ -74,9 +74,13 @@ export const useUserStore = defineStore('user', () => {
   const userFullName = computed(() => user.value?.profile.full_name || '')
   const userAvatar = computed(() => user.value?.profile.avatar_url || '')
   const userOrganization = computed(() => user.value?.profile.organization || '')
-  const isAdmin = computed(
-    () => true, // 暂时移除权限判断，允许所有用户访问管理页面
-  )
+  const isAdmin = computed(() => {
+    if (!user.value) return false
+    
+    // 检查用户是否有管理员角色
+    const adminRoles = ['admin', 'super_admin', 'system_admin']
+    return user.value.roles.some((role) => adminRoles.includes(role.name.toLowerCase()))
+  })
   const isDeveloper = computed(
     () => user.value?.roles.some((role) => role.name === 'developer') || false,
   )

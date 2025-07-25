@@ -30,7 +30,7 @@ class LoggingService:
 
     def __init__(self, settings: Settings):
         """初始化日志服务
-        
+
         Args:
             settings: 系统配置
         """
@@ -124,10 +124,10 @@ class LoggingService:
 
     def create_structured_logger(self, context: dict[str, Any] | None = None) -> Any:
         """创建结构化日志记录器
-        
+
         Args:
             context: 上下文信息
-            
+
         Returns:
             配置了上下文的logger实例
         """
@@ -147,10 +147,10 @@ class LoggingService:
         ip_address: str | None = None,
     ) -> None:
         """记录HTTP请求日志
-        
+
         Args:
             method: HTTP方法
-            path: 请求路径  
+            path: 请求路径
             status_code: 状态码
             duration: 处理时间(秒)
             request_id: 请求ID
@@ -186,7 +186,7 @@ class LoggingService:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """记录业务事件日志
-        
+
         Args:
             event_type: 事件类型
             message: 事件消息
@@ -223,11 +223,11 @@ def get_logging_service() -> LoggingService:
 
 def get_logger(name: str | None = None, **context: Any) -> Any:
     """获取配置好的logger实例
-    
+
     Args:
         name: logger名称
         **context: 上下文信息
-        
+
     Returns:
         logger实例
     """

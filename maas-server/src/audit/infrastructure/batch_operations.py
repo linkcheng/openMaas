@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志批量操作优化
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-"""审计日志批量操作优化"""
 
 from datetime import datetime
 from typing import Any
@@ -63,12 +63,12 @@ class AuditLogBatchOperations(BaseBatchOperations[AuditLog, AuditLogORM]):
         max_batches: int = 100
     ) -> int:
         """批量删除旧的审计日志
-        
+
         Args:
             before_date: 删除此日期之前的日志
             batch_size: 每批删除的数量，None时使用配置默认值
             max_batches: 最大批次数，防止长时间锁表
-            
+
         Returns:
             删除的记录数
         """

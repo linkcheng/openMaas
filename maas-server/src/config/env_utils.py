@@ -24,10 +24,10 @@ _env_file_cache: Path | None = None
 
 def find_env_file(start_path: Path | None = None) -> Path | None:
     """查找.env文件
-    
+
     Args:
         start_path: 开始查找的路径，默认为当前文件所在目录
-        
+
     Returns:
         找到的.env文件路径，如果没找到返回None
     """
@@ -67,7 +67,7 @@ def find_env_file(start_path: Path | None = None) -> Path | None:
 
 def clear_env_file_cache() -> None:
     """清除.env文件缓存
-    
+
     当需要重新查找.env文件时调用此函数
     """
     global _env_file_cache
@@ -76,14 +76,14 @@ def clear_env_file_cache() -> None:
 
 def get_env_file_path() -> str:
     """获取环境变量配置文件路径
-    
+
     按优先级查找 .env 文件:
     1. 项目根目录 (maas-server/.env)
-    2. src 目录 (maas-server/src/.env)  
+    2. src 目录 (maas-server/src/.env)
     3. config 目录 (maas-server/src/config/.env)
     4. 当前工作目录 (.env)
     5. 用户主目录 (.env)
-    
+
     Returns:
         .env文件路径字符串，如果没找到返回空字符串
     """

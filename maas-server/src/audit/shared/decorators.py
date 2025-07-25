@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志装饰器 - AOP实现
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -14,8 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""审计日志装饰器 - AOP实现"""
-
+import contextlib
 import functools
 import inspect
 from collections.abc import Callable
@@ -59,7 +60,7 @@ def audit_log(
 ) -> Callable[[F], F]:
     """
     审计日志装饰器
-    
+
     Args:
         action: 操作类型
         description: 操作描述模板
@@ -142,10 +143,8 @@ def audit_log(
                 # 判断是否为预期的失败
                 is_expected_failure = False
                 if failure_condition:
-                    try:
+                    with contextlib.suppress(Exception):
                         is_expected_failure = failure_condition(e)
-                    except Exception:
-                        pass
 
                 # 丰富用户信息（获取用户名）
                 if context.user_id and not context.username:
@@ -271,10 +270,7 @@ def _extract_user_from_result(context: AuditContext, result: Any) -> None:
     """从返回结果中提取用户信息"""
     try:
         # 处理ApiResponse包装的结果
-        if isinstance(result, ApiResponse):
-            data = result.data
-        else:
-            data = result
+        data = result.data if isinstance(result, ApiResponse) else result
 
         # 尝试从不同的数据结构中提取用户信息
         if hasattr(data, "user") and hasattr(data.user, "id"):
@@ -298,11 +294,11 @@ def _extract_user_from_result(context: AuditContext, result: Any) -> None:
 def audit_resource_operation(
     action: ActionType,
     resource_type: ResourceType,
-    description_template: str = "{action} {resource_type}",
+    description_template: str = "{action}:{resource_type}",
 ) -> Callable[[F], F]:
     """
     资源操作审计装饰器的便捷方法
-    
+
     Args:
         action: 操作类型
         resource_type: 资源类型
@@ -313,7 +309,7 @@ def audit_resource_operation(
         """从参数中提取资源ID"""
         # 查找常见的资源ID参数名
         for key in ["resource_id", "id", f"{resource_type.value}_id"]:
-            if key in kwargs and isinstance(kwargs[key], (UUID, str)):
+            if key in kwargs and isinstance(kwargs[key], UUID | str):
                 try:
                     return UUID(str(kwargs[key]))
                 except (ValueError, TypeError):
@@ -343,7 +339,7 @@ def audit_user_operation(
 ) -> Callable[[F], F]:
     """
     用户操作审计装饰器的便捷方法
-    
+
     Args:
         action: 操作类型
         description: 操作描述
@@ -356,7 +352,7 @@ def audit_user_operation(
             return None
 
         for key in ["target_user_id", "user_id", "id"]:
-            if key in kwargs and isinstance(kwargs[key], (UUID, str)):
+            if key in kwargs and isinstance(kwargs[key], UUID | str):
                 try:
                     return UUID(str(kwargs[key]))
                 except (ValueError, TypeError):

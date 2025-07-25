@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志领域模型
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-"""审计日志领域模型"""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -48,8 +48,14 @@ class ActionType(str, Enum):
     PASSWORD_RESET = "password_reset"
 
     # 角色权限
+    ROLE_CREATE = "role_create"
+    ROLE_UPDATE = "role_update"
+    ROLE_DELETE = "role_delete"
     ROLE_ASSIGN = "role_assign"
     ROLE_REVOKE = "role_revoke"
+    PERMISSION_CREATE = "permission_create"
+    PERMISSION_UPDATE = "permission_update"
+    PERMISSION_DELETE = "permission_delete"
     PERMISSION_GRANT = "permission_grant"
     PERMISSION_REVOKE = "permission_revoke"
 

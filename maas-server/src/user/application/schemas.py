@@ -30,6 +30,81 @@ class UserStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+# 角色和权限相关DTO
+class PermissionRequest(BaseModel):
+    """权限创建请求"""
+    name: str = Field(..., min_length=1, max_length=100, description="权限名称")
+    description: str = Field(..., min_length=1, max_length=255, description="权限描述")
+    resource: str = Field(..., min_length=1, max_length=100, description="资源")
+    action: str = Field(..., min_length=1, max_length=100, description="操作")
+
+
+class PermissionResponse(BaseModel):
+    """权限响应"""
+    id: UUID
+    name: str
+    description: str
+    resource: str
+    action: str
+
+    class Config:
+        from_attributes = True
+
+
+class RoleCreateRequest(BaseModel):
+    """角色创建请求"""
+    name: str = Field(..., min_length=1, max_length=100, description="角色名称")
+    description: str = Field(..., min_length=1, max_length=255, description="角色描述")
+    permission_ids: list[UUID] = Field(default_factory=list, description="权限ID列表")
+
+    @validator("name")
+    def validate_role_name(cls, v):
+        import re
+        if not re.match(r"^[a-zA-Z0-9_]+$", v):
+            raise ValueError("角色名称只能包含字母、数字和下划线")
+        return v.lower()
+
+
+class RoleUpdateRequest(BaseModel):
+    """角色更新请求"""
+    name: str | None = Field(None, min_length=1, max_length=100, description="角色名称")
+    description: str | None = Field(None, min_length=1, max_length=255, description="角色描述")
+    permission_ids: list[UUID] | None = Field(None, description="权限ID列表")
+
+    @validator("name")
+    def validate_role_name(cls, v):
+        if v is not None:
+            import re
+            if not re.match(r"^[a-zA-Z0-9_]+$", v):
+                raise ValueError("角色名称只能包含字母、数字和下划线")
+            return v.lower()
+        return v
+
+
+class RoleResponse(BaseModel):
+    """角色响应"""
+    id: UUID
+    name: str
+    description: str
+    permissions: list[str]  # 权限字符串列表 "resource:action"
+
+    class Config:
+        from_attributes = True
+
+
+class UserRoleAssignRequest(BaseModel):
+    """用户角色分配请求"""
+    user_id: UUID
+    role_ids: list[UUID] = Field(..., min_items=1, description="角色ID列表")
+
+
+class RoleSearchQuery(BaseModel):
+    """角色搜索查询"""
+    name: str | None = Field(None, description="角色名称关键词")
+    limit: int = Field(20, ge=1, le=100, description="返回数量限制")
+    offset: int = Field(0, ge=0, description="偏移量")
+
+
 # 请求DTO
 class UserCreateRequest(BaseModel):
     """用户创建请求"""

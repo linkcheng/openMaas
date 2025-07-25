@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志仓储接口定义
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-"""审计日志仓储接口定义"""
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -57,7 +57,7 @@ class AuditLogRepository(ABC):
     @abstractmethod
     async def save(self, audit_log: AuditLog) -> None:
         """保存审计日志
-        
+
         Args:
             audit_log: 审计日志实体
         """
@@ -66,10 +66,10 @@ class AuditLogRepository(ABC):
     @abstractmethod
     async def find_by_id(self, audit_log_id: UUID) -> AuditLog | None:
         """根据ID查找审计日志
-        
+
         Args:
             audit_log_id: 审计日志ID
-            
+
         Returns:
             审计日志实体，如果不存在则返回None
         """
@@ -85,14 +85,14 @@ class AuditLogRepository(ABC):
         order_desc: bool = True,
     ) -> list[AuditLog]:
         """根据过滤条件查找审计日志
-        
+
         Args:
             filter_obj: 过滤条件
             limit: 返回数量限制
             offset: 偏移量
             order_by: 排序字段
             order_desc: 是否降序
-            
+
         Returns:
             审计日志列表
         """
@@ -101,10 +101,10 @@ class AuditLogRepository(ABC):
     @abstractmethod
     async def count_by_filter(self, filter_obj: AuditLogFilter) -> int:
         """统计符合条件的审计日志数量
-        
+
         Args:
             filter_obj: 过滤条件
-            
+
         Returns:
             数量
         """
@@ -118,12 +118,12 @@ class AuditLogRepository(ABC):
         offset: int = 0,
     ) -> list[AuditLog]:
         """根据用户ID查找审计日志
-        
+
         Args:
             user_id: 用户ID
             limit: 返回数量限制
             offset: 偏移量
-            
+
         Returns:
             审计日志列表
         """
@@ -138,13 +138,13 @@ class AuditLogRepository(ABC):
         offset: int = 0,
     ) -> list[AuditLog]:
         """根据资源查找审计日志
-        
+
         Args:
             resource_type: 资源类型
             resource_id: 资源ID
             limit: 返回数量限制
             offset: 偏移量
-            
+
         Returns:
             审计日志列表
         """
@@ -158,12 +158,12 @@ class AuditLogRepository(ABC):
         limit: int = 50,
     ) -> list[AuditLog]:
         """查找最近的登录记录
-        
+
         Args:
             user_id: 用户ID，为空时查找所有用户
             hours: 最近多少小时
             limit: 返回数量限制
-            
+
         Returns:
             审计日志列表
         """
@@ -176,11 +176,11 @@ class AuditLogRepository(ABC):
         limit: int = 50,
     ) -> list[AuditLog]:
         """查找失败的操作记录
-        
+
         Args:
             hours: 最近多少小时
             limit: 返回数量限制
-            
+
         Returns:
             审计日志列表
         """
@@ -196,14 +196,14 @@ class AuditLogRepository(ABC):
         order_desc: bool = True,
     ) -> tuple[list[AuditLog], int]:
         """根据过滤条件查找审计日志并返回总数
-        
+
         Args:
             filter_obj: 过滤条件
             limit: 返回数量限制
             offset: 偏移量
             order_by: 排序字段
             order_desc: 是否降序
-            
+
         Returns:
             审计日志列表和总数的元组
         """
@@ -212,10 +212,10 @@ class AuditLogRepository(ABC):
     @abstractmethod
     async def find_by_ids(self, log_ids: list[UUID]) -> list[AuditLog]:
         """根据ID列表批量查找审计日志
-        
+
         Args:
             log_ids: 审计日志ID列表
-            
+
         Returns:
             审计日志列表
         """
@@ -229,12 +229,12 @@ class AuditLogRepository(ABC):
         include_action_stats: bool = False,
     ) -> dict:
         """获取审计日志统计信息
-        
+
         Args:
             start_time: 统计开始时间
             include_user_stats: 是否包含用户统计
             include_action_stats: 是否包含操作统计
-            
+
         Returns:
             统计信息字典
         """

@@ -41,7 +41,7 @@ class BaseBatchOperations(ABC, Generic[T, M]):
 
     async def batch_save(self, entities: list[T], batch_size: int | None = None) -> None:
         """批量保存实体
-        
+
         Args:
             entities: 实体列表
             batch_size: 批次大小，None时使用配置默认值
@@ -86,13 +86,13 @@ class BaseBatchOperations(ABC, Generic[T, M]):
         max_batches: int = 100
     ) -> int:
         """批量删除指定日期之前的记录
-        
+
         Args:
             date_column: 日期字段名
             before_date: 删除此日期之前的记录
             batch_size: 每批删除的数量，None时使用配置默认值
             max_batches: 最大批次数，防止长时间锁表
-            
+
         Returns:
             删除的记录数
         """
@@ -143,10 +143,10 @@ class BaseBatchOperations(ABC, Generic[T, M]):
 
     async def vacuum_analyze_table(self, table_name: str) -> None:
         """对指定表执行VACUUM ANALYZE优化
-        
+
         Args:
             table_name: 表名
-            
+
         注意：这个操作需要适当的数据库权限
         """
         try:
@@ -160,10 +160,10 @@ class BaseBatchOperations(ABC, Generic[T, M]):
     @abstractmethod
     def _entity_to_dict(self, entity: T) -> dict[str, Any]:
         """将领域实体转换为字典格式
-        
+
         Args:
             entity: 领域实体
-            
+
         Returns:
             字典格式的数据
         """
@@ -171,7 +171,7 @@ class BaseBatchOperations(ABC, Generic[T, M]):
 
     def _get_conflict_columns(self) -> list[str]:
         """获取冲突检测的列名
-        
+
         Returns:
             用于冲突检测的列名列表，默认为空（不处理冲突）
         """

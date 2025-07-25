@@ -161,7 +161,7 @@ SessionLocal = sessionmaker(
 
 def get_sync_session():
     """线程安全的同步会话生成器（改进版）
-    
+
     特点：
     1. 明确会话生命周期
     2. 自动清理资源

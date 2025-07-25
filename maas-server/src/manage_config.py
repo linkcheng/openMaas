@@ -150,7 +150,7 @@ async def main():
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
 
     # show 命令
-    show_parser = subparsers.add_parser("show", help="显示当前配置")
+    subparsers.add_parser("show", help="显示当前配置")
 
     # validate 命令
     subparsers.add_parser("validate", help="验证配置")

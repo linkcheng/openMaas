@@ -32,7 +32,7 @@ from user.domain.models import (
     UserProfile,
     UserStatus,
 )
-from user.domain.repositories import RoleRepository, UserRepository
+from user.domain.repositories import PermissionRepository, RoleRepository, UserRepository
 from user.infrastructure.models import RoleORM, UserORM
 
 
@@ -262,6 +262,16 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
         result = await self.session.execute(stmt)
         return result.scalar()
 
+    async def find_by_role_id(self, role_id: UUID) -> list[User]:
+        """根据角色ID查找用户"""
+        stmt = select(UserORM).options(
+            selectinload(UserORM.roles)
+        ).join(UserRoleORM).where(UserRoleORM.role_id == role_id)
+        
+        result = await self.session.execute(stmt)
+        orm_objects = result.scalars().all()
+        return [self._to_domain_entity(obj) for obj in orm_objects]
+
     def _to_domain_entity(self, orm_obj: UserORM) -> User:
         """将ORM对象转换为领域实体"""
         if not orm_obj:
@@ -389,6 +399,40 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
         orm_objects = result.scalars().all()
         return [self._to_domain_entity(obj) for obj in orm_objects]
 
+    async def search_roles(
+        self,
+        name: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Role]:
+        """搜索角色"""
+        stmt = select(RoleORM)
+        
+        if name:
+            stmt = stmt.where(RoleORM.name.ilike(f"%{name}%"))
+        
+        stmt = stmt.order_by(RoleORM.name).offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        orm_objects = result.scalars().all()
+        return [self._to_domain_entity(obj) for obj in orm_objects]
+
+    async def delete(self, role_id: UUID) -> bool:
+        """删除角色"""
+        stmt = select(RoleORM).where(RoleORM.role_id == role_id)
+        result = await self.session.execute(stmt)
+        orm_obj = result.scalar_one_or_none()
+        
+        if orm_obj:
+            await self.session.delete(orm_obj)
+            await self.session.commit()
+            return True
+        return False
+
+    async def find_by_role_id(self, role_id: UUID) -> list[User]:
+        """根据角色ID查找用户"""
+        # 这个方法应该在UserRepository中，先简单实现
+        return []
+
     def _to_domain_entity(self, orm_obj: RoleORM) -> Role:
         """将ORM对象转换为领域实体"""
         if not orm_obj:
@@ -449,3 +493,114 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
         orm_obj.description = role.description
         orm_obj.permissions = permissions
         return orm_obj
+
+
+class SQLAlchemyPermissionRepository(PermissionRepository):
+    """SQLAlchemy权限仓储实现（基于角色JSON存储）"""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def find_by_id(self, permission_id: UUID) -> Permission | None:
+        """根据ID获取权限"""
+        # 从所有角色的permissions JSON中查找
+        stmt = select(RoleORM)
+        result = await self.session.execute(stmt)
+        roles = result.scalars().all()
+        
+        for role in roles:
+            for perm_data in role.permissions:
+                if isinstance(perm_data, dict) and UUID(perm_data.get("id")) == permission_id:
+                    return Permission(
+                        id=UUID(perm_data.get("id")),
+                        name=perm_data.get("name", ""),
+                        description=perm_data.get("description", ""),
+                        resource=perm_data.get("resource", ""),
+                        action=perm_data.get("action", "")
+                    )
+        return None
+
+    async def find_by_resource_action(self, resource: str, action: str) -> Permission | None:
+        """根据资源和操作查找权限"""
+        stmt = select(RoleORM)
+        result = await self.session.execute(stmt)
+        roles = result.scalars().all()
+        
+        for role in roles:
+            for perm_data in role.permissions:
+                if (isinstance(perm_data, dict) and 
+                    perm_data.get("resource") == resource and 
+                    perm_data.get("action") == action):
+                    return Permission(
+                        id=UUID(perm_data.get("id")),
+                        name=perm_data.get("name", ""),
+                        description=perm_data.get("description", ""),
+                        resource=perm_data.get("resource", ""),
+                        action=perm_data.get("action", "")
+                    )
+        return None
+
+    async def find_all(self) -> list[Permission]:
+        """获取所有权限"""
+        stmt = select(RoleORM)
+        result = await self.session.execute(stmt)
+        roles = result.scalars().all()
+        
+        permissions = []
+        seen_permissions = set()
+        
+        for role in roles:
+            for perm_data in role.permissions:
+                if isinstance(perm_data, dict):
+                    perm_key = f"{perm_data.get('resource')}:{perm_data.get('action')}"
+                    if perm_key not in seen_permissions:
+                        permission = Permission(
+                            id=UUID(perm_data.get("id")),
+                            name=perm_data.get("name", ""),
+                            description=perm_data.get("description", ""),
+                            resource=perm_data.get("resource", ""),
+                            action=perm_data.get("action", "")
+                        )
+                        permissions.append(permission)
+                        seen_permissions.add(perm_key)
+        
+        return permissions
+
+    async def find_by_resource(self, resource: str) -> list[Permission]:
+        """根据资源查找权限"""
+        stmt = select(RoleORM)
+        result = await self.session.execute(stmt)
+        roles = result.scalars().all()
+        
+        permissions = []
+        seen_permissions = set()
+        
+        for role in roles:
+            for perm_data in role.permissions:
+                if (isinstance(perm_data, dict) and 
+                    perm_data.get("resource") == resource):
+                    perm_key = f"{perm_data.get('resource')}:{perm_data.get('action')}"
+                    if perm_key not in seen_permissions:
+                        permission = Permission(
+                            id=UUID(perm_data.get("id")),
+                            name=perm_data.get("name", ""),
+                            description=perm_data.get("description", ""),
+                            resource=perm_data.get("resource", ""),
+                            action=perm_data.get("action", "")
+                        )
+                        permissions.append(permission)
+                        seen_permissions.add(perm_key)
+        
+        return permissions
+
+    async def save(self, permission: Permission) -> Permission:
+        """保存权限（注意：这个实现有限制，因为权限嵌入在角色中）"""
+        # 由于权限存储在角色的JSON字段中，这个方法比较复杂
+        # 在当前架构下，新权限应该通过角色管理来添加
+        # 这里提供一个基本实现，但建议通过角色服务来管理权限
+        raise NotImplementedError("权限应该通过角色服务进行管理")
+
+    async def delete(self, permission_id: UUID) -> bool:
+        """删除权限"""
+        # 同样，由于架构限制，删除权限需要从所有包含该权限的角色中移除
+        raise NotImplementedError("权限删除应该通过角色服务进行管理")

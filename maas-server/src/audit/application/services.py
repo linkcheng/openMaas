@@ -40,7 +40,7 @@ class AuditLogService:
 
     def __init__(self, repository: AuditLogRepository):
         """初始化审计日志服务
-        
+
         Args:
             repository: 审计日志仓储
         """
@@ -56,7 +56,7 @@ class AuditLogService:
 
         Returns:
             审计日志响应
-        
+
         Raises:
             ValueError: 当必要参数缺失时
         """
@@ -98,7 +98,7 @@ class AuditLogService:
 
         Returns:
             审计日志列表响应
-            
+
         Raises:
             ValueError: 当分页参数无效时
         """

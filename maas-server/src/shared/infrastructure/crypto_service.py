@@ -28,7 +28,7 @@ class SM2CryptoService:
     def __init__(self, keys_dir: str = "keys"):
         """
         初始化SM2密钥对
-        
+
         Args:
             keys_dir: 密钥文件存储目录
         """
@@ -106,10 +106,10 @@ class SM2CryptoService:
     def encrypt(self, plaintext: str) -> str:
         """
         使用SM2公钥加密
-        
+
         Args:
             plaintext: 明文字符串
-            
+
         Returns:
             Base64编码的密文
         """
@@ -140,10 +140,10 @@ class SM2CryptoService:
     def decrypt(self, ciphertext: str) -> str:
         """
         使用SM2私钥解密
-        
+
         Args:
             ciphertext: Base64编码的密文
-            
+
         Returns:
             解密后的明文字符串
         """

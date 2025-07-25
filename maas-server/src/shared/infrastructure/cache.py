@@ -16,6 +16,8 @@ limitations under the License.
 
 """共享基础设施层 - 缓存配置"""
 
+import contextlib
+
 import redis
 from loguru import logger
 
@@ -69,9 +71,7 @@ async def init_redis():
     """初始化Redis连接"""
     try:
         # 检查Redis连接
-        if await check_redis_connection():
-            return True
-        return False
+        return bool(await check_redis_connection())
     except Exception as e:
         logger.error(f"{e}", exc_info=True)
         return False
@@ -79,10 +79,8 @@ async def init_redis():
 
 async def close_redis():
     """关闭Redis连接"""
-    try:
+    with contextlib.suppress(Exception):
         redis_client.close()
-    except Exception:
-        pass
 
 
 

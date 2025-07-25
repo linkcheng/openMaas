@@ -1,6 +1,8 @@
 """
 Copyright 2025 MaaS Team
 
+审计日志仓储实现
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-"""审计日志仓储实现"""
 
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -384,7 +384,7 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
 
 async def get_audit_log_repository() -> AuditLogRepository:
     """获取审计日志仓储实例
-    
+
     注意：返回的仓储实例需要在适当的会话上下文中使用
     建议在调用方使用 async with async_session_factory() as session 管理会话
     """

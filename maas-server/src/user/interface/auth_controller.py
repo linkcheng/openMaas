@@ -52,7 +52,7 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 async def get_public_key():
     """
     获取SM2公钥用于前端密码加密
-    
+
     返回SM2公钥信息，前端使用此公钥加密密码后传输
     """
 
@@ -78,7 +78,7 @@ async def register(
 ):
     """
     用户注册
-    
+
     - **username**: 用户名（3-50字符，字母、数字、下划线）
     - **email**: 邮箱地址
     - **password**: SM2加密后的密码
@@ -126,7 +126,7 @@ async def login(
 ):
     """
     用户登录
-    
+
     - **login_id**: 邮箱地址或用户名
     - **password**: SM2加密后的密码
     """
@@ -154,7 +154,7 @@ async def refresh_token(
 ):
     """
     刷新访问令牌
-    
+
     使用刷新令牌获取新的访问令牌
     """
 
@@ -174,7 +174,7 @@ async def logout(
 ):
     """
     退出登录
-    
+
     递增用户的key_version，使所有现有token失效
     """
     # 获取用户信息并存储到request.state中，供审计装饰器使用

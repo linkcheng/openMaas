@@ -19,7 +19,7 @@ limitations under the License.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
@@ -48,11 +48,23 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
 
 @router.get("/me", response_model=ApiResponse[UserResponse], summary="获取当前用户信息")
 async def get_current_user(
+    request: Request,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """获取当前用户信息"""
 
+    # 首先尝试从缓存中获取用户对象
+    cached_user = None
+    if hasattr(request.state, "current_user") and request.state.current_user is not None:
+        cached_user = request.state.current_user
+
+    if cached_user:
+        # 将领域对象转换为响应DTO
+        user_response = await user_service._to_user_response(cached_user)
+        return ApiResponse.success_response(user_response, "获取用户信息成功")
+
+    # 如果缓存中没有，从数据库获取
     user = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(

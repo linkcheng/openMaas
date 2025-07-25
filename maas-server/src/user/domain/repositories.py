@@ -17,9 +17,10 @@ limitations under the License.
 """用户领域 - 仓储接口"""
 
 from abc import abstractmethod
+from uuid import UUID
 
 from shared.domain.base import Repository
-from user.domain.models import Role, User
+from user.domain.models import Permission, Role, User
 
 
 class UserRepository(Repository[User]):
@@ -51,8 +52,20 @@ class UserRepository(Repository[User]):
         pass
 
     @abstractmethod
-    async def search(self, query) -> list[User]:
+    async def search_users(
+        self,
+        keyword: str | None = None,
+        status: str | None = None,
+        organization: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[User]:
         """搜索用户"""
+        pass
+
+    @abstractmethod
+    async def find_by_role_id(self, role_id: UUID) -> list[User]:
+        """根据角色ID查找用户"""
         pass
 
     @abstractmethod
@@ -82,4 +95,38 @@ class RoleRepository(Repository[Role]):
     @abstractmethod
     async def find_all(self) -> list[Role]:
         """获取所有角色"""
+        pass
+
+    @abstractmethod
+    async def search_roles(
+        self,
+        name: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Role]:
+        """搜索角色"""
+        pass
+
+    @abstractmethod
+    async def delete(self, role_id: UUID) -> bool:
+        """删除角色"""
+        pass
+
+
+class PermissionRepository(Repository[Permission]):
+    """权限仓储接口"""
+
+    @abstractmethod
+    async def find_by_resource_action(self, resource: str, action: str) -> Permission | None:
+        """根据资源和操作查找权限"""
+        pass
+
+    @abstractmethod
+    async def find_all(self) -> list[Permission]:
+        """获取所有权限"""
+        pass
+
+    @abstractmethod
+    async def find_by_resource(self, resource: str) -> list[Permission]:
+        """根据资源查找权限"""
         pass

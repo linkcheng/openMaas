@@ -12,9 +12,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
 
-"""审计日志应用层数据模型"""
+审计日志应用层数据模型
+"""
 
 from datetime import datetime
 from typing import Any

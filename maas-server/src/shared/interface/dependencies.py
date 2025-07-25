@@ -26,13 +26,15 @@ from audit.domain.repositories import AuditLogRepository
 from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
 from shared.infrastructure.database import get_db_session
 from user.application.auth_service import AuthService
+from user.application.role_service import RoleApplicationService
 from user.application.services import (
     EmailVerificationService,
     PasswordHashService,
     UserApplicationService,
 )
-from user.domain.repositories import RoleRepository, UserRepository
+from user.domain.repositories import PermissionRepository, RoleRepository, UserRepository
 from user.infrastructure.repositories import (
+    SQLAlchemyPermissionRepository,
     SQLAlchemyRoleRepository,
     SQLAlchemyUserRepository,
 )
@@ -48,6 +50,10 @@ class DependencyContainer:
     async def get_user_repository(self, db: AsyncSession) -> UserRepository:
         """获取用户仓储"""
         return SQLAlchemyUserRepository(db)
+
+    async def get_permission_repository(self, db: AsyncSession) -> PermissionRepository:
+        """获取权限仓储"""
+        return SQLAlchemyPermissionRepository(db)
 
     async def get_role_repository(self, db: AsyncSession) -> RoleRepository:
         """获取角色仓储"""
@@ -65,6 +71,18 @@ class DependencyContainer:
             role_repository=role_repo,
             password_service=self._password_service,
             email_service=self._email_verification_service,
+        )
+
+    async def get_role_application_service(self, db: AsyncSession) -> RoleApplicationService:
+        """获取角色应用服务"""
+        role_repo = await self.get_role_repository(db)
+        permission_repo = await self.get_permission_repository(db)
+        user_repo = await self.get_user_repository(db)
+
+        return RoleApplicationService(
+            role_repository=role_repo,
+            permission_repository=permission_repo,
+            user_repository=user_repo,
         )
 
     async def get_auth_service(self, db: AsyncSession) -> AuthService:
@@ -86,7 +104,6 @@ class DependencyContainer:
 container = DependencyContainer()
 
 
-# FastAPI依赖
 async def get_user_repository(
     db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[UserRepository, None]:
@@ -94,11 +111,25 @@ async def get_user_repository(
     yield await container.get_user_repository(db)
 
 
+async def get_permission_repository(
+    db: AsyncSession = Depends(get_db_session),
+) -> AsyncGenerator[PermissionRepository, None]:
+    """获取权限仓储依赖"""
+    yield await container.get_permission_repository(db)
+
+
 async def get_role_repository(
     db: AsyncSession = Depends(get_db_session),
 ) -> AsyncGenerator[RoleRepository, None]:
     """获取角色仓储依赖"""
     yield await container.get_role_repository(db)
+
+
+async def get_role_application_service(
+    db: AsyncSession = Depends(get_db_session),
+) -> AsyncGenerator[RoleApplicationService, None]:
+    """获取角色应用服务依赖"""
+    yield await container.get_role_application_service(db)
 
 
 async def get_user_application_service(

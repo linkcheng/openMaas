@@ -140,7 +140,59 @@ class UserApplicationService:
 
         logger.info(f"用户创建成功: {saved_user.username} ({saved_user.email.value})")
 
-        return self._to_user_response(saved_user)
+        return await self._to_user_response(saved_user)
+
+    async def update_user_profile(self, command: UserUpdateCommand) -> UserResponse:
+        """更新用户档案"""
+        user = await self._user_repository.find_by_id(command.user_id)
+        if not user:
+            raise ApplicationException(f"用户 {command.user_id} 不存在")
+
+        # 更新用户档案
+        profile = UserProfile(
+            first_name=command.first_name,
+            last_name=command.last_name,
+            avatar_url=command.avatar_url,
+            organization=command.organization,
+            bio=command.bio
+        )
+        user.update_profile(profile)
+
+        # 保存用户
+        saved_user = await self._user_repository.save(user)
+
+        logger.info(f"用户 {saved_user.username} 档案已更新")
+
+        return await self._to_user_response(saved_user)
+
+    async def get_user_stats(self, user_id: UUID) -> UserStatsResponse:
+        """获取用户统计信息"""
+        # 这里可以添加特定用户的统计信息
+        # 暂时返回全局统计
+        return await self.get_user_stats()
+
+    async def change_password(self, command: PasswordChangeCommand) -> bool:
+        """修改密码"""
+        user = await self._user_repository.find_by_id(command.user_id)
+        if not user:
+            raise ApplicationException(f"用户 {command.user_id} 不存在")
+
+        # 验证旧密码
+        if not self._password_service.verify_password(command.current_password, user.password_hash):
+            raise InvalidCredentialsException("当前密码不正确")
+
+        # 更新密码
+        user.password_hash = command.new_password_hash
+
+        # 增加密钥版本以使所有现有token失效
+        user.increment_key_version()
+
+        # 保存用户
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 密码修改成功")
+
+        return True
 
     async def update_user(self, user_id: UUID, command: UserUpdateCommand) -> UserResponse:
         """更新用户"""
@@ -163,31 +215,7 @@ class UserApplicationService:
 
         logger.info(f"用户更新成功: {saved_user.username}")
 
-        return self._to_user_response(saved_user)
-
-    async def change_password(self, user_id: UUID, command: PasswordChangeCommand) -> bool:
-        """修改密码"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException(f"用户 {user_id} 不存在")
-
-        # 验证旧密码
-        if not self._password_service.verify_password(command.old_password, user.password_hash):
-            raise InvalidCredentialsException("旧密码不正确")
-
-        # 更新密码
-        new_password_hash = self._password_service.hash_password(command.new_password)
-        user.password_hash = new_password_hash
-
-        # 增加密钥版本以使所有现有token失效
-        user.increment_key_version()
-
-        # 保存用户
-        await self._user_repository.save(user)
-
-        logger.info(f"用户 {user.username} 密码修改成功")
-
-        return True
+        return await self._to_user_response(saved_user)
 
     async def get_user(self, user_id: UUID) -> UserResponse | None:
         """获取用户"""
@@ -195,7 +223,7 @@ class UserApplicationService:
         if not user:
             return None
 
-        return self._to_user_response(user)
+        return await self._to_user_response(user)
 
     async def search_users(self, query: UserSearchQuery) -> list[UserSummaryResponse]:
         """搜索用户"""
@@ -287,7 +315,7 @@ class UserApplicationService:
 
         logger.info(f"用户 {user.username} 登录成功")
 
-        return self._to_user_response(user)
+        return await self._to_user_response(user)
 
     async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
         """根据ID获取用户"""
@@ -295,7 +323,7 @@ class UserApplicationService:
         if not user:
             return None
 
-        return self._to_user_response(user)
+        return await self._to_user_response(user)
 
     async def logout_user(self, user_id: UUID) -> None:
         """用户登出,增加key_version使所有token失效"""
@@ -308,6 +336,84 @@ class UserApplicationService:
         await self._user_repository.save(user)
 
         logger.info(f"用户 {user.username} 已登出,token已失效")
+
+    async def invalidate_user_tokens(self, user_id: UUID, reason: str = "权限变更") -> None:
+        """使用户所有token失效"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 增加密钥版本以使所有现有token失效
+        user.increment_key_version()
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 的所有token已失效，原因: {reason}")
+
+    async def change_user_role(self, user_id: UUID, new_role_ids: list[UUID]) -> UserResponse:
+        """更改用户角色并使token失效"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 获取新角色
+        new_roles = []
+        for role_id in new_role_ids:
+            role = await self._role_repository.find_by_id(role_id)
+            if role:
+                new_roles.append(role)
+
+        # 清除现有角色
+        for existing_role in user.roles:
+            user.remove_role(existing_role)
+
+        # 添加新角色
+        for new_role in new_roles:
+            user.add_role(new_role)
+
+        # 使所有现有token失效
+        user.increment_key_version()
+
+        # 保存用户
+        saved_user = await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 角色已更新，token已失效")
+
+        return await self._to_user_response(saved_user)
+
+    async def suspend_user(self, user_id: UUID, reason: str) -> bool:
+        """暂停用户并使token失效"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 暂停用户
+        user.suspend(reason)
+
+        # 使所有现有token失效
+        user.increment_key_version()
+
+        # 保存用户
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 已暂停，原因: {reason}，token已失效")
+
+        return True
+
+    async def activate_user(self, user_id: UUID) -> bool:
+        """激活用户"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 激活用户
+        user.activate()
+
+        # 保存用户（激活时不需要使token失效，用户需要重新登录才能获取token）
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 已激活")
+
+        return True
 
     def _to_user_summary_response(self, user: User) -> UserSummaryResponse:
         """转换为用户摘要响应DTO"""
