@@ -25,9 +25,8 @@ from audit.application.services import AuditLogService
 from audit.domain.repositories import AuditLogRepository
 from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
 from shared.infrastructure.database import get_db_session
-from user.application.auth_service import AuthService, EmailService
+from user.application.auth_service import AuthService
 from user.application.services import (
-    ApiKeyService,
     EmailVerificationService,
     PasswordHashService,
     UserApplicationService,
@@ -45,8 +44,6 @@ class DependencyContainer:
     def __init__(self) -> None:
         self._password_service = PasswordHashService()
         self._email_verification_service = EmailVerificationService()
-        self._api_key_service = ApiKeyService()
-        self._email_service = EmailService()
 
     async def get_user_repository(self, db: AsyncSession) -> UserRepository:
         """获取用户仓储"""
@@ -68,7 +65,6 @@ class DependencyContainer:
             role_repository=role_repo,
             password_service=self._password_service,
             email_service=self._email_verification_service,
-            api_key_service=self._api_key_service,
         )
 
     async def get_auth_service(self, db: AsyncSession) -> AuthService:

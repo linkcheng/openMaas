@@ -16,25 +16,24 @@ limitations under the License.
 
 """共享基础设施层 - 通用健康检查基类"""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Type
+from typing import Any
 
-from sqlalchemy import text, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+from sqlalchemy import func, select, text
 
-from shared.infrastructure.database import async_session_factory, Base
+from shared.infrastructure.database import Base, async_session_factory
 
 
 class BaseDatabaseHealthCheck(ABC):
     """数据库健康检查基类"""
-    
-    def __init__(self, model_class: Optional[Type[Base]] = None):
+
+    def __init__(self, model_class: type[Base] | None = None):
         self.model_class = model_class
-    
+
     @staticmethod
-    async def check_connection() -> Dict[str, Any]:
+    async def check_connection() -> dict[str, Any]:
         """检查数据库连接"""
         try:
             async with async_session_factory() as session:
@@ -49,11 +48,11 @@ class BaseDatabaseHealthCheck(ABC):
             logger.error(f"数据库连接检查失败: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"数据库连接失败: {str(e)}",
+                "message": f"数据库连接失败: {e!s}",
                 "timestamp": datetime.utcnow().isoformat()
             }
-    
-    async def check_table_status(self, table_name: str) -> Dict[str, Any]:
+
+    async def check_table_status(self, table_name: str) -> dict[str, Any]:
         """检查表状态"""
         if not self.model_class:
             return {
@@ -61,23 +60,23 @@ class BaseDatabaseHealthCheck(ABC):
                 "message": "未指定模型类",
                 "timestamp": datetime.utcnow().isoformat()
             }
-        
+
         try:
             async with async_session_factory() as session:
                 # 检查表是否存在并可访问
                 count_query = select(func.count(self.model_class.id))
                 result = await session.execute(count_query)
                 total_records = result.scalar()
-                
+
                 # 检查最近的记录（如果有created_at字段）
                 recent_records = 0
-                if hasattr(self.model_class, 'created_at'):
+                if hasattr(self.model_class, "created_at"):
                     recent_query = select(func.count(self.model_class.id)).where(
                         self.model_class.created_at >= datetime.utcnow() - timedelta(hours=24)
                     )
                     result = await session.execute(recent_query)
                     recent_records = result.scalar()
-                
+
                 return {
                     "status": "healthy",
                     "total_records": total_records,
@@ -89,11 +88,11 @@ class BaseDatabaseHealthCheck(ABC):
             logger.error(f"{table_name}表检查失败: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"{table_name}表检查失败: {str(e)}",
+                "message": f"{table_name}表检查失败: {e!s}",
                 "timestamp": datetime.utcnow().isoformat()
             }
-    
-    async def check_performance(self) -> Dict[str, Any]:
+
+    async def check_performance(self) -> dict[str, Any]:
         """检查数据库性能"""
         if not self.model_class:
             return {
@@ -101,22 +100,22 @@ class BaseDatabaseHealthCheck(ABC):
                 "message": "未指定模型类",
                 "timestamp": datetime.utcnow().isoformat()
             }
-        
+
         try:
             async with async_session_factory() as session:
                 start_time = datetime.utcnow()
-                
+
                 # 执行一个简单的查询来测试响应时间
                 query = select(self.model_class).limit(1)
                 await session.execute(query)
-                
+
                 end_time = datetime.utcnow()
                 response_time_ms = (end_time - start_time).total_seconds() * 1000
-                
+
                 status = "healthy" if response_time_ms < 1000 else "warning"
                 if response_time_ms > 5000:
                     status = "unhealthy"
-                
+
                 return {
                     "status": status,
                     "response_time_ms": round(response_time_ms, 2),
@@ -127,12 +126,12 @@ class BaseDatabaseHealthCheck(ABC):
             logger.error(f"性能检查失败: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"性能检查失败: {str(e)}",
+                "message": f"性能检查失败: {e!s}",
                 "timestamp": datetime.utcnow().isoformat()
             }
-    
+
     @staticmethod
-    async def get_connection_pool_stats() -> Dict[str, Any]:
+    async def get_connection_pool_stats() -> dict[str, Any]:
         """获取连接池统计信息"""
         try:
             async with async_session_factory() as session:
@@ -141,13 +140,13 @@ class BaseDatabaseHealthCheck(ABC):
                     "SELECT count(*) FROM pg_stat_activity WHERE state = 'active'"
                 ))
                 active_connections = result.scalar()
-                
+
                 # 获取总连接数
                 result = await session.execute(text(
                     "SELECT count(*) FROM pg_stat_activity"
                 ))
                 total_connections = result.scalar()
-                
+
                 return {
                     "status": "healthy",
                     "active_connections": active_connections,
@@ -159,11 +158,11 @@ class BaseDatabaseHealthCheck(ABC):
             logger.error(f"连接池统计获取失败: {e}")
             return {
                 "status": "unknown",
-                "message": f"连接池统计获取失败: {str(e)}",
+                "message": f"连接池统计获取失败: {e!s}",
                 "timestamp": datetime.utcnow().isoformat()
             }
-    
-    async def comprehensive_health_check(self, table_name: str) -> Dict[str, Any]:
+
+    async def comprehensive_health_check(self, table_name: str) -> dict[str, Any]:
         """综合健康检查"""
         checks = {
             "connection": await self.check_connection(),
@@ -171,18 +170,18 @@ class BaseDatabaseHealthCheck(ABC):
             "performance": await self.check_performance(),
             "connection_pool": await self.get_connection_pool_stats(),
         }
-        
+
         # 确定整体状态
         overall_status = "healthy"
         unhealthy_checks = []
-        
+
         for check_name, check_result in checks.items():
             if check_result.get("status") == "unhealthy":
                 overall_status = "unhealthy"
                 unhealthy_checks.append(check_name)
             elif check_result.get("status") == "warning" and overall_status == "healthy":
                 overall_status = "warning"
-        
+
         return {
             "overall_status": overall_status,
             "checks": checks,

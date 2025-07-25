@@ -126,7 +126,7 @@ class ServerConfig(BaseSettings):
 
 class PerformanceConfig(BaseSettings):
     """性能配置"""
-    
+
     # 批量操作配置
     batch_size: int = Field(
         default=1000,
@@ -136,7 +136,7 @@ class PerformanceConfig(BaseSettings):
         default=5000,
         description="最大批量操作大小"
     )
-    
+
     # 异步操作配置
     max_concurrent_operations: int = Field(
         default=100,
@@ -146,7 +146,7 @@ class PerformanceConfig(BaseSettings):
         default=30,
         description="操作超时时间(秒)"
     )
-    
+
     # 数据清理配置
     auto_cleanup_enabled: bool = Field(
         default=True,
@@ -164,7 +164,7 @@ class PerformanceConfig(BaseSettings):
         default=24,
         description="清理操作间隔(小时)"
     )
-    
+
     # 健康检查配置
     health_check_interval: int = Field(
         default=60,

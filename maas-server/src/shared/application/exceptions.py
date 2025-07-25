@@ -35,6 +35,8 @@ class ErrorCode(str, Enum):
     AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED"
     INVALID_TOKEN = "INVALID_TOKEN"
     TOKEN_EXPIRED = "TOKEN_EXPIRED"
+    TOKEN_VERSION_MISMATCH = "TOKEN_VERSION_MISMATCH"
+    TOKEN_REFRESH_REQUIRED = "TOKEN_REFRESH_REQUIRED"
     INSUFFICIENT_PERMISSIONS = "INSUFFICIENT_PERMISSIONS"
 
     # 用户相关
@@ -106,6 +108,20 @@ class AuthorizationException(ApplicationException):
         super().__init__(message, ErrorCode.INSUFFICIENT_PERMISSIONS)
 
 
+class TokenVersionMismatchException(ApplicationException):
+    """Token版本不匹配异常"""
+
+    def __init__(self, message: str = "Token版本已过期，请重新登录"):
+        super().__init__(message, ErrorCode.TOKEN_VERSION_MISMATCH)
+
+
+class TokenRefreshRequiredException(ApplicationException):
+    """Token需要刷新异常"""
+
+    def __init__(self, message: str = "Token已过期，需要刷新"):
+        super().__init__(message, ErrorCode.TOKEN_REFRESH_REQUIRED)
+
+
 class ResourceNotFoundException(ApplicationException):
     """资源未找到异常"""
 
@@ -144,6 +160,8 @@ def to_http_exception(exc: ApplicationException) -> HTTPException:
         ErrorCode.AUTHENTICATION_FAILED: 401,
         ErrorCode.INVALID_TOKEN: 401,
         ErrorCode.TOKEN_EXPIRED: 401,
+        ErrorCode.TOKEN_VERSION_MISMATCH: 401,
+        ErrorCode.TOKEN_REFRESH_REQUIRED: 401,
         ErrorCode.INSUFFICIENT_PERMISSIONS: 403,
         ErrorCode.RESOURCE_NOT_FOUND: 404,
         ErrorCode.USER_ALREADY_EXISTS: 409,

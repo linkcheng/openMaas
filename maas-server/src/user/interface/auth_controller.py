@@ -19,7 +19,7 @@ limitations under the License.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
 
@@ -175,7 +175,7 @@ async def logout(
     """
     退出登录
     
-    将令牌加入黑名单（可选实现）
+    递增用户的key_version，使所有现有token失效
     """
     # 获取用户信息并存储到request.state中，供审计装饰器使用
     try:
@@ -183,13 +183,14 @@ async def logout(
         if user:
             http_request.state.username = user.username
             http_request.state.current_user = user
+
+            # 递增用户的key_version，使所有token失效
+            await user_service.logout_user(user_id)
+
     except Exception as e:
-        logger.warning(f"获取用户信息失败: {e}")
+        logger.warning(f"用户登出处理失败: {e}")
         http_request.state.username = None
         http_request.state.current_user = None
-    
-    # TODO: 可以实现令牌黑名单功能
-    # 这里简化处理，客户端删除令牌即可
 
     return ApiResponse.success_response(True, "退出登录成功")
 

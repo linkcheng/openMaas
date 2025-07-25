@@ -17,7 +17,6 @@ limitations under the License.
 """共享基础设施层 - 数据库配置"""
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from loguru import logger
 from sqlalchemy import MetaData, create_engine
@@ -25,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from config.settings import settings
-
 
 # 创建元数据
 metadata = MetaData()
@@ -185,6 +183,7 @@ def get_sync_session():
 
 from sqlalchemy import event
 
+
 @event.listens_for(async_engine.sync_engine, "connect")
 def on_connect(dbapi_conn, connection_record):
     logger.debug(f"New connection established: {id(dbapi_conn)}")
@@ -193,4 +192,4 @@ def on_connect(dbapi_conn, connection_record):
 @event.listens_for(async_engine.sync_engine, "checkout")
 def on_checkout(dbapi_conn, connection_record, connection_proxy):
     logger.debug(f"Connection checked out: {id(dbapi_conn)}")
-    
+

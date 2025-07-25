@@ -25,19 +25,20 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from audit.interface import router as audit_router
 from audit.shared.middleware import create_audit_middleware
 from config.settings import settings
 from shared.application.exceptions import ApplicationException, to_http_exception
-from shared.infrastructure.database import (
-    close_database,
-    init_database,
-)
 from shared.infrastructure.cache import (
     close_redis,
     init_redis,
 )
+from shared.infrastructure.database import (
+    close_database,
+    init_database,
+)
 from user.interface import router as user_router
-from audit.interface import router as audit_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -12,9 +12,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
 
-"""用户应用层 - 应用服务"""
+用户应用层 - 应用服务
+"""
 
 import hashlib
 import secrets
@@ -25,9 +25,10 @@ from loguru import logger
 
 from shared.application.exceptions import ApplicationException
 from user.application.schemas import (
-    ApiKeyCreateResponse,
     PasswordChangeCommand,
+    RoleResponse,
     UserCreateCommand,
+    UserProfileResponse,
     UserResponse,
     UserSearchQuery,
     UserStatsResponse,
@@ -39,7 +40,6 @@ from user.domain.models import (
     User,
     UserAlreadyExistsException,
     UserProfile,
-    UserQuota,
     UserStatus,
 )
 from user.domain.repositories import RoleRepository, UserRepository
@@ -85,28 +85,14 @@ class EmailVerificationService:
     """邮箱验证服务"""
 
     @staticmethod
+    def generate_verification_code() -> str:
+        """生成验证码"""
+        return str(secrets.randbelow(900000) + 100000)
+
+    @staticmethod
     def generate_verification_token() -> str:
         """生成验证令牌"""
         return secrets.token_urlsafe(32)
-
-    @staticmethod
-    def generate_reset_token() -> str:
-        """生成重置令牌"""
-        return secrets.token_urlsafe(32)
-
-
-class ApiKeyService:
-    """API密钥服务"""
-
-    @staticmethod
-    def generate_api_key() -> str:
-        """生成API密钥"""
-        return f"mk-{secrets.token_urlsafe(32)}"
-
-    @staticmethod
-    def hash_api_key(api_key: str) -> str:
-        """哈希API密钥"""
-        return hashlib.sha256(api_key.encode()).hexdigest()
 
 
 class UserApplicationService:
@@ -118,13 +104,11 @@ class UserApplicationService:
         role_repository: RoleRepository,
         password_service: PasswordHashService,
         email_service: EmailVerificationService,
-        api_key_service: ApiKeyService,
     ):
         self._user_repository = user_repository
         self._role_repository = role_repository
         self._password_service = password_service
         self._email_service = email_service
-        self._api_key_service = api_key_service
 
     async def create_user(self, command: UserCreateCommand) -> UserResponse:
         """创建用户"""
@@ -144,260 +128,123 @@ class UserApplicationService:
             password_hash=command.password_hash,
             first_name=command.first_name,
             last_name=command.last_name,
-            organization=command.organization,
+            organization=command.organization
         )
 
         # 分配默认角色
-        default_role = await self._role_repository.find_by_name("user")
-        if default_role:
-            user.add_role(default_role)
+        default_role = await self._role_repository.get_default_role()
+        user.add_role(default_role)
 
-        # 设置默认配额
-        default_quota = UserQuota(
-            api_calls_limit=1000,
-            api_calls_used=0,
-            storage_limit=1024 * 1024 * 1024,  # 1GB
-            storage_used=0,
-            compute_hours_limit=10,
-            compute_hours_used=0,
+        # 保存用户
+        saved_user = await self._user_repository.save(user)
+
+        logger.info(f"用户创建成功: {saved_user.username} ({saved_user.email.value})")
+
+        return self._to_user_response(saved_user)
+
+    async def update_user(self, user_id: UUID, command: UserUpdateCommand) -> UserResponse:
+        """更新用户"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 更新用户档案
+        profile = UserProfile(
+            first_name=command.first_name,
+            last_name=command.last_name,
+            avatar_url=command.avatar_url,
+            organization=command.organization,
+            bio=command.bio
         )
-        user.set_quota(default_quota)
+        user.update_profile(profile)
+
+        # 保存用户
+        saved_user = await self._user_repository.save(user)
+
+        logger.info(f"用户更新成功: {saved_user.username}")
+
+        return self._to_user_response(saved_user)
+
+    async def change_password(self, user_id: UUID, command: PasswordChangeCommand) -> bool:
+        """修改密码"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 验证旧密码
+        if not self._password_service.verify_password(command.old_password, user.password_hash):
+            raise InvalidCredentialsException("旧密码不正确")
+
+        # 更新密码
+        new_password_hash = self._password_service.hash_password(command.new_password)
+        user.password_hash = new_password_hash
+
+        # 增加密钥版本以使所有现有token失效
+        user.increment_key_version()
 
         # 保存用户
         await self._user_repository.save(user)
 
-        return await self._map_to_response(user)
+        logger.info(f"用户 {user.username} 密码修改成功")
 
-    async def authenticate_user(self, login_id: str, password: str) -> UserResponse:
-        """认证用户 - 支持邮箱或用户名登录"""
-        # 首先尝试按邮箱查找
-        user = None
-        if "@" in login_id:
-            # 包含@符号，当作邮箱处理
-            user = await self._user_repository.find_by_email(login_id)
-        else:
-            # 不包含@符号，当作用户名处理
-            user = await self._user_repository.find_by_username(login_id)
+        return True
 
-        # 如果用户名查找失败，再尝试邮箱查找（防止用户名中有@的情况）
-        if not user and "@" not in login_id:
-            user = await self._user_repository.find_by_email(login_id)
-
-        if not user:
-            raise InvalidCredentialsException("用户名/邮箱或密码错误")
-
-        if not self._password_service.verify_password(password, user.password_hash):
-            raise InvalidCredentialsException("用户名/邮箱或密码错误")
-
-        # TODO: 暂时移除邮箱验证要求，后续可重新启用
-        # if not user.email_verified:
-        #     raise EmailNotVerifiedException("邮箱未验证")
-
-        if user.status != UserStatus.ACTIVE:
-            raise ApplicationException("账户已被暂停")
-
-        # 记录登录
-        user.record_login()
-        await self._user_repository.save(user)
-
-        return await self._map_to_response(user)
-
-    async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
-        """根据ID获取用户"""
+    async def get_user(self, user_id: UUID) -> UserResponse | None:
+        """获取用户"""
         user = await self._user_repository.find_by_id(user_id)
         if not user:
             return None
-        return await self._map_to_response(user)
 
-    async def get_user_entity_by_id(self, user_id: UUID) -> User | None:
-        """根据ID获取用户实体（包含完整信息）"""
-        return await self._user_repository.find_by_id(user_id)
-
-    async def update_user_profile(self, command: UserUpdateCommand) -> UserResponse:
-        """更新用户档案"""
-        user = await self._user_repository.find_by_id(command.user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        # 创建新的用户档案
-        new_profile = UserProfile(
-            first_name=command.first_name or user.profile.first_name,
-            last_name=command.last_name or user.profile.last_name,
-            avatar_url=command.avatar_url or user.profile.avatar_url,
-            organization=command.organization or user.profile.organization,
-            bio=command.bio or user.profile.bio,
-        )
-
-        user.update_profile(new_profile)
-        await self._user_repository.save(user)
-
-        return await self._map_to_response(user)
-
-    async def change_password(self, command: PasswordChangeCommand) -> bool:
-        """修改密码"""
-        user = await self._user_repository.find_by_id(command.user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        if not self._password_service.verify_password(
-            command.current_password, user.password_hash
-        ):
-            raise InvalidCredentialsException("当前密码错误")
-
-        user.password_hash = command.new_password_hash
-        user.updated_at = datetime.utcnow()
-        await self._user_repository.save(user)
-
-        return True
-
-    async def verify_email(self, user_id: UUID) -> bool:
-        """验证邮箱"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        user.verify_email()
-        await self._user_repository.save(user)
-
-        return True
-
-    async def create_api_key(
-        self, user_id: UUID, name: str, permissions: list[str], expires_at: datetime | None = None
-    ) -> ApiKeyCreateResponse:
-        """创建API密钥"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        # 生成API密钥
-        api_key = self._api_key_service.generate_api_key()
-        key_hash = self._api_key_service.hash_api_key(api_key)
-
-        # 创建API密钥实体
-        api_key_entity = user.create_api_key(
-            name=name,
-            key_hash=key_hash,
-            permissions=permissions,
-            expires_at=expires_at,
-        )
-
-        await self._user_repository.save(user)
-
-        return ApiKeyCreateResponse(
-            id=api_key_entity.id,
-            name=api_key_entity.name,
-            api_key=api_key,  # 只在创建时返回
-            permissions=api_key_entity.permissions,
-            expires_at=api_key_entity.expires_at,
-            created_at=api_key_entity.created_at,
-        )
-
-    async def revoke_api_key(self, user_id: UUID, api_key_id: UUID) -> bool:
-        """撤销API密钥"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        user.revoke_api_key(api_key_id)
-        await self._user_repository.save(user)
-
-        return True
+        return self._to_user_response(user)
 
     async def search_users(self, query: UserSearchQuery) -> list[UserSummaryResponse]:
         """搜索用户"""
-        users = await self._user_repository.search(query)
-        return [
-            UserSummaryResponse(
-                id=user.id,
-                username=user.username,
-                email=user.email.value,
-                full_name=user.profile.full_name,
-                organization=user.profile.organization,
-                status=user.status,
-                email_verified=user.email_verified,
-                created_at=user.created_at,
-                last_login_at=user.last_login_at,
-            )
-            for user in users
-        ]
-
-    async def get_user_stats(self, user_id: UUID) -> UserStatsResponse:
-        """获取用户统计"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        # 这里应该从实际的使用统计服务获取数据
-        # 暂时返回模拟数据
-        return UserStatsResponse(
-            total_api_calls=user.quota.api_calls_used if user.quota else 0,
-            total_storage_used=user.quota.storage_used if user.quota else 0,
-            total_compute_hours=user.quota.compute_hours_used if user.quota else 0,
-            models_created=0,
-            applications_created=0,
-            last_30_days_activity={},
+        users = await self._user_repository.search_users(
+            keyword=query.keyword,
+            status=query.status.value if query.status else None,
+            organization=query.organization,
+            limit=query.limit,
+            offset=query.offset
         )
 
-    async def suspend_user(self, user_id: UUID, reason: str) -> bool:
-        """暂停用户"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
+        return [self._to_user_summary_response(user) for user in users]
 
-        user.suspend(reason)
-        await self._user_repository.save(user)
+    async def get_user_stats(self) -> UserStatsResponse:
+        """获取用户统计"""
+        active_count = len(await self._user_repository.find_by_status("active"))
+        inactive_count = len(await self._user_repository.find_by_status("inactive"))
+        suspended_count = len(await self._user_repository.find_by_status("suspended"))
 
-        return True
+        return UserStatsResponse(
+            total_users=active_count + inactive_count + suspended_count,
+            active_users=active_count,
+            inactive_users=inactive_count,
+            suspended_users=suspended_count
+        )
 
-    async def activate_user(self, user_id: UUID) -> bool:
-        """激活用户"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            raise ApplicationException("用户不存在")
-
-        user.activate()
-        await self._user_repository.save(user)
-
-        return True
-
-    async def _map_to_response(self, user: User) -> UserResponse:
-        """映射到响应DTO"""
-        from .schemas import RoleResponse, UserProfileResponse, UserQuotaResponse
-
+    async def _to_user_response(self, user: User) -> UserResponse:
+        """转换为用户响应DTO"""
         profile = UserProfileResponse(
             first_name=user.profile.first_name,
             last_name=user.profile.last_name,
             full_name=user.profile.full_name,
             avatar_url=user.profile.avatar_url,
             organization=user.profile.organization,
-            bio=user.profile.bio,
+            bio=user.profile.bio
         )
 
-        quota = None
-        if user.quota:
-            quota = UserQuotaResponse(
-                api_calls_limit=user.quota.api_calls_limit,
-                api_calls_used=user.quota.api_calls_used,
-                api_calls_remaining=user.quota.api_calls_limit - user.quota.api_calls_used,
-                api_usage_percentage=user.quota.get_api_usage_percentage(),
-                storage_limit=user.quota.storage_limit,
-                storage_used=user.quota.storage_used,
-                storage_remaining=user.quota.storage_limit - user.quota.storage_used,
-                storage_usage_percentage=user.quota.get_storage_usage_percentage(),
-                compute_hours_limit=user.quota.compute_hours_limit,
-                compute_hours_used=user.quota.compute_hours_used,
-                compute_hours_remaining=user.quota.compute_hours_limit - user.quota.compute_hours_used,
-            )
+        roles = []
+        for role in user.roles:
+            role_permissions = []
+            for perm in role.permissions:
+                role_permissions.append(f"{perm.resource}:{perm.action}")
 
-        roles = [
-            RoleResponse(
+            roles.append(RoleResponse(
                 id=role.id,
                 name=role.name,
                 description=role.description,
-                permissions=[str(perm) for perm in role.permissions],
-            )
-            for role in user.roles
-        ]
+                permissions=role_permissions
+            ))
 
         return UserResponse(
             id=user.id,
@@ -407,8 +254,71 @@ class UserApplicationService:
             status=user.status,
             email_verified=user.email_verified,
             roles=roles,
-            quota=quota,
             created_at=user.created_at,
             updated_at=user.updated_at,
-            last_login_at=user.last_login_at,
+            last_login_at=user.last_login_at
+        )
+
+    async def authenticate_user(self, login_id: str, password: str) -> UserResponse:
+        """认证用户"""
+        # 根据登录ID查找用户(可以是用户名或邮箱)
+        user = None
+        if "@" in login_id:
+            # 看起来是邮箱
+            user = await self._user_repository.find_by_email(login_id)
+        else:
+            # 看起来是用户名
+            user = await self._user_repository.find_by_username(login_id)
+
+        if not user:
+            raise InvalidCredentialsException("用户名或密码错误")
+
+        # 验证密码
+        if not self._password_service.verify_password(password, user.password_hash):
+            raise InvalidCredentialsException("用户名或密码错误")
+
+        # 检查用户状态
+        if user.status != UserStatus.ACTIVE:
+            raise InvalidCredentialsException("用户账户已被禁用")
+
+        # 更新最后登录时间
+        user.last_login_at = datetime.utcnow()
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 登录成功")
+
+        return self._to_user_response(user)
+
+    async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
+        """根据ID获取用户"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            return None
+
+        return self._to_user_response(user)
+
+    async def logout_user(self, user_id: UUID) -> None:
+        """用户登出,增加key_version使所有token失效"""
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在")
+
+        # 增加密钥版本以使所有现有token失效
+        user.increment_key_version()
+        await self._user_repository.save(user)
+
+        logger.info(f"用户 {user.username} 已登出,token已失效")
+
+    def _to_user_summary_response(self, user: User) -> UserSummaryResponse:
+        """转换为用户摘要响应DTO"""
+        return UserSummaryResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email.value,
+            full_name=user.profile.full_name,
+            organization=user.profile.organization,
+            status=user.status,
+            email_verified=user.email_verified,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at
         )

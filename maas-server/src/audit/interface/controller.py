@@ -29,7 +29,6 @@ from audit.application.schemas import (
     AuditLogStatsResponse,
 )
 from audit.application.services import AuditLogService
-from shared.application.exceptions import ApplicationException
 from shared.application.response import ApiResponse
 from shared.interface.auth_middleware import require_admin
 from shared.interface.dependencies import get_audit_log_service
@@ -57,7 +56,7 @@ async def get_audit_logs(
     _: bool = Depends(require_admin),
 ) -> ApiResponse[AuditLogListResponse]:
     """获取审计日志列表"""
-  
+
     query = AuditLogQueryRequest(
         username=username,
         action=action,
@@ -100,7 +99,7 @@ async def export_audit_logs(
     _: bool = Depends(require_admin),
 ) -> ApiResponse[list[AuditLogResponse]]:
     """导出审计日志"""
-    
+
     log_ids = request.get("log_ids", [])
 
     if not log_ids:

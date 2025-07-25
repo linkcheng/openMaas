@@ -26,7 +26,7 @@ from uuid_extensions import uuid7
 
 from shared.domain.initializer import DataInitializer
 from user.domain.models import RoleType
-from user.infrastructure.models import RoleORM, UserORM, UserQuotaORM, UserRoleORM
+from user.infrastructure.models import RoleORM, UserORM, UserRoleORM
 
 
 class UserDataInitializer(DataInitializer):
@@ -118,10 +118,6 @@ class UserDataInitializer(DataInitializer):
             # 为管理员分配角色
             if admin_user:
                 await self._assign_admin_role(session, admin_user)
-
-            # 为管理员创建配额
-            if admin_user:
-                await self._create_admin_quota(session, admin_user)
 
             return True
 
@@ -220,32 +216,3 @@ class UserDataInitializer(DataInitializer):
                 logger.info("管理员角色已存在，忽略重复分配")
             else:
                 raise
-
-    async def _create_admin_quota(self, session: AsyncSession, admin_user: UserORM) -> None:
-        """为管理员创建配额"""
-        logger.info("为管理员创建配额...")
-
-        # 检查配额是否已存在
-        result = await session.execute(
-            select(UserQuotaORM).where(UserQuotaORM.user_id == admin_user.user_id)
-        )
-        existing_quota = result.scalar_one_or_none()
-
-        if existing_quota:
-            logger.info("管理员配额已存在")
-            return
-
-        # 创建管理员配额（高配额）
-        quota = UserQuotaORM(
-            user_quota_id=uuid7(),
-            user_id=admin_user.user_id,
-            api_calls_limit=100000,  # 高API调用限制
-            api_calls_used=0,
-            storage_limit=1073741824,  # 1GB存储
-            storage_used=0,
-            compute_hours_limit=1000,  # 1000小时计算时间
-            compute_hours_used=0
-        )
-
-        session.add(quota)
-        logger.info("为管理员用户创建高配额")

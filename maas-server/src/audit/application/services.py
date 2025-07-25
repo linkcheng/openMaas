@@ -28,11 +28,9 @@ from audit.application.schemas import (
     AuditLogStatsResponse,
     CreateAuditLogRequest,
 )
-from audit.domain.models import AuditLog, AuditResult
+from audit.domain.models import AuditLog
 from audit.domain.repositories import AuditLogFilter, AuditLogRepository
-from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
 from config.settings import settings
-from shared.infrastructure.database import async_session_factory
 
 """审计日志应用服务"""
 
@@ -108,7 +106,7 @@ class AuditLogService:
             raise ValueError("页码必须大于0")
         if request.page_size < 1:
             raise ValueError("页面大小必须大于0")
-            
+
         filter_obj = AuditLogFilter(
             user_id=request.user_id,
             username=request.username,
@@ -212,14 +210,14 @@ class AuditLogService:
         """清理旧的审计日志"""
         if days is None:
             days = settings.performance.cleanup_retention_days
-            
+
         if days <= 0:
             raise ValueError("保留天数必须大于0")
-        
+
         before_date = datetime.utcnow() - timedelta(days=days)
-        
-        
-        if hasattr(self.repository, 'cleanup_old_logs'):
+
+
+        if hasattr(self.repository, "cleanup_old_logs"):
             deleted_count = await self.repository.cleanup_old_logs(before_date)
             logger.info(f"清理了 {deleted_count} 条超过 {days} 天的审计日志")
             return deleted_count
@@ -270,12 +268,12 @@ async def log_user_action(
     这是一个便捷方法, 用于在业务代码中快速记录审计日志
     使用独立的会话确保事务完整性
     """
-    
+
     try:
+        from audit.domain.models import AuditResult
         from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
         from shared.infrastructure.database import async_session_factory
-        from audit.domain.models import AuditResult
-        
+
         # 设置默认值
         if result is None:
             result = AuditResult.SUCCESS

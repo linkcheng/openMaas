@@ -17,51 +17,48 @@ limitations under the License.
 """审计日志批量操作优化"""
 
 from datetime import datetime
-from typing import Any, Dict, List
-from uuid import UUID
+from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
 from audit.domain.models import AuditLog
 from audit.infrastructure.models import AuditLogORM
-from shared.infrastructure.batch_operations import BaseBatchOperations
 from config.settings import settings
+from shared.infrastructure.batch_operations import BaseBatchOperations
 
 
 class AuditLogBatchOperations(BaseBatchOperations[AuditLog, AuditLogORM]):
     """审计日志批量操作类"""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(session, AuditLogORM)
-    
-    def _entity_to_dict(self, audit_log: AuditLog) -> Dict[str, Any]:
+
+    def _entity_to_dict(self, audit_log: AuditLog) -> dict[str, Any]:
         """将审计日志实体转换为字典格式"""
         return {
-            'audit_log_id': audit_log.audit_log_id,
-            'user_id': audit_log.user_id,
-            'username': audit_log.username,
-            'action': audit_log.action.value,
-            'resource_type': audit_log.resource_type.value if audit_log.resource_type else None,
-            'resource_id': audit_log.resource_id,
-            'description': audit_log.description,
-            'ip_address': audit_log.ip_address,
-            'user_agent': audit_log.user_agent,
-            'request_id': audit_log.request_id,
-            'result': audit_log.result.value,
-            'error_message': audit_log.error_message,
-            'extra_data': audit_log.metadata,
-            'created_at': audit_log.created_at,
+            "audit_log_id": audit_log.audit_log_id,
+            "user_id": audit_log.user_id,
+            "username": audit_log.username,
+            "action": audit_log.action.value,
+            "resource_type": audit_log.resource_type.value if audit_log.resource_type else None,
+            "resource_id": audit_log.resource_id,
+            "description": audit_log.description,
+            "ip_address": audit_log.ip_address,
+            "user_agent": audit_log.user_agent,
+            "request_id": audit_log.request_id,
+            "result": audit_log.result.value,
+            "error_message": audit_log.error_message,
+            "extra_data": audit_log.metadata,
+            "created_at": audit_log.created_at,
         }
-    
-    def _get_conflict_columns(self) -> List[str]:
+
+    def _get_conflict_columns(self) -> list[str]:
         """获取冲突检测的列名"""
-        return ['audit_log_id']
-    
+        return ["audit_log_id"]
+
     async def batch_delete_old_logs(
-        self, 
-        before_date: datetime, 
+        self,
+        before_date: datetime,
         batch_size: int | None = None,
         max_batches: int = 100
     ) -> int:
@@ -77,14 +74,14 @@ class AuditLogBatchOperations(BaseBatchOperations[AuditLog, AuditLogORM]):
         """
         if batch_size is None:
             batch_size = settings.performance.cleanup_batch_size
-            
+
         return await self.batch_delete_by_date(
-            date_column='created_at',
+            date_column="created_at",
             before_date=before_date,
             batch_size=batch_size,
             max_batches=max_batches
         )
-    
+
     async def vacuum_analyze_audit_table(self) -> None:
         """对审计日志表执行VACUUM ANALYZE优化"""
-        await self.vacuum_analyze_table('audit_logs')
+        await self.vacuum_analyze_table("audit_logs")

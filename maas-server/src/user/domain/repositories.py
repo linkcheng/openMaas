@@ -17,10 +17,9 @@ limitations under the License.
 """用户领域 - 仓储接口"""
 
 from abc import abstractmethod
-from uuid import UUID
 
 from shared.domain.base import Repository
-from user.domain.models import ApiKey, Role, User
+from user.domain.models import Role, User
 
 
 class UserRepository(Repository[User]):
@@ -34,11 +33,6 @@ class UserRepository(Repository[User]):
     @abstractmethod
     async def find_by_username(self, username: str) -> User | None:
         """根据用户名获取用户"""
-        pass
-
-    @abstractmethod
-    async def find_by_api_key_hash(self, key_hash: str) -> User | None:
-        """根据API密钥哈希查找用户"""
         pass
 
     @abstractmethod
@@ -88,28 +82,4 @@ class RoleRepository(Repository[Role]):
     @abstractmethod
     async def find_all(self) -> list[Role]:
         """获取所有角色"""
-        pass
-
-
-class ApiKeyRepository(Repository[ApiKey]):
-    """API密钥仓储接口"""
-
-    @abstractmethod
-    async def find_by_key_hash(self, key_hash: str) -> ApiKey | None:
-        """根据密钥哈希获取API密钥"""
-        pass
-
-    @abstractmethod
-    async def find_by_user_id(self, user_id: UUID) -> list[ApiKey]:
-        """根据用户ID查找API密钥"""
-        pass
-
-    @abstractmethod
-    async def get_active_keys_by_user(self, user_id: UUID) -> list[ApiKey]:
-        """获取用户的有效API密钥"""
-        pass
-
-    @abstractmethod
-    async def delete_expired_keys(self) -> int:
-        """删除过期的API密钥"""
         pass

@@ -16,8 +16,7 @@ limitations under the License.
 
 """用户基础设施层 - ORM模型"""
 
-from datetime import UTC, datetime
-from typing import Optional
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
@@ -181,6 +180,14 @@ class UserORM(Base):
         nullable=True
     )
 
+    # Token版本控制
+    key_version: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+        index=True
+    )
+
     # 关系
     roles: Mapped[list["RoleORM"]] = relationship(
         "RoleORM",
@@ -188,19 +195,6 @@ class UserORM(Base):
         primaryjoin="UserORM.user_id == UserRoleORM.user_id",
         secondaryjoin="RoleORM.role_id == UserRoleORM.role_id",
         back_populates="users",
-        lazy="selectin"
-    )
-    api_keys: Mapped[list["ApiKeyORM"]] = relationship(
-        "ApiKeyORM",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
-    quota: Mapped[Optional["UserQuotaORM"]] = relationship(
-        "UserQuotaORM",
-        back_populates="user",
-        uselist=False,
-        cascade="all, delete-orphan",
         lazy="selectin"
     )
 
@@ -265,178 +259,4 @@ class RoleORM(Base):
         secondaryjoin="UserORM.user_id == UserRoleORM.user_id",
         back_populates="roles",
         lazy="selectin"
-    )
-
-
-class ApiKeyORM(Base):
-    """API密钥ORM模型"""
-    __tablename__ = "api_keys"
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('active', 'inactive', 'revoked')",
-            name="ck_api_key_status"
-        ),
-        CheckConstraint(
-            "expires_at IS NULL OR expires_at > created_at",
-            name="ck_api_key_expiry"
-        ),
-        UniqueConstraint("api_key_id", name="uq_api_key_id"),
-        Index("ix_api_keys_user_id", "user_id"),
-        Index("ix_api_keys_key_hash", "key_hash"),
-        Index("ix_api_keys_status", "status"),
-        Index("ix_api_keys_expires_at", "expires_at"),
-    )
-
-    # 自增主键
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-    # 业务ID
-    api_key_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
-        unique=True,
-        nullable=False,
-        default=uuid7
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.user_id", ondelete="CASCADE"),
-        nullable=False
-    )
-    name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False
-    )
-    key_hash: Mapped[str] = mapped_column(
-        String(255),
-        unique=True,
-        nullable=False
-    )
-    permissions: Mapped[list[str]] = mapped_column(
-        JSON,
-        default=list,
-        nullable=False
-    )
-
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
-    status: Mapped[str] = mapped_column(
-        String(20),
-        default="active",
-        nullable=False
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-
-    # 关系
-    user: Mapped["UserORM"] = relationship(
-        "UserORM",
-        back_populates="api_keys"
-    )
-
-
-class UserQuotaORM(Base):
-    """用户配额ORM模型"""
-    __tablename__ = "user_quotas"
-    __table_args__ = (
-        CheckConstraint("api_calls_limit >= 0", name="ck_api_calls_limit_positive"),
-        CheckConstraint("api_calls_used >= 0", name="ck_api_calls_used_positive"),
-        CheckConstraint("storage_limit >= 0", name="ck_storage_limit_positive"),
-        CheckConstraint("storage_used >= 0", name="ck_storage_used_positive"),
-        CheckConstraint("compute_hours_limit >= 0", name="ck_compute_hours_limit_positive"),
-        CheckConstraint("compute_hours_used >= 0", name="ck_compute_hours_used_positive"),
-        CheckConstraint("api_calls_used <= api_calls_limit", name="ck_api_calls_within_limit"),
-        CheckConstraint("storage_used <= storage_limit", name="ck_storage_within_limit"),
-        CheckConstraint("compute_hours_used <= compute_hours_limit", name="ck_compute_hours_within_limit"),
-        UniqueConstraint("user_quota_id", name="uq_user_quota_id"),
-        UniqueConstraint("user_id", name="uq_user_quota_user_id"),
-        Index("ix_user_quotas_reset_at", "reset_at"),
-    )
-
-    # 自增主键
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-    # 业务ID
-    user_quota_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
-        unique=True,
-        nullable=False,
-        default=uuid7
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.user_id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False
-    )
-
-    api_calls_limit: Mapped[int] = mapped_column(
-        Integer,
-        default=1000,
-        nullable=False
-    )
-    api_calls_used: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-    storage_limit: Mapped[int] = mapped_column(
-        Integer,
-        default=1073741824,  # 1GB
-        nullable=False
-    )
-    storage_used: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-    compute_hours_limit: Mapped[int] = mapped_column(
-        Integer,
-        default=10,
-        nullable=False
-    )
-    compute_hours_used: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-
-    reset_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ),
-        nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
-
-    # 关系
-    user: Mapped["UserORM"] = relationship(
-        "UserORM",
-        back_populates="quota"
     )

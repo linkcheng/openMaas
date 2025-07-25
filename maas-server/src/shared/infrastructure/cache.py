@@ -21,7 +21,6 @@ from loguru import logger
 
 from config.settings import settings
 
-
 # Redis连接
 # redis_client = redis.Redis.from_url(
 #     settings.get_redis_url(),
@@ -84,7 +83,7 @@ async def close_redis():
         redis_client.close()
     except Exception:
         pass
-    
+
 
 
 # from circuitbreaker import circuit

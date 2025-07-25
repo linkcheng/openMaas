@@ -156,7 +156,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, isAdmin, initializeAuth } = useAuth()
+  const { isAuthenticated, initializeAuth } = useAuth()
 
   // 初始化认证状态
   if (!isAuthenticated.value) {

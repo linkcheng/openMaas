@@ -168,6 +168,18 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 检查token是否即将过期（默认5分钟内）
+  const _isTokenExpiringSoon = (token: string, thresholdMinutes: number = 5): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      const thresholdTime = currentTime + (thresholdMinutes * 60)
+      return payload.exp ? payload.exp < thresholdTime : true
+    } catch {
+      return true
+    }
+  }
+
   // 获取访问令牌（自动处理刷新）
   const getAccessToken = async (): Promise<string | null> => {
     if (!tokens.value) return null

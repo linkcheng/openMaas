@@ -20,7 +20,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from loguru import logger
 
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
@@ -30,9 +29,6 @@ from shared.interface.auth_middleware import (
 )
 from shared.interface.dependencies import get_user_application_service
 from user.application.schemas import (
-    ApiKeyCreateRequest,
-    ApiKeyCreateResponse,
-    ApiKeyResponse,
     PasswordChangeCommand,
     PasswordChangeRequest,
     UserResponse,
@@ -42,12 +38,10 @@ from user.application.schemas import (
     UserUpdateCommand,
     UserUpdateRequest,
 )
-
 from user.application.services import (
     PasswordHashService,
     UserApplicationService,
 )
-from user.domain.models import InvalidCredentialsException
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -128,66 +122,10 @@ async def get_user_stats(
 
 
 
-@router.post("/me/api-keys", response_model=ApiResponse[ApiKeyCreateResponse], summary="创建API密钥")
-async def create_api_key(
-    request: ApiKeyCreateRequest,
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """创建API密钥"""
-
-    api_key = await user_service.create_api_key(
-        user_id=user_id,
-        name=request.name,
-        permissions=request.permissions,
-        expires_at=request.expires_at,
-    )
-
-    return ApiResponse.success_response(api_key, "API密钥创建成功")
-
-
-
-@router.get("/me/api-keys", response_model=ApiResponse[list[ApiKeyResponse]], summary="获取API密钥列表")
-async def get_api_keys(
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """获取API密钥列表"""
-
-    user = await user_service.get_user_entity_by_id(user_id)
-    if not user:
-        logger.warning(f"用户不存在 - 用户ID: {user_id}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
-
-    api_keys = [
-        ApiKeyResponse(
-            id=key.id,
-            name=key.name,
-            permissions=key.permissions,
-            expires_at=key.expires_at,
-            last_used_at=key.last_used_at,
-            is_active=key.is_active,
-            created_at=key.created_at,
-        )
-        for key in user.api_keys
-    ]
-
-    return ApiResponse.success_response(api_keys, "获取API密钥列表成功")
-
-
-@router.delete("/me/api-keys/{key_id}", response_model=ApiResponse[bool], summary="撤销API密钥")
-async def revoke_api_key(
-    key_id: UUID,
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """撤销API密钥"""
-
-    success = await user_service.revoke_api_key(user_id, key_id)
-    return ApiResponse.success_response(success, "API密钥撤销成功")
+# API密钥管理路由已移除
+# @router.post("/me/api-keys", ...)
+# @router.get("/me/api-keys", ...)
+# @router.delete("/me/api-keys/{key_id}", ...)
 
 
 

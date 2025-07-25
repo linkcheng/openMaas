@@ -16,7 +16,7 @@ limitations under the License.
 
 """共享接口层 - 认证中间件"""
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import jwt
@@ -24,6 +24,12 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config.settings import settings
+from shared.application.exceptions import (
+    TokenRefreshRequiredException,
+    TokenVersionMismatchException,
+    to_http_exception,
+)
+from shared.interface.dependencies import get_user_repository
 
 
 class JWTBearer(HTTPBearer):
@@ -40,7 +46,8 @@ class JWTBearer(HTTPBearer):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="无效的认证方案"
                 )
-            if not self.verify_jwt(credentials.credentials):
+            # 基本的JWT格式验证，不进行key_version检查（在具体的依赖中处理）
+            if not self.verify_jwt_format(credentials.credentials):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="无效或过期的令牌"
@@ -48,8 +55,8 @@ class JWTBearer(HTTPBearer):
             return credentials
         return None
 
-    def verify_jwt(self, token: str) -> bool:
-        """验证JWT令牌"""
+    def verify_jwt_format(self, token: str) -> bool:
+        """验证JWT令牌格式（不验证key_version）"""
         try:
             payload = jwt.decode(
                 token,
@@ -67,8 +74,50 @@ class AuthService:
     """认证服务"""
 
     @staticmethod
-    def decode_token(token: str) -> dict:
-        """解码JWT令牌"""
+    async def decode_token_with_version_check(token: str, user_repository) -> dict[str, Any]:
+        """解码JWT令牌并验证key_version"""
+        try:
+            payload = jwt.decode(
+                token,
+                settings.get_jwt_secret_key(),
+                algorithms=[settings.security.jwt_algorithm]
+            )
+
+            # 如果是访问令牌，需要验证key_version
+            if payload.get("type") == "access":
+                user_id = UUID(payload.get("sub"))
+                token_key_version = payload.get("key_version")
+
+                if token_key_version is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="令牌缺少版本信息"
+                    )
+
+                # 从数据库获取用户当前的key_version
+                user = await user_repository.find_by_id(user_id)
+                if not user:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="用户不存在"
+                    )
+
+                # 验证key_version是否匹配
+                if user.key_version != token_key_version:
+                    raise to_http_exception(TokenVersionMismatchException())
+
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise to_http_exception(TokenRefreshRequiredException())
+        except jwt.InvalidTokenError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无效令牌"
+            )
+
+    @staticmethod
+    def decode_token_basic(token: str) -> dict[str, Any]:
+        """基础JWT令牌解码（不验证key_version）"""
         try:
             payload = jwt.decode(
                 token,
@@ -90,7 +139,7 @@ class AuthService:
     @staticmethod
     def get_user_id_from_token(token: str) -> UUID:
         """从令牌获取用户ID"""
-        payload = AuthService.decode_token(token)
+        payload = AuthService.decode_token_basic(token)
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(
@@ -108,7 +157,7 @@ class AuthService:
     @staticmethod
     def get_permissions_from_token(token: str) -> list[str]:
         """从令牌获取权限列表"""
-        payload = AuthService.decode_token(token)
+        payload = AuthService.decode_token_basic(token)
         return payload.get("permissions", [])
 
 
@@ -118,25 +167,38 @@ jwt_bearer = JWTBearer()
 
 async def get_current_user_id(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(jwt_bearer)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(jwt_bearer)],
+    user_repository: Annotated[object, Depends(get_user_repository)]
 ) -> UUID:
     """获取当前用户ID"""
-    user_id = AuthService.get_user_id_from_token(credentials.credentials)
-    
+    payload = await AuthService.decode_token_with_version_check(credentials.credentials, user_repository)
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌中缺少用户信息"
+        )
+    try:
+        user_id = UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的用户ID"
+        )
+
     # 将用户ID存储到request.state中，供审计装饰器使用
     request.state.user_id = user_id
-    
+
     return user_id
 
 
-
-
-
 async def get_current_user_permissions(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(jwt_bearer)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(jwt_bearer)],
+    user_repository: Annotated[object, Depends(get_user_repository)]
 ) -> list[str]:
     """获取当前用户权限"""
-    return AuthService.get_permissions_from_token(credentials.credentials)
+    payload = await AuthService.decode_token_with_version_check(credentials.credentials, user_repository)
+    return payload.get("permissions", [])
 
 
 async def get_optional_user_id(
@@ -208,7 +270,9 @@ def require_roles(roles: list[str]):
     return Depends(RoleChecker(roles))
 
 
-def require_admin(permissions: Annotated[list[str], Depends(get_current_user_permissions)]) -> bool:
+def require_admin(
+    permissions: Annotated[list[str], Depends(get_current_user_permissions)]
+) -> bool:
     """管理员权限检查 - 暂时禁用权限验证"""
     # 暂时返回True，允许所有用户访问管理功能
     return True
@@ -221,21 +285,3 @@ def require_admin(permissions: Annotated[list[str], Depends(get_current_user_per
     #         detail="需要管理员权限"
     #     )
     # return True
-
-
-class ApiKeyAuth:
-    """API密钥认证"""
-
-    async def __call__(self, request: Request) -> UUID | None:
-        """API密钥认证"""
-        api_key = request.headers.get("X-API-Key")
-        if not api_key:
-            return None
-
-        # TODO: 实现API密钥验证逻辑
-        # 需要注入用户仓储来验证API密钥
-        return None
-
-
-# API密钥认证依赖
-api_key_auth = ApiKeyAuth()

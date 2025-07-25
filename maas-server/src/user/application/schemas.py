@@ -85,13 +85,6 @@ class PasswordResetConfirmRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=100, description="新密码")
 
 
-class ApiKeyCreateRequest(BaseModel):
-    """API密钥创建请求"""
-    name: str = Field(..., min_length=1, max_length=100, description="密钥名称")
-    permissions: list[str] = Field(default_factory=list, description="权限列表")
-    expires_at: datetime | None = Field(None, description="过期时间")
-
-
 class UserSearchRequest(BaseModel):
     """用户搜索请求"""
     keyword: str | None = Field(None, description="搜索关键词")
@@ -112,42 +105,12 @@ class UserProfileResponse(BaseModel):
     bio: str | None
 
 
-class UserQuotaResponse(BaseModel):
-    """用户配额响应"""
-    api_calls_limit: int
-    api_calls_used: int
-    api_calls_remaining: int
-    api_usage_percentage: float
-    storage_limit: int
-    storage_used: int
-    storage_remaining: int
-    storage_usage_percentage: float
-    compute_hours_limit: int
-    compute_hours_used: int
-    compute_hours_remaining: int
-
-
 class RoleResponse(BaseModel):
     """角色响应"""
     id: UUID
     name: str
     description: str
     permissions: list[str]
-
-
-class ApiKeyResponse(BaseModel):
-    """API密钥响应"""
-    id: UUID
-    name: str
-    permissions: list[str]
-    expires_at: datetime | None
-    last_used_at: datetime | None
-    is_active: bool
-    created_at: datetime
-
-    # 不返回实际的密钥值，只在创建时返回
-    class Config:
-        from_attributes = True
 
 
 class UserResponse(BaseModel):
@@ -159,7 +122,6 @@ class UserResponse(BaseModel):
     status: UserStatus
     email_verified: bool
     roles: list[RoleResponse]
-    quota: UserQuotaResponse | None
     created_at: datetime
     updated_at: datetime
     last_login_at: datetime | None
@@ -188,16 +150,6 @@ class AuthTokenResponse(BaseModel):
     token_type: str = "Bearer"
     expires_in: int
     user: UserResponse
-
-
-class ApiKeyCreateResponse(BaseModel):
-    """API密钥创建响应"""
-    id: UUID
-    name: str
-    api_key: str  # 只在创建时返回实际密钥
-    permissions: list[str]
-    expires_at: datetime | None
-    created_at: datetime
 
 
 class UserStatsResponse(BaseModel):

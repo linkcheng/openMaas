@@ -29,7 +29,6 @@ from loguru import logger
 from audit.application.services import log_user_action
 from audit.domain.models import ActionType, AuditResult, ResourceType
 from audit.shared.config import is_audit_enabled_for_action
-
 from shared.application.response import ApiResponse
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -213,7 +212,7 @@ def _extract_context(func: Callable, args: tuple, kwargs: dict) -> AuditContext:
         if current_user:
             context.user_id = getattr(current_user, "id", None)
             context.username = getattr(current_user, "username", None)
-        
+
         # 如果没有完整用户对象，尝试从 state 中获取用户 ID 和用户名
         if not context.user_id:
             context.user_id = getattr(request_obj.state, "user_id", None)
@@ -247,7 +246,7 @@ async def _enrich_context_with_user_info(context: AuditContext, args: tuple, kwa
                 if param_name == "user_service" or (hasattr(param_value, "get_user_by_id")):
                     user_service = param_value
                     break
-            
+
             if user_service:
                 # 尝试获取用户信息
                 user = await user_service.get_user_by_id(context.user_id)
@@ -256,15 +255,13 @@ async def _enrich_context_with_user_info(context: AuditContext, args: tuple, kwa
             else:
                 # 如果没有找到user_service，尝试直接从数据库获取
                 try:
-                    from shared.interface.dependencies import get_user_application_service
-                    from shared.infrastructure.database import get_db_session
-                    
+
                     # 这是一个备选方案，但可能会有性能影响
                     # 在生产环境中建议优化这个逻辑
                     pass
                 except Exception:
                     pass
-                    
+
         except Exception as e:
             logger.warning(f"获取用户信息失败: {e}")
             # 失败时不影响主流程，只是无法获取用户名

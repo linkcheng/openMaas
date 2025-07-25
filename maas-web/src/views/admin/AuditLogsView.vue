@@ -28,8 +28,8 @@ limitations under the License.
         <el-col :span="6">
           <el-card class="stat-card">
             <div class="stat-content">
-              <div class="stat-number">{{ stats.total_logs }}</div>
-              <div class="stat-label">总日志数</div>
+              <div class="stat-number">{{ stats.total_operations }}</div>
+              <div class="stat-label">总操作数</div>
             </div>
             <el-icon class="stat-icon" color="var(--el-color-primary)">
               <Document />
@@ -39,8 +39,8 @@ limitations under the License.
         <el-col :span="6">
           <el-card class="stat-card">
             <div class="stat-content">
-              <div class="stat-number">{{ stats.today_logs }}</div>
-              <div class="stat-label">今日日志</div>
+              <div class="stat-number">{{ stats.successful_operations }}</div>
+              <div class="stat-label">成功操作</div>
             </div>
             <el-icon class="stat-icon" color="var(--el-color-success)">
               <Calendar />
@@ -50,7 +50,7 @@ limitations under the License.
         <el-col :span="6">
           <el-card class="stat-card">
             <div class="stat-content">
-              <div class="stat-number">{{ stats.active_users }}</div>
+              <div class="stat-number">{{ stats.unique_users }}</div>
               <div class="stat-label">活跃用户</div>
             </div>
             <el-icon class="stat-icon" color="var(--el-color-warning)">
@@ -303,10 +303,12 @@ const selectedLog = ref<AuditLogResponse | null>(null)
 
 // 统计数据
 const stats = reactive<AuditStatsResponse>({
-  total_logs: 0,
-  today_logs: 0,
-  active_users: 0,
+  total_operations: 0,
+  successful_operations: 0,
   failed_operations: 0,
+  unique_users: 0,
+  recent_logins: 0,
+  top_actions: [],
 })
 
 // 搜索表单

@@ -24,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from audit.domain.models import ActionType, AuditLog, AuditResult, ResourceType
 from audit.domain.repositories import AuditLogFilter, AuditLogRepository
-from audit.infrastructure.models import AuditLogORM
 from audit.infrastructure.batch_operations import AuditLogBatchOperations
+from audit.infrastructure.models import AuditLogORM
 
 
 class SQLAlchemyAuditLogRepository(AuditLogRepository):
@@ -174,31 +174,31 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
             # 构建查询
             data_query = select(AuditLogORM)
             count_query = select(func.count(AuditLogORM.id))
-            
+
             # 应用过滤条件
             data_query = self._apply_filter(data_query, filter_obj)
             count_query = self._apply_filter(count_query, filter_obj)
-            
+
             # 先执行count查询
             count_result = await self.session.execute(count_query)
             total = count_result.scalar() or 0
-            
+
             # 如果没有数据，直接返回
             if total == 0:
                 return [], 0
-            
+
             # 应用排序和分页
             if order_desc:
                 data_query = data_query.order_by(desc(getattr(AuditLogORM, order_by)))
             else:
                 data_query = data_query.order_by(getattr(AuditLogORM, order_by))
-                
+
             data_query = data_query.limit(limit).offset(offset)
-            
+
             # 执行数据查询
             data_result = await self.session.execute(data_query)
             audit_log_orms = data_result.scalars().all()
-            
+
             return [self._orm_to_domain(orm) for orm in audit_log_orms], total
         except Exception:
             await self.session.rollback()
@@ -208,11 +208,11 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
         """根据ID列表批量查找审计日志"""
         if not log_ids:
             return []
-            
+
         query = select(AuditLogORM).where(AuditLogORM.audit_log_id.in_(log_ids))
         result = await self.session.execute(query)
         audit_log_orms = result.scalars().all()
-        
+
         return [self._orm_to_domain(orm) for orm in audit_log_orms]
 
     async def get_statistics(
@@ -227,58 +227,58 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
             base_conditions = []
             if start_time:
                 base_conditions.append(AuditLogORM.created_at >= start_time)
-            
+
             # 构建统计查询 - 使用条件聚合
             stats_query = select(
-                func.count(AuditLogORM.id).label('total'),
+                func.count(AuditLogORM.id).label("total"),
                 func.sum(
                     case((AuditLogORM.result == AuditResult.SUCCESS.value, 1), else_=0)
-                ).label('successful'),
+                ).label("successful"),
                 func.sum(
                     case((AuditLogORM.result == AuditResult.FAILURE.value, 1), else_=0)
-                ).label('failed')
+                ).label("failed")
             )
-            
+
             if base_conditions:
                 stats_query = stats_query.where(and_(*base_conditions))
-            
+
             # 执行基本统计查询
             stats_result = await self.session.execute(stats_query)
             stats_row = stats_result.first()
-            
+
             total = stats_row.total or 0
             successful = stats_row.successful or 0
             failed = stats_row.failed or 0
-            
+
             # 最近登录统计
             recent_login_time = datetime.utcnow() - timedelta(hours=24)
             login_conditions = [
                 AuditLogORM.action == ActionType.LOGIN.value,
                 AuditLogORM.created_at >= recent_login_time
             ]
-            
+
             login_stats_query = select(
-                func.count(AuditLogORM.id).label('login_count'),
-                func.count(func.distinct(AuditLogORM.user_id)).label('unique_users')
+                func.count(AuditLogORM.id).label("login_count"),
+                func.count(func.distinct(AuditLogORM.user_id)).label("unique_users")
             ).where(and_(*login_conditions))
-            
+
             login_result = await self.session.execute(login_stats_query)
             login_row = login_result.first()
-            
+
             recent_logins = login_row.login_count or 0
             unique_users = login_row.unique_users or 0
-            
+
             # 热门操作统计（如果需要）
             top_actions = []
             if include_action_stats:
                 action_stats_query = select(
                     AuditLogORM.action,
-                    func.count(AuditLogORM.id).label('count')
-                ).group_by(AuditLogORM.action).order_by(desc('count')).limit(10)
-                
+                    func.count(AuditLogORM.id).label("count")
+                ).group_by(AuditLogORM.action).order_by(desc("count")).limit(10)
+
                 if base_conditions:
                     action_stats_query = action_stats_query.where(and_(*base_conditions))
-                
+
                 action_result = await self.session.execute(action_stats_query)
                 top_actions = [
                     {"action": row.action, "count": row.count}
@@ -291,7 +291,7 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
                     {"action": "profile_update", "count": 0},
                     {"action": "password_change", "count": 0},
                 ]
-            
+
             return {
                 "total": total,
                 "successful": successful,

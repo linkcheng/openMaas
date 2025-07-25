@@ -181,49 +181,6 @@ class Role(Entity):
         return False
 
 
-class ApiKey(Entity):
-    """API密钥实体"""
-
-    def __init__(
-        self,
-        id: UUID,
-        name: str,
-        key_hash: str,
-        permissions: list[str],
-        expires_at: datetime | None = None,
-        last_used_at: datetime | None = None,
-        created_at: datetime | None = None
-    ):
-        super().__init__(id)
-        self.name = name
-        self.key_hash = key_hash
-        self.permissions = permissions
-        self.expires_at = expires_at
-        self.last_used_at = last_used_at
-        self.created_at = created_at or datetime.utcnow()
-        self.is_active = True
-
-    def is_expired(self) -> bool:
-        """检查是否过期"""
-        if not self.expires_at:
-            return False
-        return datetime.utcnow() > self.expires_at
-
-    def is_valid(self) -> bool:
-        """检查是否有效"""
-        return self.is_active and not self.is_expired()
-
-    def use(self) -> None:
-        """使用API密钥"""
-        if not self.is_valid():
-            raise BusinessRuleViolationException("API密钥无效或已过期")
-        self.last_used_at = datetime.utcnow()
-
-    def revoke(self) -> None:
-        """撤销API密钥"""
-        self.is_active = False
-
-
 # 领域事件
 @dataclass
 class UserRegisteredEvent(DomainEvent):
@@ -263,19 +220,6 @@ class UserProfileUpdatedEvent(DomainEvent):
         self.aggregate_type = "User"
 
 
-@dataclass
-class ApiKeyCreatedEvent(DomainEvent):
-    """API密钥创建事件"""
-    user_id: UUID
-    api_key_id: UUID
-    api_key_name: str
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.event_type = "user.api_key_created"
-        self.aggregate_type = "User"
-
-
 # 用户聚合根
 class User(AggregateRoot):
     """用户聚合根"""
@@ -289,6 +233,7 @@ class User(AggregateRoot):
         profile: UserProfile,
         status: UserStatus = UserStatus.ACTIVE,
         email_verified: bool = False,
+        key_version: int = 1,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         last_login_at: datetime | None = None
@@ -300,12 +245,12 @@ class User(AggregateRoot):
         self.profile = profile
         self.status = status
         self.email_verified = email_verified
+        self.key_version = key_version
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
         self.last_login_at = last_login_at
 
         self._roles: list[Role] = []
-        self._api_keys: list[ApiKey] = []
         self._quota: UserQuota | None = None
 
     @classmethod
@@ -429,53 +374,6 @@ class User(AggregateRoot):
         """检查是否有权限"""
         return any(role.has_permission(resource, action) for role in self._roles)
 
-    def create_api_key(
-        self,
-        name: str,
-        key_hash: str,
-        permissions: list[str],
-        expires_at: datetime | None = None
-    ) -> ApiKey:
-        """创建API密钥"""
-        if len(self._api_keys) >= 10:  # 限制API密钥数量
-            raise BusinessRuleViolationException("API密钥数量已达上限")
-
-        api_key = ApiKey(
-            id=uuid7(),
-            name=name,
-            key_hash=key_hash,
-            permissions=permissions,
-            expires_at=expires_at
-        )
-
-        self._api_keys.append(api_key)
-        self.updated_at = datetime.utcnow()
-
-        # 添加领域事件
-        self.add_domain_event(ApiKeyCreatedEvent(
-            event_id=uuid7(),
-            occurred_at=datetime.utcnow(),
-            event_type="user.api_key_created",
-            aggregate_id=self.id,
-            aggregate_type="User",
-            event_data={
-                "user_id": str(self.id),
-                "api_key_id": str(api_key.id),
-                "api_key_name": name
-            }
-        ))
-
-        return api_key
-
-    def revoke_api_key(self, api_key_id: UUID) -> None:
-        """撤销API密钥"""
-        api_key = next((key for key in self._api_keys if key.id == api_key_id), None)
-        if not api_key:
-            raise BusinessRuleViolationException("API密钥不存在")
-
-        api_key.revoke()
-        self.updated_at = datetime.utcnow()
-
     def set_quota(self, quota: UserQuota) -> None:
         """设置用户配额"""
         self._quota = quota
@@ -501,15 +399,15 @@ class User(AggregateRoot):
         """记录登录"""
         self.last_login_at = datetime.utcnow()
 
+    def increment_key_version(self) -> None:
+        """递增token版本号，使所有现有token失效"""
+        self.key_version += 1
+        self.updated_at = datetime.utcnow()
+
     @property
     def roles(self) -> list[Role]:
         """角色列表"""
         return self._roles.copy()
-
-    @property
-    def api_keys(self) -> list[ApiKey]:
-        """API密钥列表"""
-        return self._api_keys.copy()
 
     @property
     def quota(self) -> UserQuota | None:
