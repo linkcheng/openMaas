@@ -73,6 +73,7 @@ class SecurityConfig(BaseSettings):
     bcrypt_rounds: int = 12
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
     frontend_url: str = "http://localhost:3000"
+    trusted_hosts: list[str] = ["*"]
 
     @field_validator("jwt_secret_key")
     @classmethod
@@ -183,6 +184,33 @@ class PerformanceConfig(BaseSettings):
         extra="ignore",
     )
 
+
+class LogConfig(BaseSettings):
+    """日志配置"""
+    log_level: str = Field(
+        default="INFO",
+        description="日志级别"
+    )
+    log_file: str | None = Field(
+        default=None,
+        description="日志文件路径"
+    )
+    log_dir: str = Field(
+        default="logs",
+        description="日志目录"
+    )
+    log_rotation: str = Field(
+        default="1 day",
+        description="日志轮转时间"
+    )
+    log_retention: str = Field(
+        default="30 days",
+        description="日志保留时间"
+    )
+    log_format: str = Field(
+        default="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+        description="日志格式"
+    )
 
 class Settings(BaseSettings):
     """主配置类 - 整合所有配置模块"""

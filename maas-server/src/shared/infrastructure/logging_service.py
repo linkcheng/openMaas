@@ -107,8 +107,8 @@ class LoggingService:
             return self.settings.log_format
         else:
             return (
-                "<green>{time:HH:mm:ss}</green> | "
-                "<level>{level: <8}</level> | "
+                "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+                "<level>{level}</level> | "
                 "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
                 "<level>{message}</level>"
             )

@@ -24,22 +24,6 @@ from loguru import logger
 from config.settings import settings
 
 # Redis连接
-# redis_client = redis.Redis.from_url(
-#     settings.get_redis_url(),
-#     decode_responses=True,
-#     socket_connect_timeout=5,    # 连接建立超时（秒）
-#     socket_timeout=5,           # 读写操作超时（秒）
-#     max_connections=50,         # 最大连接数
-#     health_check_interval=30,   # 健康检查间隔（秒）
-#     retry_on_timeout=True,      # 超时自动重试
-#     retry_on_error=[redis.BusyLoadingError, redis.ConnectionError],  # 连接错误重试
-#     socket_keepalive=True,      # 启用TCP keepalive
-#     socket_keepalive_options={
-#         'TCP_KEEPIDLE': 60,     # 空闲60秒后开始探测
-#         'TCP_KEEPINTVL': 10,    # 探测间隔10秒
-#         'TCP_KEEPCNT': 3        # 最多探测3次
-#     }
-# )
 
 redis_client = redis.Redis.from_url(
     settings.get_redis_url(),

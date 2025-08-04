@@ -37,7 +37,11 @@ from shared.infrastructure.database import (
     close_database,
     init_database,
 )
+from shared.infrastructure.logging_service import get_logging_service
 from user.interface import router as user_router
+
+
+_ = get_logging_service()
 
 
 @asynccontextmanager
@@ -99,7 +103,7 @@ app.add_middleware(
 # 添加可信主机中间件
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"] if settings.server.debug else ["localhost", "127.0.0.1"]
+    allowed_hosts=settings.security.trusted_hosts
 )
 
 
