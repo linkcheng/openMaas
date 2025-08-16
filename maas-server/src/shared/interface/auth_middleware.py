@@ -31,8 +31,6 @@ from shared.application.exceptions import (
     to_http_exception,
 )
 from shared.interface.dependencies import get_user_repository
-from audit.application.services import log_user_action
-from audit.domain.models import ActionType, AuditResult
 
 
 class JWTBearer(HTTPBearer):
@@ -405,9 +403,8 @@ class RoleChecker:
                 if all(required_role in user_roles for required_role in self.required_roles):
                     return True
             # OR逻辑：用户只需拥有其中一个角色
-            else:
-                if any(required_role in user_roles for required_role in self.required_roles):
-                    return True
+            elif any(required_role in user_roles for required_role in self.required_roles):
+                return True
 
             # 检查是否为超级管理员（拥有所有权限）
             super_admin_roles = ["super_admin", "system_admin"]
@@ -637,10 +634,10 @@ class AdvancedPermissionChecker:
                 if self.required_permissions:
                     perm_logic_str = "全部" if self.permission_logic == "AND" else "任一"
                     error_parts.append(f"{perm_logic_str}权限: {', '.join(self.required_permissions)}")
-                
+
                 condition_str = "且" if self.condition_logic == "AND" else "或"
                 error_message = f"需要{condition_str.join(error_parts)}"
-                
+
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=error_message

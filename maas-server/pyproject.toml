@@ -38,6 +38,7 @@ dependencies = [
     "uuid7>=0.1.0",
     "gmssl>=3.2.2",
     "snowland-smx>=0.3.1",
+    "litellm>=1.74.15.post1",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +53,7 @@ dev = [
     "types-redis>=4.6.0",
     "types-passlib>=1.7.7",
     "httpx>=0.28.1",
+    "factory-boy>=3.3.0",
 ]
 
 [project.scripts]
@@ -234,4 +236,5 @@ dev-dependencies = [
     "types-redis>=4.6.0",
     "types-passlib>=1.7.7",
     "httpx>=0.28.1",
+    "factory-boy>=3.3.0",
 ]

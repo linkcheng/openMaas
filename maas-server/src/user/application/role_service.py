@@ -17,8 +17,9 @@ limitations under the License.
 """角色应用服务"""
 
 from uuid import UUID
-from uuid_extensions import uuid7
+
 from loguru import logger
+from uuid_extensions import uuid7
 
 from shared.application.exceptions import ApplicationException
 from user.application.schemas import (
@@ -26,12 +27,16 @@ from user.application.schemas import (
     PermissionResponse,
     RoleCreateRequest,
     RoleResponse,
-    RoleUpdateRequest,
     RoleSearchQuery,
+    RoleUpdateRequest,
     UserRoleAssignRequest,
 )
-from user.domain.models import Permission, Role
-from user.domain.repositories import PermissionRepository, RoleRepository, UserRepository
+from user.domain.models import Role
+from user.domain.repositories import (
+    PermissionRepository,
+    RoleRepository,
+    UserRepository,
+)
 
 
 class RoleApplicationService:

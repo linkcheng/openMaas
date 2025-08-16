@@ -24,6 +24,26 @@ from pydantic import BaseModel, Field
 T = TypeVar("T")
 
 
+class PaginationMeta(BaseModel):
+    """分页元数据"""
+    total: int = Field(..., description="总数量")
+    page: int = Field(..., description="当前页码")
+    size: int = Field(..., description="每页大小")
+    pages: int = Field(..., description="总页数")
+
+    @classmethod
+    def create(cls, total: int, page: int, size: int) -> "PaginationMeta":
+        """创建分页元数据"""
+        pages = (total + size - 1) // size if size > 0 else 0
+        return cls(total=total, page=page, size=size, pages=pages)
+
+
+class PaginatedData(BaseModel, Generic[T]):
+    """分页数据模型"""
+    items: list[T] = Field(..., description="数据列表")
+    pagination: PaginationMeta = Field(..., description="分页信息")
+
+
 # 响应构建器
 class ApiResponse(BaseModel, Generic[T]):
     """API响应模型"""
@@ -69,15 +89,18 @@ class ApiResponse(BaseModel, Generic[T]):
         cls,
         items: list[T],
         total: int,
+        page: int,
+        size: int,
         message: str = "操作成功",
         code: int = 200
-    ) -> "ApiResponse[T]":
+    ) -> "ApiResponse[PaginatedData[T]]":
         """构建分页响应"""
+        pagination_meta = PaginationMeta.create(total=total, page=page, size=size)
+        paginated_data = PaginatedData(items=items, pagination=pagination_meta)
 
         return cls(
-            success=False,
-            data=items,
-            total=total,
+            success=True,
+            data=paginated_data,
             message=message,
             code=code
         )

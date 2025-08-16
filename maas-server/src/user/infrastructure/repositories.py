@@ -32,7 +32,11 @@ from user.domain.models import (
     UserProfile,
     UserStatus,
 )
-from user.domain.repositories import PermissionRepository, RoleRepository, UserRepository
+from user.domain.repositories import (
+    PermissionRepository,
+    RoleRepository,
+    UserRepository,
+)
 from user.infrastructure.models import RoleORM, UserORM
 
 
@@ -40,7 +44,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
     """SQLAlchemy用户仓储实现"""
 
     def __init__(self, session: AsyncSession):
-        super().__init__(session, UserORM)
+        super().__init__(session, User, UserORM)
 
     async def save(self, user: User) -> User:
         """保存用户"""
@@ -267,7 +271,7 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User, UserORM], UserReposito
         stmt = select(UserORM).options(
             selectinload(UserORM.roles)
         ).join(UserRoleORM).where(UserRoleORM.role_id == role_id)
-        
+
         result = await self.session.execute(stmt)
         orm_objects = result.scalars().all()
         return [self._to_domain_entity(obj) for obj in orm_objects]
@@ -368,7 +372,7 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
     """SQLAlchemy角色仓储实现"""
 
     def __init__(self, session: AsyncSession):
-        super().__init__(session, RoleORM)
+        super().__init__(session, Role, RoleORM)
 
     async def find_by_id(self, role_id: UUID) -> Role | None:
         """根据ID获取角色"""
@@ -407,10 +411,10 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
     ) -> list[Role]:
         """搜索角色"""
         stmt = select(RoleORM)
-        
+
         if name:
             stmt = stmt.where(RoleORM.name.ilike(f"%{name}%"))
-        
+
         stmt = stmt.order_by(RoleORM.name).offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         orm_objects = result.scalars().all()
@@ -421,7 +425,7 @@ class SQLAlchemyRoleRepository(SQLAlchemyRepository[Role, RoleORM], RoleReposito
         stmt = select(RoleORM).where(RoleORM.role_id == role_id)
         result = await self.session.execute(stmt)
         orm_obj = result.scalar_one_or_none()
-        
+
         if orm_obj:
             await self.session.delete(orm_obj)
             await self.session.commit()
@@ -507,7 +511,7 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
         stmt = select(RoleORM)
         result = await self.session.execute(stmt)
         roles = result.scalars().all()
-        
+
         for role in roles:
             for perm_data in role.permissions:
                 if isinstance(perm_data, dict) and UUID(perm_data.get("id")) == permission_id:
@@ -525,11 +529,11 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
         stmt = select(RoleORM)
         result = await self.session.execute(stmt)
         roles = result.scalars().all()
-        
+
         for role in roles:
             for perm_data in role.permissions:
-                if (isinstance(perm_data, dict) and 
-                    perm_data.get("resource") == resource and 
+                if (isinstance(perm_data, dict) and
+                    perm_data.get("resource") == resource and
                     perm_data.get("action") == action):
                     return Permission(
                         id=UUID(perm_data.get("id")),
@@ -545,10 +549,10 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
         stmt = select(RoleORM)
         result = await self.session.execute(stmt)
         roles = result.scalars().all()
-        
+
         permissions = []
         seen_permissions = set()
-        
+
         for role in roles:
             for perm_data in role.permissions:
                 if isinstance(perm_data, dict):
@@ -563,7 +567,7 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
                         )
                         permissions.append(permission)
                         seen_permissions.add(perm_key)
-        
+
         return permissions
 
     async def find_by_resource(self, resource: str) -> list[Permission]:
@@ -571,13 +575,13 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
         stmt = select(RoleORM)
         result = await self.session.execute(stmt)
         roles = result.scalars().all()
-        
+
         permissions = []
         seen_permissions = set()
-        
+
         for role in roles:
             for perm_data in role.permissions:
-                if (isinstance(perm_data, dict) and 
+                if (isinstance(perm_data, dict) and
                     perm_data.get("resource") == resource):
                     perm_key = f"{perm_data.get('resource')}:{perm_data.get('action')}"
                     if perm_key not in seen_permissions:
@@ -590,7 +594,7 @@ class SQLAlchemyPermissionRepository(PermissionRepository):
                         )
                         permissions.append(permission)
                         seen_permissions.add(perm_key)
-        
+
         return permissions
 
     async def save(self, permission: Permission) -> Permission:

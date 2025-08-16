@@ -19,26 +19,24 @@ limitations under the License.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Query, status
 from loguru import logger
 
+from audit.domain.models import ActionType, ResourceType
+from audit.shared.decorators import audit_resource_operation, audit_user_operation
 from shared.application.response import ApiResponse
 from shared.interface.auth_middleware import (
-    require_super_admin,
-    require_any_admin_role,
     get_current_user_id,
+    require_any_admin_role,
+    require_super_admin,
 )
 from shared.interface.dependencies import get_role_application_service
-from audit.shared.decorators import audit_resource_operation, audit_user_operation
-from audit.domain.models import ActionType, ResourceType
 from user.application.role_service import RoleApplicationService
 from user.application.schemas import (
     PermissionRequest,
-    PermissionResponse,
     RoleCreateRequest,
-    RoleResponse,
-    RoleUpdateRequest,
     RoleSearchQuery,
+    RoleUpdateRequest,
     UserRoleAssignRequest,
 )
 
@@ -179,5 +177,5 @@ async def assign_user_roles(
     if success:
         logger.info(f"用户角色分配成功: user_id={request.user_id}")
         return ApiResponse.success_response(message="用户角色分配成功")
-    
+
     return ApiResponse.error_response(message="用户角色分配失败")

@@ -32,7 +32,11 @@ from user.application.services import (
     PasswordHashService,
     UserApplicationService,
 )
-from user.domain.repositories import PermissionRepository, RoleRepository, UserRepository
+from user.domain.repositories import (
+    PermissionRepository,
+    RoleRepository,
+    UserRepository,
+)
 from user.infrastructure.repositories import (
     SQLAlchemyPermissionRepository,
     SQLAlchemyRoleRepository,
