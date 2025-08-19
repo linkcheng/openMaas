@@ -553,7 +553,7 @@ const saveProfile = async () => {
   try {
     // 准备更新数据，只发送有值的字段，过滤空字符串
     const updateData: any = {}
-    
+
     if (form.first_name && form.first_name.trim()) {
       updateData.first_name = form.first_name.trim()
     }

@@ -122,6 +122,10 @@ limitations under the License.
             <el-icon><UserFilled /></el-icon>
             <template #title>用户管理</template>
           </el-menu-item>
+          <el-menu-item index="/admin/providers">
+            <el-icon><Connection /></el-icon>
+            <template #title>供应商管理</template>
+          </el-menu-item>
           <el-menu-item index="/admin/audit-logs">
             <el-icon><Document /></el-icon>
             <template #title>系统日志</template>

@@ -14,10 +14,24 @@
  * limitations under the License.
  */
 
-import axios, { type AxiosInstance, type AxiosResponse, type AxiosRequestConfig, AxiosError } from 'axios'
+import axios, {
+  type AxiosInstance,
+  type AxiosResponse,
+  type AxiosRequestConfig,
+  AxiosError,
+} from 'axios'
 import { useUserStore } from '@/stores/userStore'
 import { tokenNotification } from '@/utils/notification'
 import { logTokenEvent, logTokenError, MonitoringEvent } from '@/utils/tokenMonitor'
+import type {
+  CreateProviderRequest,
+  UpdateProviderRequest,
+  ListProvidersParams,
+  SearchProvidersParams,
+  ProviderResponse,
+  ProvidersListResponse,
+  ProviderStatsResponse,
+} from '@/types/providerTypes'
 
 // 开发环境下加载调试工具
 if (import.meta.env.DEV) {
@@ -238,7 +252,7 @@ class ApiClient {
     })
 
     this.setupInterceptors()
-    
+
     // 定期清理过期的队列项（每10秒清理一次）
     setInterval(() => {
       if (this.failedQueue.length > 0) {
@@ -249,7 +263,7 @@ class ApiClient {
 
   private processQueue(error: AxiosError | null, token: string | null = null) {
     const currentTime = Date.now()
-    
+
     // 处理队列中的所有请求
     this.failedQueue.forEach(({ resolve, reject, timestamp }) => {
       // 检查请求是否超时
@@ -258,60 +272,63 @@ class ApiClient {
         reject(new AxiosError('Request timeout in queue', 'QUEUE_TIMEOUT'))
         return
       }
-      
+
       if (error) {
         reject(error)
       } else {
         resolve(token)
       }
     })
-    
+
     this.failedQueue = []
   }
 
   private cleanExpiredQueueItems() {
     const currentTime = Date.now()
     const originalLength = this.failedQueue.length
-    
+
     this.failedQueue = this.failedQueue.filter(({ timestamp, reject }) => {
       const isExpired = currentTime - timestamp > this.queueTimeout
       if (isExpired) {
         console.warn('清理过期的队列请求')
         reject(new AxiosError('Request timeout in queue', 'QUEUE_TIMEOUT'))
-        
+
         // 记录队列超时
         logTokenEvent(MonitoringEvent.QUEUE_TIMEOUT, {
           queueSize: originalLength,
-          metadata: { timeoutMs: this.queueTimeout }
+          metadata: { timeoutMs: this.queueTimeout },
         })
       }
       return !isExpired
     })
-    
+
     if (originalLength !== this.failedQueue.length) {
       const cleanedCount = originalLength - this.failedQueue.length
       console.log(`清理了 ${cleanedCount} 个过期请求`)
-      
+
       // 记录队列清理
       logTokenEvent(MonitoringEvent.QUEUE_CLEANUP, {
         queueSize: originalLength,
-        metadata: { 
+        metadata: {
           cleanedCount,
-          remainingCount: this.failedQueue.length
-        }
+          remainingCount: this.failedQueue.length,
+        },
       })
     }
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
-  private isTokenExpiringSoon(token: string, thresholdMinutes: number = this.preventiveRefreshThreshold): boolean {
+  private isTokenExpiringSoon(
+    token: string,
+    thresholdMinutes: number = this.preventiveRefreshThreshold,
+  ): boolean {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
       const currentTime = Math.floor(Date.now() / 1000)
-      const thresholdTime = currentTime + (thresholdMinutes * 60)
+      const thresholdTime = currentTime + thresholdMinutes * 60
       return payload.exp ? payload.exp < thresholdTime : true
     } catch {
       return true
@@ -325,7 +342,7 @@ class ApiClient {
 
     const userStore = useUserStore()
     const tokens = userStore.tokens
-    
+
     if (!tokens?.access_token || !tokens?.refresh_token) {
       return
     }
@@ -333,10 +350,10 @@ class ApiClient {
     if (this.isTokenExpiringSoon(tokens.access_token)) {
       // 记录预防性刷新开始
       logTokenEvent(MonitoringEvent.PREVENTIVE_REFRESH_START)
-      
+
       console.log('Token即将过期，开始预防性刷新')
       this.isPreventiveRefreshing = true
-      
+
       try {
         const newTokens = await this.refreshTokenWithRetry()
         userStore.setTokens({
@@ -345,7 +362,7 @@ class ApiClient {
           token_type: newTokens.token_type,
           expires_in: newTokens.expires_in,
         })
-        
+
         // 记录预防性刷新成功
         logTokenEvent(MonitoringEvent.PREVENTIVE_REFRESH_SUCCESS)
         tokenNotification.preventiveRefreshSuccess()
@@ -363,41 +380,47 @@ class ApiClient {
   private async refreshTokenWithRetry(): Promise<AuthTokens> {
     const userStore = useUserStore()
     const tokens = userStore.tokens
-    
+
     if (!tokens?.refresh_token) {
-      logTokenError(MonitoringEvent.TOKEN_REFRESH_FAILED, 
-        new AxiosError('No refresh token available', 'NO_REFRESH_TOKEN'))
+      logTokenError(
+        MonitoringEvent.TOKEN_REFRESH_FAILED,
+        new AxiosError('No refresh token available', 'NO_REFRESH_TOKEN'),
+      )
       throw new Error('No refresh token available')
     }
 
     for (let attempt = 1; attempt <= this.maxRefreshRetries; attempt++) {
       const startTime = Date.now()
-      
+
       try {
         // 记录刷新尝试
         logTokenEvent(MonitoringEvent.TOKEN_REFRESH_ATTEMPT, {
           attempt,
-          maxAttempts: this.maxRefreshRetries
+          maxAttempts: this.maxRefreshRetries,
         })
-        
+
         console.log(`Token刷新尝试 ${attempt}/${this.maxRefreshRetries}`)
-        
-        const response = await this.client.post<ApiResponse<AuthTokens>>('/auth/refresh', {}, {
-          headers: {
-            'Authorization': `Bearer ${tokens.refresh_token}`
-          }
-        })
+
+        const response = await this.client.post<ApiResponse<AuthTokens>>(
+          '/auth/refresh',
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${tokens.refresh_token}`,
+            },
+          },
+        )
 
         if (response.data.success && response.data.data) {
           const duration = Date.now() - startTime
-          
+
           // 记录成功
           logTokenEvent(MonitoringEvent.TOKEN_REFRESH_SUCCESS, {
             attempt,
             duration,
-            metadata: { responseTime: duration }
+            metadata: { responseTime: duration },
           })
-          
+
           this.refreshRetryCount = 0 // 重置重试计数
           return response.data.data
         } else {
@@ -405,41 +428,41 @@ class ApiClient {
         }
       } catch (error) {
         const duration = Date.now() - startTime
-        
+
         console.warn(`Token刷新失败，尝试 ${attempt}/${this.maxRefreshRetries}:`, error)
-        
+
         // 记录失败
         logTokenError(MonitoringEvent.TOKEN_REFRESH_FAILED, error as AxiosError, {
           attempt,
           maxAttempts: this.maxRefreshRetries,
-          duration
+          duration,
         })
-        
+
         // 显示用户友好的提示
         tokenNotification.refreshFailed(error as AxiosError, attempt, this.maxRefreshRetries)
-        
+
         if (attempt === this.maxRefreshRetries) {
           // 记录所有重试失败
           logTokenError(MonitoringEvent.TOKEN_REFRESH_ALL_FAILED, error as AxiosError, {
             totalAttempts: this.maxRefreshRetries,
-            totalDuration: Date.now() - (startTime - duration)
+            totalDuration: Date.now() - (startTime - duration),
           })
           throw error
         }
-        
+
         // 记录重试
         logTokenEvent(MonitoringEvent.TOKEN_REFRESH_RETRY, {
           attempt: attempt + 1,
           maxAttempts: this.maxRefreshRetries,
-          retryDelay: this.refreshRetryDelay * Math.pow(2, attempt)
+          retryDelay: this.refreshRetryDelay * Math.pow(2, attempt),
         })
-        
+
         // 等待一段时间后重试，使用指数退避
         const delayTime = this.refreshRetryDelay * Math.pow(2, attempt - 1)
         await this.delay(delayTime)
       }
     }
-    
+
     throw new Error('Token refresh failed after all retries')
   }
 
@@ -448,10 +471,10 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config) => {
         const userStore = useUserStore()
-        
+
         // 尝试预防性刷新token（如果即将过期）
         await this.preventiveRefresh()
-        
+
         const token = await userStore.getAccessToken()
 
         if (token) {
@@ -510,21 +533,23 @@ class ApiClient {
           if (this.isRefreshing) {
             // 清理过期的队列项
             this.cleanExpiredQueueItems()
-            
+
             return new Promise((resolve, reject) => {
-              this.failedQueue.push({ 
-                resolve, 
-                reject, 
-                timestamp: Date.now() 
+              this.failedQueue.push({
+                resolve,
+                reject,
+                timestamp: Date.now(),
               })
-            }).then(token => {
-              if (token && originalRequest.headers) {
-                originalRequest.headers['Authorization'] = `Bearer ${token}`
-              }
-              return this.client(originalRequest)
-            }).catch(err => {
-              return Promise.reject(err)
             })
+              .then((token) => {
+                if (token && originalRequest.headers) {
+                  originalRequest.headers['Authorization'] = `Bearer ${token}`
+                }
+                return this.client(originalRequest)
+              })
+              .catch((err) => {
+                return Promise.reject(err)
+              })
           }
 
           originalRequest._retry = true
@@ -533,7 +558,7 @@ class ApiClient {
           try {
             // 使用带重试机制的token刷新方法
             const newTokens = await this.refreshTokenWithRetry()
-            
+
             // 更新token
             userStore.setTokens({
               access_token: newTokens.access_token,
@@ -554,19 +579,19 @@ class ApiClient {
             // 刷新失败，清除认证状态
             console.error('Token刷新重试全部失败:', refreshError)
             this.processQueue(refreshError as AxiosError, null)
-            
+
             // 显示最终失败通知
             tokenNotification.allRetriesFailed(refreshError as AxiosError)
-            
+
             userStore.clearAuth()
-            
+
             // 延迟跳转，给用户时间看到通知
             if (typeof window !== 'undefined') {
               setTimeout(() => {
                 window.location.href = '/#/auth/login'
               }, 3000)
             }
-            
+
             return Promise.reject(refreshError)
           } finally {
             this.isRefreshing = false
@@ -590,7 +615,8 @@ class ApiClient {
   auth = {
     register: (data: UserRegisterRequest) => this.client.post<ApiResponse>('/auth/register', data),
 
-    login: (data: UserLoginRequest) => this.client.post<ApiResponse<LoginResponse>>('/auth/login', data),
+    login: (data: UserLoginRequest) =>
+      this.client.post<ApiResponse<LoginResponse>>('/auth/login', data),
 
     refreshToken: () => this.client.post<ApiResponse<AuthTokens>>('/auth/refresh'),
 
@@ -603,7 +629,6 @@ class ApiClient {
       this.client.post<ApiResponse>('/auth/reset-password', data),
 
     verifyEmail: (token: string) => this.client.post<ApiResponse>('/auth/verify-email', { token }),
-
 
     getPublicKey: () => this.client.get<ApiResponse>('/auth/crypto/public-key'),
   }
@@ -714,6 +739,70 @@ class ApiClient {
       this.client.post<ApiResponse<AuditLogResponse[]>>('/audit/logs/export', data),
   }
 
+  // 供应商管理API
+  providers = {
+    // 获取供应商列表
+    listProviders: (params: ListProvidersParams = {}) =>
+      this.client.get<ProvidersListResponse>('/models/providers', { params }),
+
+    // 创建供应商
+    createProvider: (data: CreateProviderRequest) =>
+      this.client.post<ProviderResponse>('/models/providers', data),
+
+    // 获取单个供应商详情
+    getProvider: (providerId: number) =>
+      this.client.get<ProviderResponse>(`/models/providers/${providerId}`),
+
+    // 更新供应商
+    updateProvider: (providerId: number, data: UpdateProviderRequest) =>
+      this.client.put<ProviderResponse>(`/models/providers/${providerId}`, data),
+
+    // 删除供应商
+    deleteProvider: (providerId: number) =>
+      this.client.delete<ApiResponse>(`/models/providers/${providerId}`),
+
+    // 激活供应商
+    activateProvider: (providerId: number) =>
+      this.client.post<ProviderResponse>(`/models/providers/${providerId}/activate`),
+
+    // 停用供应商
+    deactivateProvider: (providerId: number) =>
+      this.client.post<ProviderResponse>(`/models/providers/${providerId}/deactivate`),
+
+    // 搜索供应商
+    searchProviders: (params: SearchProvidersParams) =>
+      this.client.get<ProvidersListResponse>('/models/providers/search', { params }),
+
+    // 获取供应商统计信息
+    getProviderStats: () => this.client.get<ProviderStatsResponse>('/models/providers/stats'),
+
+    // 测试供应商连接
+    testProvider: (providerId: number) =>
+      this.client.post<ApiResponse>(`/models/providers/${providerId}/test`),
+
+    // 批量操作供应商
+    batchUpdateProviders: (data: {
+      provider_ids: number[]
+      action: 'activate' | 'deactivate' | 'delete'
+    }) => this.client.post<ApiResponse>('/models/providers/batch', data),
+
+    // 获取供应商关联的模型配置
+    getRelatedModels: (providerId: number) =>
+      this.client.get<ApiResponse<Array<{ id: number; name: string; is_active: boolean }>>>(
+        `/models/providers/${providerId}/models`,
+      ),
+
+    // 获取供应商使用情况
+    getProviderUsage: (providerId: number) =>
+      this.client.get<
+        ApiResponse<{
+          activeConnections: number
+          recentRequests: number
+          lastUsed?: string
+        }>
+      >(`/models/providers/${providerId}/usage`),
+  }
+
   // 通用请求方法
   get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<AxiosResponse<T>> {
     return this.client.get(url, { params })
@@ -737,12 +826,50 @@ export const apiClient = new ApiClient()
 
 // 便捷的API方法导出
 export const {
-  auth: { register, login, refreshToken, logout, forgotPassword, resetPassword, verifyEmail, getPublicKey },
-  users: { getProfile, updateProfile, changePassword, getStats, getApiKeys, createApiKey, revokeApiKey, searchUsers, getUserById, suspendUser, activateUser },
+  auth: {
+    register,
+    login,
+    refreshToken,
+    logout,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
+    getPublicKey,
+  },
+  users: {
+    getProfile,
+    updateProfile,
+    changePassword,
+    getStats,
+    getApiKeys,
+    createApiKey,
+    revokeApiKey,
+    searchUsers,
+    getUserById,
+    suspendUser,
+    activateUser,
+  },
   stats: { getUserStats, getAdminStats, getUserActivityLogs, getAllActivityLogs },
-  system: { getHealth: getSystemHealth, getMetrics: getSystemMetrics, getResources: getSystemResources },
+  system: {
+    getHealth: getSystemHealth,
+    getMetrics: getSystemMetrics,
+    getResources: getSystemResources,
+  },
   dashboard: { getOverview: getDashboardOverview },
   audit: { getLogs: getAuditLogs, getStats: getAuditStats, exportLogs: exportAuditLogs },
+  providers: {
+    listProviders,
+    createProvider,
+    getProvider,
+    updateProvider,
+    deleteProvider,
+    activateProvider,
+    deactivateProvider,
+    searchProviders,
+    getProviderStats,
+    testProvider,
+    batchUpdateProviders,
+  },
 } = apiClient
 
 // 错误处理工具函数

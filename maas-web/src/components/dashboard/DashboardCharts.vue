@@ -188,7 +188,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-   
   title: '数据分析',
   loading: false,
 })

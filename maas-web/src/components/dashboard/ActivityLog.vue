@@ -208,7 +208,6 @@ const getActivityIcon = (type: string): string => {
 
 const getActivityIconComponent = (type: string) => {
   const componentMap: Record<string, any> = {
-     
     api_call: Link,
     login: UserFilled,
     api_key_created: Key,

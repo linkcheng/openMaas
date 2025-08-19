@@ -124,7 +124,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-   
   title: '快速操作',
   showViewAll: false,
   showRecentActions: false,

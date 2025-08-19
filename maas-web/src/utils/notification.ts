@@ -23,7 +23,7 @@ export enum ErrorType {
   AUTH = 'auth',
   SERVER = 'server',
   TIMEOUT = 'timeout',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 // 根据错误类型获取错误信息
@@ -43,7 +43,7 @@ const getErrorType = (error: AxiosError): ErrorType => {
   if (status >= 500) {
     return ErrorType.SERVER
   }
-  
+
   return ErrorType.UNKNOWN
 }
 
@@ -81,7 +81,7 @@ export const tokenNotification = {
       ElMessage.warning({
         message: `${message}（第${attempt}次重试，共${maxAttempts}次）`,
         duration: 3000,
-        showClose: true
+        showClose: true,
       })
     } else {
       // 最终失败或认证错误
@@ -89,7 +89,7 @@ export const tokenNotification = {
         title,
         message,
         duration: 5000,
-        position: 'top-right'
+        position: 'top-right',
       })
     }
   },
@@ -97,20 +97,20 @@ export const tokenNotification = {
   // 所有重试失败后的最终通知
   allRetriesFailed: (error: AxiosError) => {
     const errorType = getErrorType(error)
-    
+
     if (errorType === ErrorType.NETWORK || errorType === ErrorType.TIMEOUT) {
       ElNotification.error({
         title: '连接失败',
         message: '网络连接问题，登录状态可能受到影响。请检查网络后刷新页面重试。',
         duration: 8000,
-        position: 'top-right'
+        position: 'top-right',
       })
     } else {
       ElNotification.error({
         title: '登录已失效',
         message: '您的登录已过期，系统将在3秒后跳转到登录页面。',
         duration: 3000,
-        position: 'top-right'
+        position: 'top-right',
       })
     }
   },
@@ -127,14 +127,14 @@ export const tokenNotification = {
   preventiveRefreshFailed: (error: AxiosError) => {
     // 预防性刷新失败通常不显示错误提示，让正常的401处理机制处理
     console.warn('预防性token刷新失败，将由正常流程处理:', error.message)
-  }
+  },
 }
 
 // 通用的API错误处理
 export const handleApiNotification = (error: AxiosError, context?: string) => {
   const errorType = getErrorType(error)
   const contextMessage = context ? `${context}: ` : ''
-  
+
   switch (errorType) {
     case ErrorType.NETWORK:
       ElMessage.error(`${contextMessage}网络连接失败，请检查网络设置`)

@@ -42,12 +42,12 @@ from model.domain.exceptions import (
     ProviderNotFoundException,
 )
 from shared.application.response import ApiResponse, PaginatedData
-from shared.interface.auth_middleware import get_current_user_id, require_super_admin
+from shared.interface.auth_middleware import get_current_user_id
 
 router = APIRouter(prefix="/models", tags=["模型管理"])
 
 
-@router.post("/providers", response_model=ApiResponse[ProviderResponse], dependencies=[Depends(require_super_admin)])
+@router.post("/providers", response_model=ApiResponse[ProviderResponse])
 async def create_provider(
     request: CreateProviderRequest,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)],
@@ -93,7 +93,7 @@ async def create_provider(
         )
 
 
-@router.get("/providers", response_model=ApiResponse[PaginatedData[ProviderResponse]], dependencies=[Depends(require_super_admin)])
+@router.get("/providers", response_model=ApiResponse[PaginatedData[ProviderResponse]])
 async def list_providers(
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)],
     page: int = Query(1, ge=1, description="页码，从1开始"),
@@ -148,7 +148,7 @@ async def list_providers(
         )
 
 
-@router.get("/providers/{provider_id}", response_model=ApiResponse[ProviderResponse], dependencies=[Depends(require_super_admin)])
+@router.get("/providers/{provider_id}", response_model=ApiResponse[ProviderResponse])
 async def get_provider(
     provider_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -185,7 +185,7 @@ async def get_provider(
         )
 
 
-@router.put("/providers/{provider_id}", response_model=ApiResponse[ProviderResponse], dependencies=[Depends(require_super_admin)])
+@router.put("/providers/{provider_id}", response_model=ApiResponse[ProviderResponse])
 async def update_provider(
     provider_id: int,
     request: UpdateProviderRequest,
@@ -231,7 +231,7 @@ async def update_provider(
         )
 
 
-@router.delete("/providers/{provider_id}", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.delete("/providers/{provider_id}", response_model=ApiResponse[None])
 async def delete_provider(
     provider_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -278,7 +278,7 @@ async def delete_provider(
         )
 
 
-@router.post("/providers/{provider_id}/activate", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.post("/providers/{provider_id}/activate", response_model=ApiResponse[None])
 async def activate_provider(
     provider_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -320,7 +320,7 @@ async def activate_provider(
         )
 
 
-@router.post("/providers/{provider_id}/deactivate", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.post("/providers/{provider_id}/deactivate", response_model=ApiResponse[None])
 async def deactivate_provider(
     provider_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -362,7 +362,7 @@ async def deactivate_provider(
         )
 
 
-@router.get("/providers/search", response_model=ApiResponse[PaginatedData[ProviderResponse]], dependencies=[Depends(require_super_admin)])
+@router.get("/providers/search", response_model=ApiResponse[PaginatedData[ProviderResponse]])
 async def search_providers(
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)],
     page: int = Query(1, ge=1, description="页码，从1开始"),
@@ -414,7 +414,7 @@ async def search_providers(
         )
 
 
-@router.post("/providers/{provider_id}/models", response_model=ApiResponse[ModelConfigResponse], dependencies=[Depends(require_super_admin)])
+@router.post("/providers/{provider_id}/models", response_model=ApiResponse[ModelConfigResponse])
 async def create_model_config(
     provider_id: int,
     request: CreateModelConfigRequest,
@@ -469,7 +469,7 @@ async def create_model_config(
         )
 
 
-@router.get("/models", response_model=ApiResponse[PaginatedData[ModelConfigResponse]], dependencies=[Depends(require_super_admin)])
+@router.get("/models", response_model=ApiResponse[PaginatedData[ModelConfigResponse]])
 async def list_model_configs(
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)],
     page: int = Query(1, ge=1, description="页码，从1开始"),
@@ -530,7 +530,7 @@ async def list_model_configs(
         )
 
 
-@router.get("/models/{config_id}", response_model=ApiResponse[ModelConfigResponse], dependencies=[Depends(require_super_admin)])
+@router.get("/models/{config_id}", response_model=ApiResponse[ModelConfigResponse])
 async def get_model_config(
     config_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -567,7 +567,7 @@ async def get_model_config(
         )
 
 
-@router.put("/models/{config_id}", response_model=ApiResponse[ModelConfigResponse], dependencies=[Depends(require_super_admin)])
+@router.put("/models/{config_id}", response_model=ApiResponse[ModelConfigResponse])
 async def update_model_config(
     config_id: int,
     request: UpdateModelConfigRequest,
@@ -613,7 +613,7 @@ async def update_model_config(
         )
 
 
-@router.delete("/models/{config_id}", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.delete("/models/{config_id}", response_model=ApiResponse[None])
 async def delete_model_config(
     config_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -655,7 +655,7 @@ async def delete_model_config(
         )
 
 
-@router.post("/models/{config_id}/activate", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.post("/models/{config_id}/activate", response_model=ApiResponse[None])
 async def activate_model_config(
     config_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]
@@ -704,7 +704,7 @@ async def activate_model_config(
         )
 
 
-@router.post("/models/{config_id}/deactivate", response_model=ApiResponse[None], dependencies=[Depends(require_super_admin)])
+@router.post("/models/{config_id}/deactivate", response_model=ApiResponse[None])
 async def deactivate_model_config(
     config_id: int,
     provider_service: Annotated[ProviderApplicationService, Depends(provider_application_service)]

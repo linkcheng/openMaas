@@ -31,33 +31,35 @@ class TokenDebugTools {
     const errorRate = tokenMonitor.getErrorRate()
     const successRate = tokenMonitor.getSuccessRate()
     const stats = tokenMonitor.getStats()
-    
+
     const healthEmoji = {
       healthy: '✅',
       warning: '⚠️',
-      critical: '❌'
+      critical: '❌',
     }
-    
+
     console.log(`${healthEmoji[health]} Token健康状态: ${health.toUpperCase()}`)
     console.log(`📊 成功率: ${successRate.toFixed(1)}% | 错误率: ${errorRate.toFixed(1)}%`)
     console.log(`⚡ 平均响应时间: ${stats.averageResponseTime.toFixed(0)}ms`)
-    console.log(`🔄 总刷新次数: ${stats.totalAttempts} | 预防性刷新: ${stats.preventiveRefreshCount}`)
+    console.log(
+      `🔄 总刷新次数: ${stats.totalAttempts} | 预防性刷新: ${stats.preventiveRefreshCount}`,
+    )
   }
 
   // 在控制台打印最近事件
   printRecentEvents(count: number = 10) {
     const events = tokenMonitor.getRecentEvents(count)
     console.group(`📋 最近${count}个Token事件`)
-    events.forEach(event => {
+    events.forEach((event) => {
       const time = new Date(event.timestamp).toLocaleTimeString()
       const eventName = event.event.replace(/_/g, ' ')
       let icon = '🔵'
-      
+
       if (event.event.includes('SUCCESS')) icon = '✅'
       else if (event.event.includes('FAILED')) icon = '❌'
       else if (event.event.includes('RETRY')) icon = '🔄'
       else if (event.event.includes('PREVENTIVE')) icon = '⚡'
-      
+
       console.log(`${icon} ${time} - ${eventName}${event.error ? ` (${event.error})` : ''}`)
     })
     console.groupEnd()
@@ -74,35 +76,35 @@ class TokenDebugTools {
     const health = tokenMonitor.getHealthStatus()
     const errorRate = tokenMonitor.getErrorRate()
     const stats = tokenMonitor.getStats()
-    
+
     const alerts = []
-    
+
     if (health === 'critical') {
       alerts.push('🚨 CRITICAL: Token刷新系统状态异常')
     } else if (health === 'warning') {
       alerts.push('⚠️ WARNING: Token刷新系统性能下降')
     }
-    
+
     if (errorRate > 30) {
       alerts.push(`🚨 高错误率: ${errorRate.toFixed(1)}%`)
     }
-    
+
     if (stats.averageResponseTime > 5000) {
       alerts.push(`⚠️ 响应时间过长: ${stats.averageResponseTime.toFixed(0)}ms`)
     }
-    
+
     if (stats.totalAttempts > 0 && stats.failureCount === stats.totalAttempts) {
       alerts.push('🚨 所有Token刷新尝试都失败了')
     }
-    
+
     if (alerts.length > 0) {
       console.group('🚨 Token监控告警')
-      alerts.forEach(alert => console.warn(alert))
+      alerts.forEach((alert) => console.warn(alert))
       console.groupEnd()
     } else {
       console.log('✅ 没有Token监控告警')
     }
-    
+
     return alerts
   }
 
@@ -114,12 +116,12 @@ class TokenDebugTools {
       health: tokenMonitor.getHealthStatus(),
       errorRate: tokenMonitor.getErrorRate(),
       successRate: tokenMonitor.getSuccessRate(),
-      exportTime: new Date().toISOString()
+      exportTime: new Date().toISOString(),
     }
-    
+
     console.log('📤 Token监控数据导出:')
     console.log(JSON.stringify(data, null, 2))
-    
+
     return data
   }
 
@@ -140,14 +142,17 @@ class TokenDebugTools {
   // 启动定期报告
   startPeriodicReport(intervalMinutes: number = 5) {
     console.log(`📊 启动Token监控定期报告，间隔: ${intervalMinutes}分钟`)
-    
-    const interval = setInterval(() => {
-      const stats = tokenMonitor.getStats()
-      if (stats.totalAttempts > 0) {
-        this.overview()
-      }
-    }, intervalMinutes * 60 * 1000)
-    
+
+    const interval = setInterval(
+      () => {
+        const stats = tokenMonitor.getStats()
+        if (stats.totalAttempts > 0) {
+          this.overview()
+        }
+      },
+      intervalMinutes * 60 * 1000,
+    )
+
     return interval
   }
 }
@@ -159,7 +164,7 @@ export const tokenDebugTools = new TokenDebugTools()
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   ;(window as any).tokenDebug = tokenDebugTools
   ;(window as any).tokenMonitor = tokenMonitor
-  
+
   console.log('🔧 Token调试工具已挂载到 window.tokenDebug')
   console.log('📊 Token监控器已挂载到 window.tokenMonitor')
   console.log('使用 tokenDebug.overview() 查看监控概览')

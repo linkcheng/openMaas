@@ -27,7 +27,7 @@ export enum MonitoringEvent {
   PREVENTIVE_REFRESH_SUCCESS = 'preventive_refresh_success',
   PREVENTIVE_REFRESH_FAILED = 'preventive_refresh_failed',
   QUEUE_TIMEOUT = 'queue_timeout',
-  QUEUE_CLEANUP = 'queue_cleanup'
+  QUEUE_CLEANUP = 'queue_cleanup',
 }
 
 // 监控数据接口
@@ -65,7 +65,7 @@ class TokenMonitor {
     preventiveRefreshCount: 0,
     averageResponseTime: 0,
     lastRefreshTime: 0,
-    errorsByType: {}
+    errorsByType: {},
   }
 
   private recentEvents: MonitoringData[] = []
@@ -98,7 +98,7 @@ class TokenMonitor {
       case MonitoringEvent.TOKEN_REFRESH_ATTEMPT:
         this.stats.totalAttempts++
         break
-      
+
       case MonitoringEvent.TOKEN_REFRESH_SUCCESS:
         this.stats.successCount++
         this.stats.lastRefreshTime = data.timestamp
@@ -107,18 +107,20 @@ class TokenMonitor {
           if (this.responseTimes.length > this.maxResponseTimes) {
             this.responseTimes = this.responseTimes.slice(-this.maxResponseTimes)
           }
-          this.stats.averageResponseTime = this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
+          this.stats.averageResponseTime =
+            this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
         }
         break
-      
+
       case MonitoringEvent.TOKEN_REFRESH_FAILED:
       case MonitoringEvent.TOKEN_REFRESH_ALL_FAILED:
         this.stats.failureCount++
         if (data.errorType) {
-          this.stats.errorsByType[data.errorType] = (this.stats.errorsByType[data.errorType] || 0) + 1
+          this.stats.errorsByType[data.errorType] =
+            (this.stats.errorsByType[data.errorType] || 0) + 1
         }
         break
-      
+
       case MonitoringEvent.PREVENTIVE_REFRESH_SUCCESS:
         this.stats.preventiveRefreshCount++
         break
@@ -128,29 +130,29 @@ class TokenMonitor {
   private logToConsole(data: MonitoringData) {
     const timestamp = new Date(data.timestamp).toISOString()
     const eventName = data.event.replace(/_/g, ' ').toUpperCase()
-    
+
     let logLevel: 'log' | 'warn' | 'error' = 'log'
     let message = `[TOKEN MONITOR] ${eventName}`
-    
+
     switch (data.event) {
       case MonitoringEvent.TOKEN_REFRESH_ATTEMPT:
         message += ` - 尝试 ${data.attempt}/${data.maxAttempts}`
         break
-      
+
       case MonitoringEvent.TOKEN_REFRESH_SUCCESS:
         message += data.duration ? ` - 耗时 ${data.duration}ms` : ''
         break
-      
+
       case MonitoringEvent.TOKEN_REFRESH_FAILED:
       case MonitoringEvent.TOKEN_REFRESH_ALL_FAILED:
         logLevel = 'error'
         message += data.error ? ` - 错误: ${data.error}` : ''
         break
-      
+
       case MonitoringEvent.PREVENTIVE_REFRESH_START:
         message += ' - 开始预防性刷新'
         break
-      
+
       case MonitoringEvent.QUEUE_TIMEOUT:
         logLevel = 'warn'
         message += ` - 队列大小: ${data.queueSize || 0}`
@@ -168,7 +170,7 @@ class TokenMonitor {
       if (typeof window !== 'undefined' && window.navigator && 'sendBeacon' in window.navigator) {
         const _payload = JSON.stringify({
           source: 'maas-web-token-monitor',
-          ...data
+          ...data,
         })
         // window.navigator.sendBeacon('/api/monitoring/token-events', _payload)
       }
@@ -203,13 +205,13 @@ class TokenMonitor {
   getHealthStatus(): 'healthy' | 'warning' | 'critical' {
     const errorRate = this.getErrorRate()
     const avgResponseTime = this.stats.averageResponseTime
-    
+
     if (errorRate > 50 || avgResponseTime > 10000) {
       return 'critical'
     } else if (errorRate > 20 || avgResponseTime > 5000) {
       return 'warning'
     }
-    
+
     return 'healthy'
   }
 
@@ -222,7 +224,7 @@ class TokenMonitor {
       preventiveRefreshCount: 0,
       averageResponseTime: 0,
       lastRefreshTime: 0,
-      errorsByType: {}
+      errorsByType: {},
     }
     this.recentEvents = []
     this.responseTimes = []
@@ -234,7 +236,7 @@ class TokenMonitor {
     const health = this.getHealthStatus()
     const errorRate = this.getErrorRate()
     const successRate = this.getSuccessRate()
-    
+
     return `
 Token刷新监控报告
 ==================
@@ -249,12 +251,17 @@ Token刷新监控报告
 最后刷新时间: ${stats.lastRefreshTime ? new Date(stats.lastRefreshTime).toLocaleString() : '无'}
 
 错误类型统计:
-${Object.entries(stats.errorsByType).map(([type, count]) => `  ${type}: ${count}`).join('\n')}
+${Object.entries(stats.errorsByType)
+  .map(([type, count]) => `  ${type}: ${count}`)
+  .join('\n')}
 
 最近5个事件:
-${this.getRecentEvents(5).map(event => 
-  `  ${new Date(event.timestamp).toLocaleTimeString()} - ${event.event} ${event.error ? '(' + event.error + ')' : ''}`
-).join('\n')}
+${this.getRecentEvents(5)
+  .map(
+    (event) =>
+      `  ${new Date(event.timestamp).toLocaleTimeString()} - ${event.event} ${event.error ? '(' + event.error + ')' : ''}`,
+  )
+  .join('\n')}
     `.trim()
   }
 }
@@ -263,18 +270,25 @@ ${this.getRecentEvents(5).map(event =>
 export const tokenMonitor = new TokenMonitor()
 
 // 工具函数：记录token刷新事件
-export const logTokenEvent = (event: MonitoringEvent, additionalData: Partial<MonitoringData> = {}) => {
+export const logTokenEvent = (
+  event: MonitoringEvent,
+  additionalData: Partial<MonitoringData> = {},
+) => {
   tokenMonitor.logEvent({
     event,
     timestamp: Date.now(),
-    ...additionalData
+    ...additionalData,
   })
 }
 
 // 工具函数：记录错误
-export const logTokenError = (event: MonitoringEvent, error: AxiosError, additionalData: Partial<MonitoringData> = {}) => {
+export const logTokenError = (
+  event: MonitoringEvent,
+  error: AxiosError,
+  additionalData: Partial<MonitoringData> = {},
+) => {
   let errorType = 'unknown'
-  
+
   if (!error.response) {
     errorType = error.code === 'ECONNABORTED' ? 'timeout' : 'network'
   } else {
@@ -283,12 +297,12 @@ export const logTokenError = (event: MonitoringEvent, error: AxiosError, additio
     else if (status >= 500) errorType = 'server'
     else errorType = 'client'
   }
-  
+
   tokenMonitor.logEvent({
     event,
     timestamp: Date.now(),
     error: error.message,
     errorType,
-    ...additionalData
+    ...additionalData,
   })
 }
