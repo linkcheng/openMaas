@@ -91,6 +91,7 @@ class ResourceType(str, Enum):
     """资源类型枚举"""
     USER = "user"
     ROLE = "role"
+    PERMISSION = "permission"
     API_KEY = "api_key"
     DATASET = "dataset"
     MODEL = "model"

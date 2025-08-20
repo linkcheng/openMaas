@@ -15,11 +15,7 @@ limitations under the License.
 """
 
 import datetime
-from collections.abc import AsyncGenerator
-
-from fastapi import Depends
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from model.application.schemas import (
     CreateModelConfigRequest,
@@ -38,6 +34,7 @@ from model.domain.exceptions import (
     ProviderAlreadyExistsException,
     ProviderHasActiveModelsException,
     ProviderNotFoundException,
+    ProviderInactiveException
 )
 from model.domain.models.provider_model import ModelConfigEntity, ProviderEntity
 from model.domain.repository.provider_repository import (
@@ -46,8 +43,6 @@ from model.domain.repository.provider_repository import (
 )
 from model.domain.services.provider_service import ProviderDomainService
 from model.domain.services.validation_service import ValidationService
-from model.infrastructure.repositorise import ModelConfigRepository, ProviderRepository
-from shared.infrastructure.database import get_db_session
 
 
 class ProviderApplicationService:
@@ -75,8 +70,6 @@ class ProviderApplicationService:
         self.validation_service.validate_base_url(request.base_url)
         self.validation_service.validate_display_name(request.display_name)
         self.validation_service.validate_description(request.description)
-        self.validation_service.validate_api_key(request.api_key)
-        self.validation_service.validate_additional_config(request.additional_config)
 
         # 唯一性检查
         existing_provider = await self.provider_repo.get_by_name(request.provider_name)
@@ -91,8 +84,6 @@ class ProviderApplicationService:
             display_name=request.display_name.strip(),
             description=request.description.strip() if request.description else None,
             base_url=request.base_url.strip(),
-            api_key=request.api_key,
-            additional_config=request.additional_config,
             is_active=request.is_active,
             created_by=user_id,
             created_at=now,
@@ -103,23 +94,7 @@ class ProviderApplicationService:
 
         # 保存到数据库
         created_provider = await self.provider_repo.create(provider)
-        
-        # 安全审计日志
-        from model.infrastructure.security import AuditLogger
-        AuditLogger.log_data_modification(
-            user_id=user_id,
-            resource_type="provider",
-            resource_id=str(created_provider.provider_id),
-            action="create",
-            changes={
-                "provider_name": request.provider_name,
-                "provider_type": request.provider_type,
-                "display_name": request.display_name,
-                "base_url": request.base_url,
-                "is_active": request.is_active
-            }
-        )
-        
+
         logger.info(f"Provider created successfully: {created_provider.provider_id}")
 
         return created_provider
@@ -226,14 +201,6 @@ class ProviderApplicationService:
             self.validation_service.validate_base_url(request.base_url)
             update_data["base_url"] = request.base_url.strip()
 
-        if request.api_key is not None:
-            self.validation_service.validate_api_key(request.api_key)
-            update_data["api_key"] = request.api_key
-
-        if request.additional_config is not None:
-            self.validation_service.validate_additional_config(request.additional_config)
-            update_data["additional_config"] = request.additional_config
-
         if request.is_active is not None:
             update_data["is_active"] = request.is_active
 
@@ -339,6 +306,7 @@ class ProviderApplicationService:
             provider_id=provider_id,
             model_name=request.model_name.strip(),
             model_display_name=request.model_display_name.strip(),
+            api_key=request.api_key,
             model_type=request.model_type.strip(),
             model_params=request.model_params,
             max_tokens=request.max_tokens,
@@ -524,7 +492,6 @@ class ProviderApplicationService:
         # 检查供应商是否激活
         provider = await self.provider_repo.get_by_id(existing_config.provider_id)
         if not provider or not provider.is_active:
-            from model.domain.exceptions import ProviderInactiveException
             raise ProviderInactiveException(existing_config.provider_id)
 
         # 执行激活
@@ -549,44 +516,4 @@ class ProviderApplicationService:
             logger.info(f"Model config deactivated successfully: {config_id}")
 
         return success
-
-
-async def provider_repo(
-    db: AsyncSession = Depends(get_db_session)
-) -> AsyncGenerator[ProviderRepository, None]:
-    yield ProviderRepository(session=db)
-
-
-async def model_config_repo(
-    db: AsyncSession = Depends(get_db_session)
-) -> AsyncGenerator[ModelConfigRepository, None]:
-    yield ModelConfigRepository(session=db)
-
-
-async def provider_domain_service(
-    provider_repo: IProviderRepository = Depends(provider_repo),
-    model_config_repo: IModelConfigRepository = Depends(model_config_repo)
-) -> AsyncGenerator[ProviderDomainService, None]:
-    yield ProviderDomainService(
-        provider_repo=provider_repo,
-        model_config_repo=model_config_repo
-    )
-
-
-async def validation_service() -> AsyncGenerator[ValidationService, None]:
-    yield ValidationService()
-
-
-async def provider_application_service(
-    provider_repo: IProviderRepository = Depends(provider_repo),
-    model_config_repo: IModelConfigRepository = Depends(model_config_repo),
-    provider_domain_service: ProviderDomainService = Depends(provider_domain_service),
-    validation_service: ValidationService = Depends(validation_service)
-) -> AsyncGenerator[ProviderApplicationService, None]:
-    yield ProviderApplicationService(
-        provider_repo=provider_repo,
-        model_config_repo=model_config_repo,
-        provider_domain_service=provider_domain_service,
-        validation_service=validation_service
-    )
 

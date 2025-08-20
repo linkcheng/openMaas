@@ -49,6 +49,7 @@ class RoleType(str, Enum):
     USER = "user"
 
 
+
 @dataclass(frozen=True)
 class UserProfile(ValueObject):
     """用户档案值对象"""
@@ -75,46 +76,78 @@ class UserProfile(ValueObject):
 
 
 @dataclass(frozen=True)
-class UserQuota(ValueObject):
-    """用户配额值对象"""
-    api_calls_limit: int
-    api_calls_used: int
-    storage_limit: int  # bytes
-    storage_used: int   # bytes
-    compute_hours_limit: int
-    compute_hours_used: int
+class AuthToken(ValueObject):
+    """认证令牌"""
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_in: int
+
+
+@dataclass(frozen=True)
+class PermissionName(ValueObject):
+    """权限名称值对象"""
+    value: str
 
     def _validate(self) -> None:
-        if self.api_calls_limit < 0:
-            raise ValueError("API调用限制不能为负数")
-        if self.storage_limit < 0:
-            raise ValueError("存储限制不能为负数")
-        if self.compute_hours_limit < 0:
-            raise ValueError("计算时间限制不能为负数")
+        if not self.value or not self.value.strip():
+            raise ValueError("权限名称不能为空")
 
-    def can_make_api_call(self, count: int = 1) -> bool:
-        """检查是否可以进行API调用"""
-        return self.api_calls_used + count <= self.api_calls_limit
+        # 验证权限命名规范: {module}.{resource}.{action}
+        parts = self.value.split(".")
+        if len(parts) != 3:
+            raise ValueError("权限名称必须遵循 {module}.{resource}.{action} 格式")
 
-    def can_use_storage(self, size: int) -> bool:
-        """检查是否可以使用存储空间"""
-        return self.storage_used + size <= self.storage_limit
+        module, resource, action = parts
+        if not all(part.strip() for part in [module, resource, action]):
+            raise ValueError("权限名称的各部分不能为空")
 
-    def can_use_compute_hours(self, hours: int) -> bool:
-        """检查是否可以使用计算时间"""
-        return self.compute_hours_used + hours <= self.compute_hours_limit
+        # 验证字符规范
+        import re
+        pattern = r"^[a-z][a-z0-9_]*$"
+        for part in [module, resource]:
+            if not re.match(pattern, part) and part != "*":
+                raise ValueError(f"权限名称部分 '{part}' 只能包含小写字母、数字和下划线，且必须以字母开头")
 
-    def get_api_usage_percentage(self) -> float:
-        """获取API使用百分比"""
-        if self.api_calls_limit == 0:
-            return 0
-        return (self.api_calls_used / self.api_calls_limit) * 100
+        # action 可以是 * 或符合规范的字符串
+        if action != "*" and not re.match(pattern, action):
+            raise ValueError(f"权限操作 '{action}' 只能包含小写字母、数字和下划线，且必须以字母开头，或者是通配符 '*'")
 
-    def get_storage_usage_percentage(self) -> float:
-        """获取存储使用百分比"""
-        if self.storage_limit == 0:
-            return 0
-        return (self.storage_used / self.storage_limit) * 100
+    @property
+    def module(self) -> str:
+        """获取模块名"""
+        return self.value.split(".")[0]
+
+    @property
+    def resource(self) -> str:
+        """获取资源名"""
+        return self.value.split(".")[1]
+
+    @property
+    def action(self) -> str:
+        """获取操作名"""
+        return self.value.split(".")[2]
+
+    def matches(self, other: "PermissionName") -> bool:
+        """检查权限是否匹配（支持通配符）"""
+        if self.value == other.value:
+            return True
+
+        # 检查通配符匹配
+        self_parts = self.value.split(".")
+        other_parts = other.value.split(".")
+
+        for i, (self_part, other_part) in enumerate(zip(self_parts, other_parts, strict=False)):
+            if self_part == "*" or other_part == "*":
+                # 如果是最后一部分的通配符，匹配成功
+                if i == 2:  # action 部分
+                    return True
+                # 如果是 resource 部分的通配符，需要检查后续
+                continue
+            elif self_part != other_part:
+                return False
+
+        return True
 
 
 class Permission(Entity):
@@ -123,19 +156,42 @@ class Permission(Entity):
     def __init__(
         self,
         id: UUID,
-        name: str,
+        name: PermissionName,
+        display_name: str,
         description: str,
-        resource: str,
-        action: str
+        module: str | None = None
     ):
         super().__init__(id)
         self.name = name
+        self.display_name = display_name
         self.description = description
-        self.resource = resource
-        self.action = action
+        # module 可以从 name 中提取，但也可以单独设置
+        self.module = module or name.module
+
+    @property
+    def resource(self) -> str:
+        """资源名"""
+        return self.name.resource
+
+    @property
+    def action(self) -> str:
+        """操作名"""
+        return self.name.action
+
+    def matches(self, required_permission: "Permission") -> bool:
+        """检查是否匹配所需权限（支持通配符）"""
+        return self.name.matches(required_permission.name)
 
     def __str__(self) -> str:
-        return f"{self.resource}:{self.action}"
+        return self.name.value
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Permission):
+            return False
+        return self.name.value == other.name.value
+
+    def __hash__(self) -> int:
+        return hash(self.name.value)
 
 
 class Role(Entity):
@@ -145,13 +201,19 @@ class Role(Entity):
         self,
         id: UUID,
         name: str,
+        display_name: str,
         description: str,
-        permissions: list[Permission]
+        permissions: list[Permission] | None = None,
+        is_system_role: bool = False,
+        role_type: RoleType = RoleType.USER
     ):
         super().__init__(id)
         self.name = name
+        self.display_name = display_name
         self.description = description
-        self._permissions = permissions.copy()
+        self._permissions = permissions.copy() if permissions else []
+        self.is_system_role = is_system_role
+        self.role_type = role_type
 
     @property
     def permissions(self) -> list[Permission]:
@@ -160,25 +222,96 @@ class Role(Entity):
 
     def add_permission(self, permission: Permission) -> None:
         """添加权限"""
+        if self.is_system_role:
+            raise BusinessRuleViolationException("不能修改系统角色的权限")
+
         if permission not in self._permissions:
             self._permissions.append(permission)
 
     def remove_permission(self, permission: Permission) -> None:
         """移除权限"""
+        if self.is_system_role:
+            raise BusinessRuleViolationException("不能修改系统角色的权限")
+
         if permission in self._permissions:
             self._permissions.remove(permission)
 
-    def has_permission(self, resource: str, action: str) -> bool:
+    def add_permissions(self, permissions: list[Permission]) -> None:
+        """批量添加权限"""
+        if self.is_system_role:
+            raise BusinessRuleViolationException("不能修改系统角色的权限")
+
+        for permission in permissions:
+            if permission not in self._permissions:
+                self._permissions.append(permission)
+
+    def remove_permissions(self, permissions: list[Permission]) -> None:
+        """批量移除权限"""
+        if self.is_system_role:
+            raise BusinessRuleViolationException("不能修改系统角色的权限")
+
+        for permission in permissions:
+            if permission in self._permissions:
+                self._permissions.remove(permission)
+
+    def set_permissions(self, permissions: list[Permission]) -> None:
+        """设置权限列表（替换现有权限）"""
+        if self.is_system_role:
+            raise BusinessRuleViolationException("不能修改系统角色的权限")
+
+        self._permissions = permissions.copy()
+
+    def has_permission(self, permission_name: str) -> bool:
         """检查是否有特定权限"""
+        try:
+            required_permission_name = PermissionName(permission_name)
+        except ValueError:
+            return False
+
         for perm in self._permissions:
-            if perm.resource == resource and perm.action == action:
-                return True
-            # 检查通配符权限
-            if perm.resource == resource and perm.action == "*":
-                return True
-            if perm.resource == "*" and perm.action == "*":
+            if perm.name.matches(required_permission_name):
                 return True
         return False
+
+    def has_permission_by_parts(self, resource: str, action: str, module: str | None = None) -> bool:
+        """通过资源和操作检查权限"""
+        if module:
+            permission_name = f"{module}.{resource}.{action}"
+        else:
+            # 尝试匹配任何模块
+            for perm in self._permissions:
+                if perm.resource == resource and perm.action == action:
+                    return True
+                # 检查通配符权限
+                if perm.resource == resource and perm.action == "*":
+                    return True
+                if perm.resource == "*" and perm.action == "*":
+                    return True
+            return False
+
+        return self.has_permission(permission_name)
+
+    def merge_permissions(self, other_role: "Role") -> list[Permission]:
+        """合并另一个角色的权限（返回合并后的权限列表，不修改当前角色）"""
+        merged_permissions = self._permissions.copy()
+
+        for permission in other_role.permissions:
+            if permission not in merged_permissions:
+                merged_permissions.append(permission)
+
+        return merged_permissions
+
+    def can_be_deleted(self) -> bool:
+        """检查角色是否可以被删除"""
+        return not self.is_system_role
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Role):
+            return False
+        return self.name == other.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 # 领域事件
@@ -249,9 +382,7 @@ class User(AggregateRoot):
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
         self.last_login_at = last_login_at
-
         self._roles: list[Role] = []
-        self._quota: UserQuota | None = None
 
     @classmethod
     def create(
@@ -363,21 +494,77 @@ class User(AggregateRoot):
         if role not in self._roles:
             self._roles.append(role)
             self.updated_at = datetime.utcnow()
+            # 权限变更时需要使缓存失效
+            self.increment_key_version()
 
     def remove_role(self, role: Role) -> None:
         """移除角色"""
         if role in self._roles:
             self._roles.remove(role)
             self.updated_at = datetime.utcnow()
+            # 权限变更时需要使缓存失效
+            self.increment_key_version()
 
-    def has_permission(self, resource: str, action: str) -> bool:
-        """检查是否有权限"""
-        return any(role.has_permission(resource, action) for role in self._roles)
-
-    def set_quota(self, quota: UserQuota) -> None:
-        """设置用户配额"""
-        self._quota = quota
+    def set_roles(self, roles: list[Role]) -> None:
+        """设置角色列表（替换现有角色）"""
+        self._roles = roles.copy()
         self.updated_at = datetime.utcnow()
+        # 权限变更时需要使缓存失效
+        self.increment_key_version()
+
+    def has_permission(self, permission_name: str) -> bool:
+        """检查是否有权限"""
+        # 检查是否是超级管理员（拥有通配符权限）
+        if self.is_super_admin():
+            return True
+
+        return any(role.has_permission(permission_name) for role in self._roles)
+
+    def has_permission_by_parts(self, resource: str, action: str, module: str | None = None) -> bool:
+        """通过资源和操作检查权限"""
+        # 检查是否是超级管理员
+        if self.is_super_admin():
+            return True
+
+        return any(role.has_permission_by_parts(resource, action, module) for role in self._roles)
+
+    def is_super_admin(self) -> bool:
+        """检查是否是超级管理员"""
+        # 检查是否有通配符权限
+        for role in self._roles:
+            for permission in role.permissions:
+                if permission.name.value == "*" or permission.name.value == "*.*.*":
+                    return True
+        return False
+
+    def get_all_permissions(self) -> list[Permission]:
+        """获取用户的所有权限（合并多个角色的权限）"""
+        if self.is_super_admin():
+            # 超级管理员拥有所有权限，返回通配符权限
+            wildcard_permission = Permission(
+                id=uuid7(),
+                name=PermissionName("*.*.*"),
+                display_name="所有权限",
+                description="超级管理员通配符权限"
+            )
+            return [wildcard_permission]
+
+        all_permissions = []
+        for role in self._roles:
+            for permission in role.permissions:
+                if permission not in all_permissions:
+                    all_permissions.append(permission)
+
+        return all_permissions
+
+    def get_permissions_by_module(self, module: str) -> list[Permission]:
+        """获取指定模块的权限"""
+        all_permissions = self.get_all_permissions()
+        return [perm for perm in all_permissions if perm.module == module or perm.name.value == "*.*.*"]
+
+    def invalidate_permission_cache(self) -> None:
+        """使权限缓存失效"""
+        self.increment_key_version()
 
     def suspend(self, reason: str) -> None:
         """暂停用户"""
@@ -408,11 +595,6 @@ class User(AggregateRoot):
     def roles(self) -> list[Role]:
         """角色列表"""
         return self._roles.copy()
-
-    @property
-    def quota(self) -> UserQuota | None:
-        """用户配额"""
-        return self._quota
 
     @property
     def is_active(self) -> bool:

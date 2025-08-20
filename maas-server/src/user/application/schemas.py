@@ -18,6 +18,7 @@ limitations under the License.
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -34,18 +35,22 @@ class UserStatus(str, Enum):
 class PermissionRequest(BaseModel):
     """权限创建请求"""
     name: str = Field(..., min_length=1, max_length=100, description="权限名称")
+    display_name: str = Field(..., min_length=1, max_length=100, description="权限显示名称")
     description: str = Field(..., min_length=1, max_length=255, description="权限描述")
     resource: str = Field(..., min_length=1, max_length=100, description="资源")
     action: str = Field(..., min_length=1, max_length=100, description="操作")
+    module: str | None = Field(None, max_length=100, description="模块")
 
 
 class PermissionResponse(BaseModel):
     """权限响应"""
     id: UUID
     name: str
+    display_name: str
     description: str
     resource: str
     action: str
+    module: str | None = None
 
     class Config:
         from_attributes = True
@@ -103,6 +108,36 @@ class RoleSearchQuery(BaseModel):
     name: str | None = Field(None, description="角色名称关键词")
     limit: int = Field(20, ge=1, le=100, description="返回数量限制")
     offset: int = Field(0, ge=0, description="偏移量")
+
+
+class PermissionUpdateRequest(BaseModel):
+    """权限更新请求"""
+    name: str | None = Field(None, min_length=1, max_length=100, description="权限名称")
+    display_name: str | None = Field(None, min_length=1, max_length=100, description="权限显示名称")
+    description: str | None = Field(None, min_length=1, max_length=255, description="权限描述")
+    module: str | None = Field(None, max_length=100, description="模块")
+
+
+class PermissionSearchQuery(BaseModel):
+    """权限搜索查询"""
+    name: str | None = Field(None, description="权限名称关键词")
+    module: str | None = Field(None, description="模块")
+    resource: str | None = Field(None, description="资源")
+    action: str | None = Field(None, description="操作")
+    limit: int = Field(20, ge=1, le=100, description="返回数量限制")
+    offset: int = Field(0, ge=0, description="偏移量")
+
+
+class PermissionBatchRequest(BaseModel):
+    """权限批量操作请求"""
+    permissions: list[PermissionRequest] = Field(..., min_items=1, description="权限列表")
+
+
+class PermissionExportResponse(BaseModel):
+    """权限导出响应"""
+    permissions: list[dict[str, Any]]
+    total_count: int
+    export_module: str | None = None
 
 
 # 请求DTO
@@ -222,9 +257,8 @@ class AuthTokenResponse(BaseModel):
     """认证令牌响应"""
     access_token: str
     refresh_token: str
-    token_type: str = "Bearer"
     expires_in: int
-    user: UserResponse
+    token_type: str = "Bearer"
 
 
 class UserStatsResponse(BaseModel):
@@ -235,6 +269,47 @@ class UserStatsResponse(BaseModel):
     models_created: int
     applications_created: int
     last_30_days_activity: dict[str, int]
+
+
+# 前端权限相关DTO
+class FrontendPermissionModule(BaseModel):
+    """前端权限模块"""
+    name: str = Field(..., description="模块名称")
+    display_name: str = Field(..., description="模块显示名称")
+    permissions: list[str] = Field(default_factory=list, description="权限列表")
+
+
+class FrontendPermissionData(BaseModel):
+    """前端权限数据"""
+    user_id: UUID
+    username: str
+    permissions: list[str] = Field(default_factory=list, description="用户所有权限")
+    modules: dict[str, FrontendPermissionModule] = Field(default_factory=dict, description="按模块分组的权限")
+    roles: list[str] = Field(default_factory=list, description="用户角色列表")
+    is_super_admin: bool = Field(default=False, description="是否为超级管理员")
+    cached_at: datetime | None = Field(None, description="缓存时间")
+
+
+class MenuPermissionMapping(BaseModel):
+    """菜单权限映射"""
+    menu_id: str = Field(..., description="菜单ID")
+    menu_name: str = Field(..., description="菜单名称")
+    menu_path: str = Field(..., description="菜单路径")
+    required_permissions: list[str] = Field(default_factory=list, description="所需权限")
+    parent_menu_id: str | None = Field(None, description="父菜单ID")
+    sort_order: int = Field(default=0, description="排序顺序")
+    icon: str | None = Field(None, description="菜单图标")
+    is_visible: bool = Field(default=True, description="是否可见")
+
+
+class FrontendMenuData(BaseModel):
+    """前端菜单数据"""
+    menus: list[MenuPermissionMapping] = Field(default_factory=list, description="可访问的菜单列表")
+    permissions: list[str] = Field(default_factory=list, description="用户权限")
+    user_id: UUID
+    username: str
+
+
 
 
 # 内部DTO（应用层内部使用）

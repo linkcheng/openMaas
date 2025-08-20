@@ -433,6 +433,7 @@ class ModelConfigDomainService:
             provider_id=current_config.provider_id,
             model_name=update_data.get("model_name", current_config.model_name),
             model_display_name=update_data.get("model_display_name", current_config.model_display_name),
+            api_key=update_data.get("api_key", current_config.api_key),
             model_type=update_data.get("model_type", current_config.model_type),
             model_params=update_data.get("model_params", current_config.model_params),
             max_tokens=update_data.get("max_tokens", current_config.max_tokens),

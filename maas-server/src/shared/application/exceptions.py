@@ -67,7 +67,6 @@ class ErrorCode(str, Enum):
     DOCUMENT_PROCESSING_FAILED = "DOCUMENT_PROCESSING_FAILED"
 
     # 资源限制
-    QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
     RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
     STORAGE_LIMIT_EXCEEDED = "STORAGE_LIMIT_EXCEEDED"
 
@@ -137,13 +136,6 @@ class BusinessRuleException(ApplicationException):
         super().__init__(message, code)
 
 
-class QuotaExceededException(ApplicationException):
-    """配额超限异常"""
-
-    def __init__(self, resource_type: str, limit: int):
-        message = f"{resource_type} 配额已达上限 {limit}"
-        super().__init__(message, ErrorCode.QUOTA_EXCEEDED)
-
 
 class RateLimitExceededException(ApplicationException):
     """限流异常"""
@@ -167,7 +159,6 @@ def to_http_exception(exc: ApplicationException) -> HTTPException:
         ErrorCode.USER_ALREADY_EXISTS: 409,
         ErrorCode.MODEL_ALREADY_EXISTS: 409,
         ErrorCode.RATE_LIMIT_EXCEEDED: 429,
-        ErrorCode.QUOTA_EXCEEDED: 429,
         ErrorCode.INTERNAL_SERVER_ERROR: 500,
     }
 

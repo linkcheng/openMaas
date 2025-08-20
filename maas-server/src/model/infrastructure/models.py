@@ -25,18 +25,14 @@ class ProviderORM(Base):
     __tablename__ = "providers"
     __table_args__ = (
         PrimaryKeyConstraint("provider_id", name="providers_pkey"),
-        Index("idx_provider_type", "provider_type"),
         Index("idx_provider_name", "provider_name"),
     )
 
     provider_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="供应商ID")
     provider_name: Mapped[str] = mapped_column(String(64), nullable=False, comment="供应商名称")
-    provider_type: Mapped[str] = mapped_column(String(64), nullable=False, comment="供应商类型")
     display_name: Mapped[str] = mapped_column(String(128), nullable=False, comment="显示名称")
     description: Mapped[str] = mapped_column(Text, nullable=True, comment="描述信息")
     base_url: Mapped[str] = mapped_column(String(512), nullable=False, comment="基础URL")
-    api_key: Mapped[str] = mapped_column(String(512), nullable=True, comment="API密钥(加密存储)")
-    additional_config: Mapped[dict] = mapped_column(JSON, nullable=True, comment="额外配置参数")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1", comment="是否启用")
     created_by: Mapped[str] = mapped_column(String(64), nullable=False, comment="创建人")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False,
@@ -61,7 +57,6 @@ class ModelConfigORM(Base):
     __table_args__ = (
         PrimaryKeyConstraint("config_id", name="provider_model_configs_pkey"),
         Index("idx_provider_id", "provider_id"),
-        Index("idx_model_type", "model_type"),
         Index("idx_model_name", "model_name"),
         Index("uk_provider_model", "provider_id", "model_name", "is_delete", unique=True),
     )
@@ -71,6 +66,7 @@ class ModelConfigORM(Base):
                                            nullable=False, comment="供应商ID")
     model_name: Mapped[str] = mapped_column(String(128), nullable=False, comment="模型名称")
     model_display_name: Mapped[str] = mapped_column(String(128), nullable=False, comment="模型显示名称")
+    api_key: Mapped[str] = mapped_column(String(512), nullable=True, comment="API密钥(加密存储)")
     model_type: Mapped[str] = mapped_column(String(64), nullable=False, comment="模型类型")
     model_params: Mapped[dict] = mapped_column(JSON, nullable=True, comment="模型参数配置")
     max_tokens: Mapped[int] = mapped_column(Integer, nullable=True, server_default="4096", comment="最大token数")

@@ -20,9 +20,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 
-from model.application.provider_service import (
-    ProviderApplicationService,
+from model.application import (
     provider_application_service,
+    ProviderApplicationService,
 )
 from model.application.schemas import (
     CreateModelConfigRequest,
@@ -42,7 +42,7 @@ from model.domain.exceptions import (
     ProviderNotFoundException,
 )
 from shared.application.response import ApiResponse, PaginatedData
-from shared.interface.auth_middleware import get_current_user_id
+from user.infrastructure.auth_middleware import get_current_user_id
 
 router = APIRouter(prefix="/models", tags=["模型管理"])
 

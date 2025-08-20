@@ -19,7 +19,7 @@ limitations under the License.
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, case, desc, func, or_, select
+from sqlalchemy import and_, case, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from audit.domain.models import ActionType, AuditLog, AuditResult, ResourceType
@@ -60,6 +60,12 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
         except Exception:
             await self.session.rollback()
             raise
+
+    async def delete(self, audit_log_id: UUID) -> None:
+        """删除审计日志"""
+        stmt = delete(AuditLogORM).where(AuditLogORM.audit_log_id == audit_log_id)
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def find_by_id(self, audit_log_id: UUID) -> AuditLog | None:
         """根据ID查找审计日志"""
@@ -382,14 +388,3 @@ class SQLAlchemyAuditLogRepository(AuditLogRepository):
         await self.batch_ops.vacuum_analyze_audit_table()
 
 
-async def get_audit_log_repository() -> AuditLogRepository:
-    """获取审计日志仓储实例
-
-    注意：返回的仓储实例需要在适当的会话上下文中使用
-    建议在调用方使用 async with async_session_factory() as session 管理会话
-    """
-    from shared.infrastructure.database import async_session_factory
-    # 注意：这里不应该直接创建会话，应该由调用方管理
-    # 这个函数保持向后兼容，但建议使用依赖注入
-    session = async_session_factory()
-    return SQLAlchemyAuditLogRepository(session)

@@ -27,6 +27,7 @@ from starlette.types import ASGIApp
 # 延迟导入避免循环依赖
 from audit.domain.models import AuditResult
 from audit.shared.config import get_audit_config_manager
+from audit.shared.decorators import log_user_action
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -159,7 +160,6 @@ class AutoAuditMiddleware(BaseHTTPMiddleware):
             error_message = None if result == AuditResult.SUCCESS else f"HTTP {response.status_code}"
 
             # 记录审计日志
-            from audit.application.services import log_user_action
             await log_user_action(
                 action=audit_rule.action,
                 description=audit_rule.description,
@@ -182,7 +182,6 @@ class AutoAuditMiddleware(BaseHTTPMiddleware):
 
         except Exception as e:
             # 记录失败的审计日志
-            from audit.application.services import log_user_action
             await log_user_action(
                 action=audit_rule.action,
                 description=f"{audit_rule.description} - 请求异常",

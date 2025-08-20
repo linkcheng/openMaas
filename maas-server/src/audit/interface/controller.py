@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from loguru import logger
 
+from audit.application import get_audit_log_service
 from audit.application.schemas import (
     AuditLogListResponse,
     AuditLogQueryRequest,
@@ -30,8 +31,6 @@ from audit.application.schemas import (
 )
 from audit.application.services import AuditLogService
 from shared.application.response import ApiResponse
-from shared.interface.auth_middleware import require_admin
-from shared.interface.dependencies import get_audit_log_service
 
 # 创建路由器
 router = APIRouter(prefix="/audit", tags=["审计日志"])
@@ -53,7 +52,6 @@ async def get_audit_logs(
     end_time: str | None = Query(None, description="结束时间"),
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
-    _: bool = Depends(require_admin),
 ) -> ApiResponse[AuditLogListResponse]:
     """获取审计日志列表"""
 
@@ -79,7 +77,6 @@ async def get_audit_logs(
 )
 async def get_audit_stats(
     audit_service: Annotated[AuditLogService, Depends(get_audit_log_service)],
-    _: bool = Depends(require_admin),
 ) -> ApiResponse[AuditLogStatsResponse]:
     """获取审计日志统计"""
     logger.info("get_audit_stats")
@@ -96,7 +93,6 @@ async def get_audit_stats(
 async def export_audit_logs(
     request: dict,
     audit_service: Annotated[AuditLogService, Depends(get_audit_log_service)],
-    _: bool = Depends(require_admin),
 ) -> ApiResponse[list[AuditLogResponse]]:
     """导出审计日志"""
 

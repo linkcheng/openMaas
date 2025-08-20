@@ -31,11 +31,108 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
 from shared.infrastructure.database import Base
+
+
+class PermissionORM(Base):
+    """权限ORM模型"""
+    __tablename__ = "permissions"
+    __table_args__ = (
+        UniqueConstraint("permission_id", name="uq_permission_id"),
+        UniqueConstraint("name", name="uq_permission_name"),
+        Index("ix_permissions_name", "name"),
+        Index("ix_permissions_module", "module"),
+        Index("ix_permissions_resource", "resource"),
+        Index("ix_permissions_action", "action"),
+    )
+
+    # 自增主键
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+    # 业务ID
+    permission_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        unique=True,
+        nullable=False,
+        default=uuid7
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False
+    )
+    display_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+    module: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    resource: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    action: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+
+class RolePermissionORM(Base):
+    """角色权限关联ORM模型"""
+    __tablename__ = "role_permissions"
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),
+        UniqueConstraint("role_permission_id", name="uq_role_permission_id"),
+        Index("ix_role_permissions_role_id", "role_id"),
+        Index("ix_role_permissions_permission_id", "permission_id"),
+    )
+
+    # 自增主键
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+    # 业务ID
+    role_permission_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        unique=True,
+        nullable=False,
+        default=uuid7
+    )
+    role_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.role_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    permission_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("permissions.permission_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
 
 
 class UserRoleORM(Base):
@@ -70,11 +167,6 @@ class UserRoleORM(Base):
         UUID(as_uuid=True),
         ForeignKey("roles.role_id", ondelete="CASCADE"),
         nullable=False
-    )
-    granted_by_id: Mapped[UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.user_id"),
-        nullable=True
     )
     granted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -204,11 +296,14 @@ class RoleORM(Base):
     __tablename__ = "roles"
     __table_args__ = (
         CheckConstraint(
-            "name IN ('admin', 'developer', 'user')",
-            name="ck_role_name"
+            "role_type IN ('admin', 'developer', 'user')",
+            name="ck_role_type"
         ),
         UniqueConstraint("role_id", name="uq_role_id"),
+        UniqueConstraint("name", name="uq_role_name"),
         Index("ix_roles_name", "name"),
+        Index("ix_roles_role_type", "role_type"),
+        Index("ix_roles_is_system_role", "is_system_role"),
     )
 
     # 自增主键
@@ -229,14 +324,23 @@ class RoleORM(Base):
         unique=True,
         nullable=False
     )
+    display_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )
-    permissions: Mapped[list[str]] = mapped_column(
-        JSON,
-        nullable=False,
-        default=list
+    role_type: Mapped[str] = mapped_column(
+        String(20),
+        default="user",
+        nullable=False
+    )
+    is_system_role: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -258,5 +362,13 @@ class RoleORM(Base):
         primaryjoin="RoleORM.role_id == UserRoleORM.role_id",
         secondaryjoin="UserORM.user_id == UserRoleORM.user_id",
         back_populates="roles",
+        lazy="selectin"
+    )
+
+    permissions: Mapped[list["PermissionORM"]] = relationship(
+        "PermissionORM",
+        secondary="role_permissions",
+        primaryjoin="RoleORM.role_id == RolePermissionORM.role_id",
+        secondaryjoin="PermissionORM.permission_id == RolePermissionORM.permission_id",
         lazy="selectin"
     )

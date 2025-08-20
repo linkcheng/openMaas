@@ -282,8 +282,6 @@ class ProviderDomainService:
             display_name=update_data.get("display_name", current_provider.display_name),
             description=update_data.get("description", current_provider.description),
             base_url=update_data.get("base_url", current_provider.base_url),
-            api_key=update_data.get("api_key", current_provider.api_key),
-            additional_config=update_data.get("additional_config", current_provider.additional_config),
             is_active=update_data.get("is_active", current_provider.is_active),
             created_by=current_provider.created_by,
             created_at=current_provider.created_at,

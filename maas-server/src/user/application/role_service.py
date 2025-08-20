@@ -14,152 +14,70 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""角色应用服务"""
+"""角色应用服务 - 负责编排和事务管理"""
 
 from uuid import UUID
 
-from loguru import logger
-from uuid_extensions import uuid7
-
-from shared.application.exceptions import ApplicationException
 from user.application.schemas import (
-    PermissionRequest,
-    PermissionResponse,
     RoleCreateRequest,
     RoleResponse,
     RoleSearchQuery,
     RoleUpdateRequest,
     UserRoleAssignRequest,
 )
-from user.domain.models import Role
-from user.domain.repositories import (
-    PermissionRepository,
-    RoleRepository,
-    UserRepository,
-)
+from user.domain.repositories import IRoleRepository
+from user.domain.services.role_domain_service import RoleDomainService
 
 
 class RoleApplicationService:
-    """角色应用服务"""
+    """角色应用服务 - 负责编排和事务管理"""
 
     def __init__(
         self,
-        role_repository: RoleRepository,
-        permission_repository: PermissionRepository,
-        user_repository: UserRepository,
+        role_repository: IRoleRepository,
+        role_domain_service: RoleDomainService,
     ):
         self._role_repository = role_repository
-        self._permission_repository = permission_repository
-        self._user_repository = user_repository
-
-    async def create_permission(self, request: PermissionRequest) -> PermissionResponse:
-        """创建权限（当前架构下权限通过角色管理）"""
-        # 检查权限是否已存在
-        existing = await self._permission_repository.find_by_resource_action(
-            request.resource, request.action
-        )
-        if existing:
-            raise ApplicationException(f"权限 {request.resource}:{request.action} 已存在")
-
-        # 在当前架构下，权限需要添加到角色中
-        # 这里我们返回一个虚拟的Permission对象，实际权限管理通过角色进行
-        permission_id = uuid7()
-        logger.info(f"权限定义创建: {request.name} ({request.resource}:{request.action})")
-
-        return PermissionResponse(
-            id=permission_id,
-            name=request.name,
-            description=request.description,
-            resource=request.resource,
-            action=request.action,
-        )
+        self._role_domain_service = role_domain_service
 
     async def create_role(self, request: RoleCreateRequest) -> RoleResponse:
         """创建角色"""
-        # 检查角色是否已存在
-        existing_role = await self._role_repository.find_by_name(request.name)
-        if existing_role:
-            raise ApplicationException(f"角色 {request.name} 已存在")
-
-        # 获取权限列表（基于ID查找）
-        permissions = []
-        for permission_id in request.permission_ids:
-            permission = await self._permission_repository.find_by_id(permission_id)
-            if not permission:
-                # 如果找不到权限，我们可以允许创建空权限角色
-                logger.warning(f"权限 {permission_id} 不存在，跳过")
-                continue
-            permissions.append(permission)
-
-        # 创建角色
-        role = Role(
-            id=uuid7(),
+        # 使用 Domain Service 创建角色
+        role = await self._role_domain_service.create_role_with_permissions(
             name=request.name,
             description=request.description,
-            permissions=permissions,
+            permission_ids=request.permission_ids
         )
 
-        saved_role = await self._role_repository.save(role)
-        logger.info(f"角色创建成功: {saved_role.name}")
-
-        return self._to_role_response(saved_role)
+        return self._to_role_response(role)
 
     async def update_role(self, role_id: UUID, request: RoleUpdateRequest) -> RoleResponse:
         """更新角色"""
-        role = await self._role_repository.find_by_id(role_id)
-        if not role:
-            raise ApplicationException(f"角色 {role_id} 不存在")
+        # 使用 Domain Service 更新角色基本信息
+        role = await self._role_domain_service.update_role_information(
+            role_id=role_id,
+            name=request.name,
+            description=request.description
+        )
 
-        # 更新角色信息
-        if request.name is not None:
-            # 检查新名称是否已被使用
-            existing_role = await self._role_repository.find_by_name(request.name)
-            if existing_role and existing_role.id != role_id:
-                raise ApplicationException(f"角色名称 {request.name} 已被使用")
-            role.name = request.name
-
-        if request.description is not None:
-            role.description = request.description
-
-        # 更新权限
+        # 更新权限（如果提供了权限列表）
         if request.permission_ids is not None:
-            # 清空现有权限
-            for existing_permission in role.permissions:
-                role.remove_permission(existing_permission)
+            role = await self._role_domain_service.update_role_permissions(
+                role_id=role_id,
+                permission_ids=request.permission_ids
+            )
 
-            # 添加新权限
-            for permission_id in request.permission_ids:
-                permission = await self._permission_repository.find_by_id(permission_id)
-                if not permission:
-                    logger.warning(f"权限 {permission_id} 不存在，跳过")
-                    continue
-                role.add_permission(permission)
-
+        # 保存角色
         saved_role = await self._role_repository.save(role)
-        logger.info(f"角色更新成功: {saved_role.name}")
-
         return self._to_role_response(saved_role)
 
     async def delete_role(self, role_id: UUID) -> bool:
-        """删除角色"""
-        role = await self._role_repository.find_by_id(role_id)
-        if not role:
-            raise ApplicationException(f"角色 {role_id} 不存在")
+        """删除角色（带安全检查）"""
+        # 使用 Domain Service 验证删除规则
+        role = await self._role_domain_service.validate_role_deletion(role_id)
 
-        # 检查是否有用户使用此角色
-        users_with_role = await self._user_repository.find_by_role_id(role_id)
-        if users_with_role:
-            user_names = [user.username for user in users_with_role]
-            raise ApplicationException(f"无法删除角色，以下用户正在使用: {', '.join(user_names)}")
-
-        # 检查是否为系统默认角色
-        system_roles = ["admin", "super_admin", "system_admin", "user"]
-        if role.name.lower() in system_roles:
-            raise ApplicationException(f"无法删除系统角色: {role.name}")
-
+        # 执行删除
         await self._role_repository.delete(role_id)
-        logger.info(f"角色删除成功: {role.name}")
-
         return True
 
     async def get_role(self, role_id: UUID) -> RoleResponse | None:
@@ -180,51 +98,43 @@ class RoleApplicationService:
 
         return [self._to_role_response(role) for role in roles]
 
-    async def get_all_permissions(self) -> list[PermissionResponse]:
-        """获取所有权限"""
-        permissions = await self._permission_repository.find_all()
-        return [
-            PermissionResponse(
-                id=perm.id,
-                name=perm.name,
-                description=perm.description,
-                resource=perm.resource,
-                action=perm.action,
-            )
-            for perm in permissions
-        ]
+    async def update_role_permissions(self, role_id: UUID, permission_ids: list[UUID]) -> RoleResponse:
+        """批量更新角色权限"""
+        # 使用 Domain Service 更新权限
+        role = await self._role_domain_service.update_role_permissions(
+            role_id=role_id,
+            permission_ids=permission_ids
+        )
+
+        # 保存角色
+        saved_role = await self._role_repository.save(role)
+        return self._to_role_response(saved_role)
 
     async def assign_user_roles(self, request: UserRoleAssignRequest) -> bool:
         """为用户分配角色"""
-        user = await self._user_repository.find_by_id(request.user_id)
-        if not user:
-            raise ApplicationException(f"用户 {request.user_id} 不存在")
-
-        # 获取角色列表
-        new_roles = []
-        for role_id in request.role_ids:
-            role = await self._role_repository.find_by_id(role_id)
-            if not role:
-                raise ApplicationException(f"角色 {role_id} 不存在")
-            new_roles.append(role)
-
-        # 清空现有角色
-        for existing_role in user.roles:
-            user.remove_role(existing_role)
-
-        # 添加新角色
-        for new_role in new_roles:
-            user.add_role(new_role)
-
-        # 使用户token失效
-        user.increment_key_version()
-
-        await self._user_repository.save(user)
-        logger.info(f"用户 {user.username} 角色分配成功")
+        # 使用 Domain Service 处理角色分配
+        await self._role_domain_service.assign_user_roles(
+            user_id=request.user_id,
+            role_ids=request.role_ids
+        )
 
         return True
 
-    def _to_role_response(self, role: Role) -> RoleResponse:
+    async def validate_role_assignment(self, user_id: UUID, role_ids: list[UUID], assigner_id: UUID) -> dict:
+        """验证角色分配权限"""
+        # 使用 Domain Service 验证权限
+        return await self._role_domain_service.validate_role_assignment_authority(
+            user_id=user_id,
+            role_ids=role_ids,
+            assigner_id=assigner_id
+        )
+
+    async def get_role_usage_statistics(self, role_id: UUID) -> dict:
+        """获取角色使用统计"""
+        # 使用 Domain Service 获取统计信息
+        return await self._role_domain_service.get_role_usage_statistics(role_id)
+
+    def _to_role_response(self, role) -> RoleResponse:
         """转换为角色响应DTO"""
         permissions = []
         for perm in role.permissions:

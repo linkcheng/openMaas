@@ -19,6 +19,7 @@ limitations under the License.
 from fastapi import APIRouter
 
 from user.interface.auth_controller import router as auth_router
+from user.interface.permission_controller import router as permission_router
 from user.interface.role_controller import router as role_router
 from user.interface.user_controller import router as user_router
 
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/api/v1", tags=["用户"])
 
 # 包含子路由
 router.include_router(auth_router)
+router.include_router(permission_router)
 router.include_router(role_router)
 router.include_router(user_router)
 

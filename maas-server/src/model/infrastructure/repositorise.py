@@ -175,7 +175,7 @@ class ProviderRepository(SQLAlchemyRepository[ProviderEntity, ProviderORM], IPro
             .order_by(desc(ProviderORM.created_at))
             .limit(1000)  # 限制最大结果数以防止大量数据查询
         )
-        
+
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [self._to_entity(model) for model in models]
@@ -188,16 +188,16 @@ class ProviderRepository(SQLAlchemyRepository[ProviderEntity, ProviderORM], IPro
         # 添加查询条件 - 优化条件顺序，优先使用索引字段
         indexed_conditions = []
         other_conditions = []
-        
+
         for key, value in conditions.items():
             if hasattr(ProviderORM, key):
                 condition = getattr(ProviderORM, key) == value
                 # 优先处理索引字段
-                if key in ['is_delete', 'is_active', 'provider_type', 'provider_name']:
+                if key in ["is_delete", "is_active", "provider_type", "provider_name"]:
                     indexed_conditions.append(condition)
                 else:
                     other_conditions.append(condition)
-        
+
         # 先应用索引条件，再应用其他条件
         all_conditions = indexed_conditions + other_conditions
         if all_conditions:
@@ -214,7 +214,7 @@ class ProviderRepository(SQLAlchemyRepository[ProviderEntity, ProviderORM], IPro
         if offset > 10000:
             from loguru import logger
             logger.warning(f"Large offset detected ({offset}). Consider using cursor-based pagination.")
-        
+
         # 限制最大页面大小
         limit = min(limit, 1000)
         stmt = stmt.offset(offset).limit(limit)

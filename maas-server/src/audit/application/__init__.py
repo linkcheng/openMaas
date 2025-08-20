@@ -15,3 +15,27 @@ limitations under the License.
 """
 
 """审计日志应用层"""
+
+from collections.abc import AsyncGenerator
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from audit.domain.repositories import AuditLogRepository
+from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
+from audit.application.services import AuditLogService
+from shared.infrastructure.database import get_db_session
+
+
+async def get_audit_log_repository(
+    db: AsyncSession = Depends(get_db_session)
+) -> AsyncGenerator[AuditLogRepository, None]:
+    """获取审计日志仓储"""
+    yield SQLAlchemyAuditLogRepository(db)
+
+async def get_audit_log_service(
+    audit_log_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> AsyncGenerator[AuditLogService, None]:
+    """获取审计日志应用服务"""
+    yield AuditLogService(audit_log_repository)
+

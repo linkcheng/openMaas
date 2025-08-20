@@ -187,14 +187,11 @@ class SM2CryptoService:
 
 
 # 全局SM2服务实例
-_sm2_service: SM2CryptoService | None = None
+_sm2_service: SM2CryptoService | None = SM2CryptoService()
 
 
 def get_sm2_service() -> SM2CryptoService:
     """获取SM2加密服务实例（单例模式）"""
-    global _sm2_service
-    if _sm2_service is None:
-        _sm2_service = SM2CryptoService()
     return _sm2_service
 
 

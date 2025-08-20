@@ -27,8 +27,7 @@ from audit.domain.models import ActionType, ResourceType
 from audit.shared.decorators import audit_log, audit_user_operation
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
-from shared.interface.auth_middleware import get_current_user_id, jwt_bearer
-from shared.interface.dependencies import (
+from user.application import (
     get_auth_service,
     get_user_application_service,
 )
@@ -40,10 +39,11 @@ from user.application.schemas import (
     UserLoginRequest,
     UserResponse,
 )
-from user.application.services import (
+from user.application.user_service import (
     PasswordHashService,
     UserApplicationService,
 )
+from user.infrastructure.auth_middleware import get_current_user_id, jwt_bearer
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -121,7 +121,6 @@ async def register(
 async def login(
     request: UserLoginRequest,
     http_request: Request,
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
     """
@@ -138,11 +137,8 @@ async def login(
     if not decrypted_password:
         raise ValueError("密码解密后为空")
 
-    # 认证用户
-    user = await user_service.authenticate_user(request.login_id, decrypted_password)
-
     # 创建令牌
-    token_response = await auth_service._create_token_response(user)
+    token_response = await auth_service.create_token_response(request.login_id, decrypted_password)
 
     return ApiResponse.success_response(token_response, "登录成功")
 

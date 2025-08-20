@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field, validator
+from model.infrastructure.security import SecurityValidator
 
 T = TypeVar("T")
 
@@ -38,15 +39,6 @@ class CreateProviderRequest(BaseModel):
         description="基础URL",
         example="https://api.openai.com/v1"
     )
-    api_key: str | None = Field(
-        None,
-        max_length=512,
-        description="API密钥"
-    )
-    additional_config: dict[str, Any] | None = Field(
-        None,
-        description="额外配置参数"
-    )
     is_active: bool = Field(
         True,
         description="是否启用"
@@ -56,62 +48,35 @@ class CreateProviderRequest(BaseModel):
     def validate_provider_name(cls, v):
         if not v or not v.strip():
             raise ValueError("供应商名称不能为空")
-        
+
         # 安全性检查
-        from model.infrastructure.security import SecurityValidator
         if not SecurityValidator.validate_input_safety(v):
             raise ValueError("供应商名称包含不安全字符")
         if not SecurityValidator.validate_sql_injection(v):
             raise ValueError("供应商名称包含潜在的注入攻击字符")
-        
+
         return SecurityValidator.sanitize_string(v.strip())
 
     @validator("base_url")
     def validate_base_url(cls, v):
         if not v.startswith(("http://", "https://")):
             raise ValueError("基础URL必须以http://或https://开头")
-        
+
         # 安全性检查
-        from model.infrastructure.security import SecurityValidator
         if not SecurityValidator.validate_url(v):
             raise ValueError("URL格式不安全或无效")
-        
-        return v
 
-    @validator("api_key")
-    def validate_api_key(cls, v):
-        if v is None:
-            return v
-        
-        # 安全性检查
-        from model.infrastructure.security import SecurityValidator
-        if not SecurityValidator.validate_api_key_format(v):
-            raise ValueError("API密钥格式不安全或无效")
-        
-        return v
-
-    @validator("additional_config")
-    def validate_additional_config(cls, v):
-        if v is None:
-            return v
-        
-        # 安全性检查
-        from model.infrastructure.security import SecurityValidator
-        if not SecurityValidator.validate_json_config(v):
-            raise ValueError("额外配置包含不安全内容")
-        
         return v
 
     @validator("description")
     def validate_description(cls, v):
         if v is None:
             return v
-        
+
         # 安全性检查
-        from model.infrastructure.security import SecurityValidator
         if not SecurityValidator.validate_input_safety(v):
             raise ValueError("描述包含不安全字符")
-        
+
         return SecurityValidator.sanitize_string(v)
 
     class Config:
@@ -162,15 +127,6 @@ class UpdateProviderRequest(BaseModel):
         max_length=512,
         description="基础URL"
     )
-    api_key: str | None = Field(
-        None,
-        max_length=512,
-        description="API密钥"
-    )
-    additional_config: dict[str, Any] | None = Field(
-        None,
-        description="额外配置参数"
-    )
     is_active: bool | None = Field(
         None,
         description="是否启用"
@@ -197,7 +153,6 @@ class ProviderResponse(BaseModel):
     display_name: str = Field( description="显示名称")
     description: str | None = Field(None, description="描述信息")
     base_url: str = Field( description="基础URL")
-    additional_config: dict[str, Any] | None = Field(None, description="额外配置参数")
     is_active: bool = Field( description="是否启用")
     created_by: str = Field( description="创建人")
     created_at: datetime = Field( description="创建时间")
@@ -214,9 +169,6 @@ class ProviderResponse(BaseModel):
                 "display_name": "OpenAI",
                 "description": "OpenAI GPT模型供应商",
                 "base_url": "https://api.openai.com/v1",
-                "additional_config": {
-                    "organization": "org-xxx"
-                },
                 "is_active": True,
                 "created_by": "admin",
                 "created_at": "2024-01-01T00:00:00Z",
@@ -364,6 +316,12 @@ class CreateModelConfigRequest(BaseModel):
         description="模型显示名称",
         example="GPT-4"
     )
+    api_key: str = Field(
+        min_length=1,
+        max_length=512,
+        description="API密钥",
+        example="sk-xxx"
+    )
     model_type: str = Field(
         min_length=1,
         max_length=64,
@@ -405,6 +363,17 @@ class CreateModelConfigRequest(BaseModel):
     def validate_model_name(cls, v):
         if not v or not v.strip():
             raise ValueError("模型名称不能为空")
+        return v.strip()
+
+    @validator("api_key")
+    def validate_api_key(cls, v):
+        if not v or not v.strip():
+            raise ValueError("API密钥不能为空")
+
+        # 安全性检查
+        if not SecurityValidator.validate_api_key_format(v):
+            raise ValueError("API密钥格式不安全或无效")
+
         return v.strip()
 
     @validator("max_input_tokens", "max_tokens")
@@ -466,6 +435,12 @@ class UpdateModelConfigRequest(BaseModel):
         max_length=64,
         description="模型类型"
     )
+    api_key: str | None = Field(
+        None,
+        min_length=1,
+        max_length=512,
+        description="API密钥"
+    )
     model_params: dict[str, Any] | None = Field(
         None,
         description="模型参数配置"
@@ -522,6 +497,7 @@ class ModelConfigResponse(BaseModel):
     provider_id: int = Field( description="供应商ID")
     model_name: str = Field( description="模型名称")
     model_display_name: str = Field( description="模型显示名称")
+    api_key: str = Field( description="API密钥")
     model_type: str = Field( description="模型类型")
     model_params: dict[str, Any] | None = Field(None, description="模型参数配置")
     max_tokens: int | None = Field(None, description="最大token数")
@@ -710,34 +686,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
             size=size,
             pages=pages
         )
-
-
-class MessageResponse(BaseModel):
-    """操作结果消息响应模型"""
-    message: str = Field( description="操作结果消息")
-    success: bool = Field(True, description="操作是否成功")
-    data: dict[str, Any] | None = Field(None, description="附加数据")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "message": "操作成功",
-                "success": True,
-                "data": {
-                    "affected_rows": 1
-                }
-            }
-        }
-
-    @classmethod
-    def success_message(cls, message: str = "操作成功", data: dict[str, Any] | None = None) -> "MessageResponse":
-        """创建成功消息的便捷方法"""
-        return cls(message=message, success=True, data=data)
-
-    @classmethod
-    def error_message(cls, message: str = "操作失败", data: dict[str, Any] | None = None) -> "MessageResponse":
-        """创建错误消息的便捷方法"""
-        return cls(message=message, success=False, data=data)
 
 
 class PaginationMeta(BaseModel):

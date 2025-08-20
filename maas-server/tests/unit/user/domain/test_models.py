@@ -23,7 +23,6 @@ from uuid import uuid4
 from src.user.domain.models import (
     User,
     UserProfile,
-    UserQuota,
     UserStatus,
     RoleType,
     Role,
@@ -81,123 +80,6 @@ class TestUserProfile:
         # 姓氏过长
         with pytest.raises(ValueError, match="姓氏长度不能超过50个字符"):
             UserProfile(first_name="张", last_name="a" * 51)
-
-
-class TestUserQuota:
-    """用户配额测试"""
-    
-    def test_user_quota_creation(self):
-        """测试用户配额创建"""
-        quota = UserQuota(
-            api_calls_limit=1000,
-            api_calls_used=100,
-            storage_limit=1024 * 1024 * 1024,  # 1GB
-            storage_used=1024 * 1024 * 100,    # 100MB
-            compute_hours_limit=10,
-            compute_hours_used=2
-        )
-        
-        assert quota.api_calls_limit == 1000
-        assert quota.api_calls_used == 100
-        assert quota.storage_limit == 1024 * 1024 * 1024
-        assert quota.storage_used == 1024 * 1024 * 100
-        assert quota.compute_hours_limit == 10
-        assert quota.compute_hours_used == 2
-    
-    def test_user_quota_validation(self):
-        """测试用户配额验证"""
-        # 正常创建
-        quota = UserQuota(
-            api_calls_limit=1000,
-            api_calls_used=0,
-            storage_limit=1024,
-            storage_used=0,
-            compute_hours_limit=10,
-            compute_hours_used=0
-        )
-        
-        # API调用限制为负数
-        with pytest.raises(ValueError, match="API调用限制不能为负数"):
-            UserQuota(
-                api_calls_limit=-1,
-                api_calls_used=0,
-                storage_limit=1024,
-                storage_used=0,
-                compute_hours_limit=10,
-                compute_hours_used=0
-            )
-        
-        # 存储限制为负数
-        with pytest.raises(ValueError, match="存储限制不能为负数"):
-            UserQuota(
-                api_calls_limit=1000,
-                api_calls_used=0,
-                storage_limit=-1,
-                storage_used=0,
-                compute_hours_limit=10,
-                compute_hours_used=0
-            )
-        
-        # 计算时间限制为负数
-        with pytest.raises(ValueError, match="计算时间限制不能为负数"):
-            UserQuota(
-                api_calls_limit=1000,
-                api_calls_used=0,
-                storage_limit=1024,
-                storage_used=0,
-                compute_hours_limit=-1,
-                compute_hours_used=0
-            )
-    
-    def test_quota_usage_checks(self):
-        """测试配额使用检查"""
-        quota = UserQuota(
-            api_calls_limit=1000,
-            api_calls_used=900,
-            storage_limit=1024,
-            storage_used=512,
-            compute_hours_limit=10,
-            compute_hours_used=8
-        )
-        
-        # API调用检查
-        assert quota.can_make_api_call(100) == True
-        assert quota.can_make_api_call(101) == False
-        
-        # 存储检查
-        assert quota.can_use_storage(512) == True
-        assert quota.can_use_storage(513) == False
-        
-        # 计算时间检查
-        assert quota.can_use_compute_hours(2) == True
-        assert quota.can_use_compute_hours(3) == False
-    
-    def test_quota_usage_percentage(self):
-        """测试配额使用百分比"""
-        quota = UserQuota(
-            api_calls_limit=1000,
-            api_calls_used=500,
-            storage_limit=1000,
-            storage_used=250,
-            compute_hours_limit=10,
-            compute_hours_used=3
-        )
-        
-        assert quota.get_api_usage_percentage() == 50.0
-        assert quota.get_storage_usage_percentage() == 25.0
-        
-        # 限制为0的情况
-        quota_zero = UserQuota(
-            api_calls_limit=0,
-            api_calls_used=0,
-            storage_limit=0,
-            storage_used=0,
-            compute_hours_limit=0,
-            compute_hours_used=0
-        )
-        
-        assert quota_zero.get_api_usage_percentage() == 0
-        assert quota_zero.get_storage_usage_percentage() == 0
 
 
 class TestPermission:

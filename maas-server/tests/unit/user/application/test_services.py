@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 from datetime import datetime
 
-from src.user.application.services import (
+from src.user.application.user_service import (
     UserApplicationService,
     PasswordHashService,
     EmailVerificationService,
@@ -36,9 +36,10 @@ from src.user.application.schemas import (
 from src.user.domain.models import (
     User,
     UserProfile,
-    UserQuota,
     UserStatus,
     Role,
+    Permission,
+    PermissionName,
     UserAlreadyExistsException,
     InvalidCredentialsException
 )
@@ -445,44 +446,6 @@ class TestUserApplicationService:
         
         assert "用户名 existinguser 已被使用" in str(exc_info.value)
 
-    async def test_create_user_sets_default_quota(
-        self,
-        mock_user_repository,
-        mock_role_repository,
-        mock_api_key_repository
-    ):
-        """测试创建用户时设置默认配额"""
-        # 安排
-        mock_user_repository.find_by_email.return_value = None
-        mock_user_repository.find_by_username.return_value = None
-        mock_role_repository.find_by_name.return_value = MagicMock(name="user")
-        
-        service = UserApplicationService(
-            mock_user_repository,
-            mock_role_repository,
-            mock_api_key_repository
-        )
-        
-        command = UserCreateCommand(
-            username="testuser",
-            email="test@example.com",
-            password_hash="hashed_password",
-            first_name="John",
-            last_name="Doe"
-        )
-
-        # 执行
-        result = await service.create_user(command)
-
-        # 验证默认配额
-        assert result.quota is not None
-        assert result.quota.api_calls_limit == 1000
-        assert result.quota.api_calls_used == 0
-        assert result.quota.storage_limit == 1024 * 1024 * 1024  # 1GB
-        assert result.quota.storage_used == 0
-        assert result.quota.compute_hours_limit == 10
-        assert result.quota.compute_hours_used == 0
-
     async def test_create_user_assigns_default_role(
         self,
         mock_user_repository,
@@ -554,7 +517,9 @@ class TestUserApplicationService:
         mock_user_repository.save.assert_called_once()
         mock_role_repository.find_by_name.assert_called_once_with("user")
 
-    async def test_authenticate_user_email_not_verified(
+    async def test_authenticate_user_email_not_verified(self):
+        user = User.create(
+            username="testuser", 
             email="test@example.com",
             password_hash=self.password_service.hash_password("password123"),
             first_name="Test",
@@ -842,3 +807,210 @@ class TestUserApplicationService:
         
         # 验证仓储调用
         self.user_repository.search.assert_called_once_with(query)
+    async d
+ef test_assign_user_roles_success(
+        self, user_service, mock_user_repository, mock_role_repository
+    ):
+        """测试成功分配用户角色"""
+        # 准备
+        user_id = uuid4()
+        role_ids = [uuid4(), uuid4()]
+        
+        user = User(
+            id=user_id,
+            username="testuser",
+            email=EmailAddress("test@example.com"),
+            password_hash="hashed_password",
+            profile=UserProfile(first_name="Test", last_name="User")
+        )
+        
+        roles = [
+            Role(
+                id=role_ids[0],
+                name="role1",
+                display_name="角色1",
+                description="测试角色1"
+            ),
+            Role(
+                id=role_ids[1],
+                name="role2",
+                display_name="角色2",
+                description="测试角色2"
+            )
+        ]
+        
+        mock_user_repository.find_by_id.return_value = user
+        mock_role_repository.find_by_id.side_effect = roles
+        mock_user_repository.save.return_value = user
+
+        # 执行
+        result = await user_service.assign_user_roles(user_id, role_ids)
+
+        # 验证
+        assert result.id == user_id
+        mock_user_repository.save.assert_called_once()
+
+    async def test_assign_user_roles_user_not_found(
+        self, user_service, mock_user_repository
+    ):
+        """测试分配角色给不存在的用户"""
+        # 准备
+        user_id = uuid4()
+        role_ids = [uuid4()]
+        mock_user_repository.find_by_id.return_value = None
+
+        # 执行和验证
+        with pytest.raises(ApplicationException, match="用户 .* 不存在"):
+            await user_service.assign_user_roles(user_id, role_ids)
+
+    async def test_assign_user_roles_role_not_found(
+        self, user_service, mock_user_repository, mock_role_repository
+    ):
+        """测试分配不存在的角色"""
+        # 准备
+        user_id = uuid4()
+        role_ids = [uuid4()]
+        
+        user = User(
+            id=user_id,
+            username="testuser",
+            email=EmailAddress("test@example.com"),
+            password_hash="hashed_password",
+            profile=UserProfile(first_name="Test", last_name="User")
+        )
+        
+        mock_user_repository.find_by_id.return_value = user
+        mock_role_repository.find_by_id.return_value = None
+
+        # 执行和验证
+        with pytest.raises(ApplicationException, match="角色 .* 不存在"):
+            await user_service.assign_user_roles(user_id, role_ids)
+
+    async def test_get_user_permissions_success(
+        self, user_service, mock_user_repository
+    ):
+        """测试成功获取用户权限"""
+        # 准备
+        user_id = uuid4()
+        permission = Permission(
+            id=uuid4(),
+            name=PermissionName("user.users.view"),
+            display_name="查看用户",
+            description="查看用户列表"
+        )
+        role = Role(
+            id=uuid4(),
+            name="test_role",
+            display_name="测试角色",
+            description="测试角色",
+            permissions=[permission]
+        )
+        user = User(
+            id=user_id,
+            username="testuser",
+            email=EmailAddress("test@example.com"),
+            password_hash="hashed_password",
+            profile=UserProfile(first_name="Test", last_name="User")
+        )
+        user.add_role(role)
+        
+        mock_user_repository.find_by_id.return_value = user
+
+        # 执行
+        result = await user_service.get_user_permissions(user_id)
+
+        # 验证
+        assert result["user_id"] == str(user_id)
+        assert result["username"] == user.username
+        assert len(result["permissions"]) == 1
+        assert permission.name.value in result["permissions"]
+        assert len(result["roles"]) == 1
+
+    async def test_get_user_permissions_user_not_found(
+        self, user_service, mock_user_repository
+    ):
+        """测试获取不存在用户的权限"""
+        # 准备
+        user_id = uuid4()
+        mock_user_repository.find_by_id.return_value = None
+
+        # 执行和验证
+        with pytest.raises(ApplicationException, match="用户 .* 不存在"):
+            await user_service.get_user_permissions(user_id)
+
+    async def test_check_user_permission_success(
+        self, user_service, mock_user_repository
+    ):
+        """测试成功检查用户权限"""
+        # 准备
+        user_id = uuid4()
+        permission_name = "user.users.view"
+        
+        user = User(
+            id=user_id,
+            username="testuser",
+            email=EmailAddress("test@example.com"),
+            password_hash="hashed_password",
+            profile=UserProfile(first_name="Test", last_name="User")
+        )
+        user.has_permission = MagicMock(return_value=True)
+        user.is_super_admin = MagicMock(return_value=False)
+        
+        mock_user_repository.find_by_id.return_value = user
+
+        # 执行
+        result = await user_service.check_user_permission(user_id, permission_name)
+
+        # 验证
+        assert result["user_id"] == str(user_id)
+        assert result["permission"] == permission_name
+        assert result["has_permission"] is True
+        assert result["is_super_admin"] is False
+
+    async def test_check_user_permission_user_not_found(
+        self, user_service, mock_user_repository
+    ):
+        """测试检查不存在用户的权限"""
+        # 准备
+        user_id = uuid4()
+        permission_name = "user.users.view"
+        mock_user_repository.find_by_id.return_value = None
+
+        # 执行和验证
+        with pytest.raises(ApplicationException, match="用户 .* 不存在"):
+            await user_service.check_user_permission(user_id, permission_name)
+
+    async def test_check_user_permission_by_parts_success(
+        self, user_service, mock_user_repository
+    ):
+        """测试通过资源和操作检查用户权限成功"""
+        # 准备
+        user_id = uuid4()
+        resource = "users"
+        action = "view"
+        module = "user"
+        
+        user = User(
+            id=user_id,
+            username="testuser",
+            email=EmailAddress("test@example.com"),
+            password_hash="hashed_password",
+            profile=UserProfile(first_name="Test", last_name="User")
+        )
+        user.has_permission_by_parts = MagicMock(return_value=True)
+        user.is_super_admin = MagicMock(return_value=False)
+        
+        mock_user_repository.find_by_id.return_value = user
+
+        # 执行
+        result = await user_service.check_user_permission_by_parts(
+            user_id, resource, action, module
+        )
+
+        # 验证
+        assert result["user_id"] == str(user_id)
+        assert result["resource"] == resource
+        assert result["action"] == action
+        assert result["module"] == module
+        assert result["has_permission"] is True
+        assert result["is_super_admin"] is False

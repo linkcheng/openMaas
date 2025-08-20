@@ -23,8 +23,18 @@ from shared.domain.base import Repository
 from user.domain.models import Permission, Role, User
 
 
-class UserRepository(Repository[User]):
+class IUserRepository(Repository[User]):
     """用户仓储接口"""
+
+    @abstractmethod
+    async def save(self, user: User) -> User:
+        """保存用户"""
+        pass
+
+    @abstractmethod
+    async def delete(self, user_id: UUID) -> User:
+        """删除用户"""
+        pass
 
     @abstractmethod
     async def find_by_email(self, email: str) -> User | None:
@@ -78,9 +88,34 @@ class UserRepository(Repository[User]):
         """统计用户数量"""
         pass
 
+    @abstractmethod
+    async def find_users_with_permissions(self, permission_names: list[str]) -> list[User]:
+        """查找拥有指定权限的用户"""
+        pass
 
-class RoleRepository(Repository[Role]):
+    @abstractmethod
+    async def batch_update_user_roles(self, user_role_updates: list[dict]) -> bool:
+        """批量更新用户角色"""
+        pass
+
+    @abstractmethod
+    async def find_by_ids(self, user_ids: list[UUID]) -> list[User]:
+        """批量根据ID查找用户"""
+        pass
+
+
+class IRoleRepository(Repository[Role]):
     """角色仓储接口"""
+
+    @abstractmethod
+    async def save(self, role: Role) -> Role:
+        """保存角色"""
+        pass
+
+    @abstractmethod
+    async def delete(self, role_id: UUID) -> Role:
+        """删除角色"""
+        pass
 
     @abstractmethod
     async def find_by_name(self, name: str) -> Role | None:
@@ -112,9 +147,37 @@ class RoleRepository(Repository[Role]):
         """删除角色"""
         pass
 
+    @abstractmethod
+    async def find_roles_with_permissions(self, permission_ids: list[UUID] | None = None) -> list[Role]:
+        """查找包含指定权限的角色"""
+        pass
 
-class PermissionRepository(Repository[Permission]):
+    @abstractmethod
+    async def find_by_ids(self, role_ids: list[UUID]) -> list[Role]:
+        """批量根据ID查找角色"""
+        pass
+
+    @abstractmethod
+    async def count_roles(
+        self,
+        name: str | None = None,
+    ) -> int:
+        """统计角色数量"""
+        pass
+
+
+class IPermissionRepository(Repository[Permission]):
     """权限仓储接口"""
+
+    @abstractmethod
+    async def save(self, permission: Permission) -> Permission:
+        """保存权限"""
+        pass
+
+    @abstractmethod
+    async def delete(self, permission_id: UUID) -> Permission:
+        """删除权限"""
+        pass
 
     @abstractmethod
     async def find_by_resource_action(self, resource: str, action: str) -> Permission | None:
@@ -130,3 +193,42 @@ class PermissionRepository(Repository[Permission]):
     async def find_by_resource(self, resource: str) -> list[Permission]:
         """根据资源查找权限"""
         pass
+
+    @abstractmethod
+    async def find_by_module(self, module: str) -> list[Permission]:
+        """根据模块查找权限"""
+        pass
+
+    @abstractmethod
+    async def find_by_ids(self, permission_ids: list[UUID]) -> list[Permission]:
+        """批量根据ID查找权限"""
+        pass
+
+    @abstractmethod
+    async def find_by_names(self, permission_names: list[str]) -> list[Permission]:
+        """批量根据名称查找权限"""
+        pass
+
+    @abstractmethod
+    async def search_permissions(
+        self,
+        keyword: str | None = None,
+        module: str | None = None,
+        resource: str | None = None,
+        action: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Permission]:
+        """搜索权限"""
+        pass
+
+    @abstractmethod
+    async def count_permissions(
+        self,
+        keyword: str | None = None,
+        module: str | None = None,
+        resource: str | None = None,
+    ) -> int:
+        """统计权限数量"""
+        pass
+

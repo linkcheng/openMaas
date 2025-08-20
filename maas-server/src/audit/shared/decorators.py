@@ -26,11 +26,13 @@ from uuid import UUID
 from fastapi import Request
 from loguru import logger
 
-# 延迟导入避免循环依赖
-from audit.application.services import log_user_action
 from audit.domain.models import ActionType, AuditResult, ResourceType
 from audit.shared.config import is_audit_enabled_for_action
+from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
+from shared.infrastructure.database import async_session_factory
 from shared.application.response import ApiResponse
+from audit.application.services import AuditLogService
+from audit.application.schemas import CreateAuditLogRequest
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -45,6 +47,58 @@ class AuditContext:
         self.ip_address: str | None = None
         self.user_agent: str | None = None
         self.request_id: str | None = None
+
+
+# 辅助函数: 快速创建审计日志
+async def log_user_action(
+    action,
+    description: str,
+    user_id = None,
+    username: str | None = None,
+    resource_type = None,
+    resource_id = None,
+    result = None,
+    error_message: str | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    request_id: str | None = None,
+    metadata: dict | None = None,
+) -> None:
+    """快速记录用户操作
+
+    这是一个便捷方法, 用于在业务代码中快速记录审计日志
+    使用独立的会话确保事务完整性
+    """
+
+    # 设置默认值
+    if result is None:
+        result = AuditResult.SUCCESS
+        
+    try:
+        async with async_session_factory() as session:
+            repository = SQLAlchemyAuditLogRepository(session)
+            service = AuditLogService(repository)
+
+            request = CreateAuditLogRequest(
+                user_id=user_id,
+                username=username,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                description=description,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                request_id=request_id,
+                result=result,
+                error_message=error_message,
+                metadata=metadata or {},
+            )
+
+            await service.create_audit_log(request)
+    except Exception as e:
+        logger.error(f"记录审计日志失败: {e}", exc_info=True)
+        # 审计日志失败不应该影响主业务流程
+        pass
 
 
 def audit_log(

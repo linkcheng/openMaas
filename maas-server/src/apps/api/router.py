@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 router = APIRouter()
 
 # 导入配置
-from ...config import get_chat_config
+from config import get_chat_config
 
 # 获取聊天配置
 chat_config = get_chat_config()

@@ -30,6 +30,11 @@ from audit.application.schemas import (
 )
 from audit.domain.models import AuditLog
 from audit.domain.repositories import AuditLogFilter, AuditLogRepository
+from audit.domain.services import (
+    AuditAnalysisService,
+    AuditArchiveService,
+    AuditRuleService,
+)
 from config.settings import settings
 
 """审计日志应用服务"""
@@ -38,13 +43,25 @@ from config.settings import settings
 class AuditLogService:
     """审计日志应用服务"""
 
-    def __init__(self, repository: AuditLogRepository):
+    def __init__(
+        self,
+        repository: AuditLogRepository,
+        rule_service: AuditRuleService | None = None,
+        archive_service: AuditArchiveService | None = None,
+        analysis_service: AuditAnalysisService | None = None
+    ):
         """初始化审计日志服务
 
         Args:
             repository: 审计日志仓储
+            rule_service: 审计规则服务
+            archive_service: 审计归档服务 
+            analysis_service: 审计分析服务
         """
         self.repository = repository
+        self.rule_service = rule_service or AuditRuleService()
+        self.archive_service = archive_service or AuditArchiveService(self.rule_service)
+        self.analysis_service = analysis_service or AuditAnalysisService()
 
     async def create_audit_log(
         self, request: CreateAuditLogRequest
@@ -60,11 +77,21 @@ class AuditLogService:
         Raises:
             ValueError: 当必要参数缺失时
         """
+        # 基础验证
         if not request.action:
             raise ValueError("操作类型不能为空")
 
         if not request.description:
             raise ValueError("描述不能为空")
+
+        # 使用规则服务验证审计数据
+        metadata = request.metadata or {}
+        validation_errors = self.rule_service.validate_audit_data(request.action, metadata)
+        if validation_errors:
+            raise ValueError(f"审计数据验证失败: {', '.join(validation_errors)}")
+
+        # 应用审计规则进行数据处理
+        processed_metadata = self._process_metadata(request.action, metadata)
 
         audit_log = AuditLog(
             audit_log_id=uuid7(),
@@ -79,13 +106,18 @@ class AuditLogService:
             request_id=request.request_id,
             result=request.result,
             error_message=request.error_message,
-            metadata=request.metadata,
+            metadata=processed_metadata,
             created_at=datetime.utcnow(),
         )
 
-
         await self.repository.save(audit_log)
-        logger.info(f"审计日志已创建: {audit_log.get_operation_summary()}")
+
+        # 检查是否需要告警
+        if self.rule_service.should_alert_on_action(request.action, request.user_id):
+            logger.warning(f"高风险操作告警: {audit_log.get_operation_summary()}")
+        else:
+            logger.info(f"审计日志已创建: {audit_log.get_operation_summary()}")
+
         return self._domain_to_response(audit_log)
 
     async def query_audit_logs(
@@ -189,21 +221,23 @@ class AuditLogService:
         Returns:
             统计信息
         """
+        # 获取时间范围内的审计日志
         start_time = datetime.utcnow() - timedelta(days=days)
+        filter_obj = AuditLogFilter(start_time=start_time, end_time=datetime.utcnow())
 
-        stats = await self.repository.get_statistics(
-            start_time=start_time,
-            include_user_stats=True,
-            include_action_stats=True
-        )
+        # 获取所有相关日志
+        logs = await self.repository.find_by_filter(filter_obj, limit=10000)  # 设置合理上限
+
+        # 使用分析服务生成统计报告
+        security_summary = self.analysis_service.generate_security_summary(logs, days)
 
         return AuditLogStatsResponse(
-            total_operations=stats["total"],
-            successful_operations=stats["successful"],
-            failed_operations=stats["failed"],
-            unique_users=stats["unique_users"],
-            recent_logins=stats["recent_logins"],
-            top_actions=stats["top_actions"],
+            total_operations=security_summary["overview"]["total_operations"],
+            successful_operations=security_summary["overview"]["total_operations"] - security_summary["overview"]["failed_operations"],
+            failed_operations=security_summary["overview"]["failed_operations"],
+            unique_users=security_summary["overview"]["unique_active_users"],
+            recent_logins=security_summary["authentication"]["total_login_attempts"],
+            top_actions=security_summary["top_operations"],
         )
 
     async def cleanup_old_audit_logs(self, days: int | None = None) -> int:
@@ -214,17 +248,98 @@ class AuditLogService:
         if days <= 0:
             raise ValueError("保留天数必须大于0")
 
+        # 获取需要清理的日志
         before_date = datetime.utcnow() - timedelta(days=days)
+        filter_obj = AuditLogFilter(end_time=before_date)
 
+        # 获取候选日志列表
+        candidate_logs = await self.repository.find_by_filter(filter_obj, limit=10000)
 
-        if hasattr(self.repository, "cleanup_old_logs"):
-            deleted_count = await self.repository.cleanup_old_logs(before_date)
-            logger.info(f"清理了 {deleted_count} 条超过 {days} 天的审计日志")
-            return deleted_count
-        else:
-            logger.warning("当前仓储不支持批量清理功能")
+        if not candidate_logs:
+            logger.info("没有找到需要清理的审计日志")
             return 0
 
+        # 使用归档服务生成清理计划
+        current_time = datetime.utcnow()
+        archive_plan = self.archive_service.generate_archive_plan(candidate_logs, current_time)
+
+        # 执行删除操作
+        deleted_count = 0
+        if archive_plan["delete"] and hasattr(self.repository, "cleanup_old_logs"):
+            deleted_count = await self.repository.cleanup_old_logs(before_date)
+            logger.info(f"清理了 {deleted_count} 条超过 {days} 天的审计日志")
+        else:
+            logger.warning("当前仓储不支持批量清理功能或无需清理的日志")
+
+        return deleted_count
+
+    async def get_security_analysis(self, user_id: UUID | None = None, days: int = 30) -> dict:
+        """获取安全分析报告
+        
+        Args:
+            user_id: 用户ID，为空时分析所有用户
+            days: 分析天数
+            
+        Returns:
+            安全分析报告
+        """
+        start_time = datetime.utcnow() - timedelta(days=days)
+        filter_obj = AuditLogFilter(
+            user_id=user_id,
+            start_time=start_time,
+            end_time=datetime.utcnow()
+        )
+
+        logs = await self.repository.find_by_filter(filter_obj, limit=10000)
+
+        if user_id:
+            # 用户行为分析
+            return self.analysis_service.analyze_user_behavior(logs, user_id)
+        else:
+            # 整体安全分析
+            return self.analysis_service.generate_security_summary(logs, days)
+
+    async def detect_suspicious_activities(self, days: int = 7) -> list:
+        """检测可疑活动
+        
+        Args:
+            days: 检测天数
+            
+        Returns:
+            可疑活动列表
+        """
+        start_time = datetime.utcnow() - timedelta(days=days)
+        filter_obj = AuditLogFilter(start_time=start_time, end_time=datetime.utcnow())
+
+        logs = await self.repository.find_by_filter(filter_obj, limit=10000)
+        return self.analysis_service.detect_suspicious_activities(logs)
+
+    def _process_metadata(self, action, metadata: dict) -> dict:
+        """处理元数据，应用审计规则
+        
+        Args:
+            action: 操作类型
+            metadata: 原始元数据
+            
+        Returns:
+            处理后的元数据
+        """
+        processed = metadata.copy()
+
+        # 应用匿名化规则
+        for field_name in list(processed.keys()):
+            if self.rule_service.should_anonymize_data(action, field_name):
+                # 简单的匿名化处理
+                if isinstance(processed[field_name], str):
+                    processed[field_name] = "***"
+                elif isinstance(processed[field_name], (int, float)):
+                    processed[field_name] = 0
+
+        # 添加审计级别信息
+        processed["audit_level"] = self.rule_service.get_audit_level(action)
+        processed["retention_days"] = self.rule_service.get_retention_days(action)
+
+        return processed
 
     def _domain_to_response(self, audit_log: AuditLog) -> AuditLogResponse:
         """将领域模型转换为响应格式"""
@@ -247,59 +362,3 @@ class AuditLogService:
             is_successful=audit_log.is_successful,
             is_system_operation=audit_log.is_system_operation,
         )
-
-# 辅助函数: 快速创建审计日志
-async def log_user_action(
-    action,
-    description: str,
-    user_id = None,
-    username: str | None = None,
-    resource_type = None,
-    resource_id = None,
-    result = None,
-    error_message: str | None = None,
-    ip_address: str | None = None,
-    user_agent: str | None = None,
-    request_id: str | None = None,
-    metadata: dict | None = None,
-) -> None:
-    """快速记录用户操作
-
-    这是一个便捷方法, 用于在业务代码中快速记录审计日志
-    使用独立的会话确保事务完整性
-    """
-
-    try:
-        from audit.domain.models import AuditResult
-        from audit.infrastructure.repositories import SQLAlchemyAuditLogRepository
-        from shared.infrastructure.database import async_session_factory
-
-        # 设置默认值
-        if result is None:
-            result = AuditResult.SUCCESS
-
-        async with async_session_factory() as session:
-            repository = SQLAlchemyAuditLogRepository(session)
-            service = AuditLogService(repository)
-
-            request = CreateAuditLogRequest(
-                user_id=user_id,
-                username=username,
-                action=action,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                description=description,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                request_id=request_id,
-                result=result,
-                error_message=error_message,
-                metadata=metadata or {},
-            )
-
-            await service.create_audit_log(request)
-    except Exception as e:
-        logger.error(f"记录审计日志失败: {e}", exc_info=True)
-        # 审计日志失败不应该影响主业务流程
-        pass
-

@@ -14,4 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""共享接口层 - 提供共享的API接口"""
+"""审计模块领域服务"""
+
+from audit.domain.services.audit_analysis_service import AuditAnalysisService
+from audit.domain.services.audit_archive_service import AuditArchiveService
+from audit.domain.services.audit_rule_service import AuditRuleService
+
+__all__ = [
+    "AuditAnalysisService",
+    "AuditArchiveService",
+    "AuditRuleService"
+]

@@ -63,7 +63,7 @@ class TestRegisterController:
         from uuid import uuid4
         from datetime import datetime
         from user.domain.models import UserStatus
-        from user.application.schemas import UserProfileResponse, UserQuotaResponse
+        from user.application.schemas import UserProfileResponse
 
         profile = UserProfileResponse(
             first_name="Test",
@@ -74,20 +74,6 @@ class TestRegisterController:
             bio=None
         )
 
-        quota = UserQuotaResponse(
-            api_calls_limit=1000,
-            api_calls_used=0,
-            api_calls_remaining=1000,
-            api_usage_percentage=0.0,
-            storage_limit=1073741824,  # 1GB
-            storage_used=0,
-            storage_remaining=1073741824,
-            storage_usage_percentage=0.0,
-            compute_hours_limit=10,
-            compute_hours_used=0,
-            compute_hours_remaining=10
-        )
-
         return UserResponse(
             id=uuid4(),
             username="testuser123",
@@ -96,7 +82,6 @@ class TestRegisterController:
             status=UserStatus.ACTIVE,
             email_verified=False,
             roles=[],
-            quota=quota,
             created_at=datetime.now(),
             updated_at=datetime.now(),
             last_login_at=None

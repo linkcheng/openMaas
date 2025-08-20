@@ -62,6 +62,11 @@ class AuditLogRepository(ABC):
             audit_log: 审计日志实体
         """
         pass
+    
+    @abstractmethod
+    async def delete(self, audit_log_id: UUID) -> None:
+        """删除审计日志"""
+        pass
 
     @abstractmethod
     async def find_by_id(self, audit_log_id: UUID) -> AuditLog | None:

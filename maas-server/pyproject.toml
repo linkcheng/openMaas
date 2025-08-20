@@ -238,3 +238,10 @@ dev-dependencies = [
     "httpx>=0.28.1",
     "factory-boy>=3.3.0",
 ]
+
+# BasedPyright 配置
+[tool.basedpyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+include = ["src"]
+extraPaths = ["src"]

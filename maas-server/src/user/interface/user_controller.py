@@ -23,11 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
-from shared.interface.auth_middleware import (
-    get_current_user_id,
-    require_admin,
-)
-from shared.interface.dependencies import get_user_application_service
+from user.application import get_user_application_service
 from user.application.schemas import (
     PasswordChangeCommand,
     PasswordChangeRequest,
@@ -38,9 +34,12 @@ from user.application.schemas import (
     UserUpdateCommand,
     UserUpdateRequest,
 )
-from user.application.services import (
+from user.application.user_service import (
     PasswordHashService,
     UserApplicationService,
+)
+from user.infrastructure.auth_middleware import (
+    get_current_user_id,
 )
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -133,14 +132,6 @@ async def get_user_stats(
     return ApiResponse.success_response(stats, "获取统计信息成功")
 
 
-
-# API密钥管理路由已移除
-# @router.post("/me/api-keys", ...)
-# @router.get("/me/api-keys", ...)
-# @router.delete("/me/api-keys/{key_id}", ...)
-
-
-
 # 管理员API
 @router.get("/", response_model=ApiResponse[list[UserSummaryResponse]], summary="搜索用户")
 async def search_users(
@@ -150,7 +141,6 @@ async def search_users(
     organization: str = Query(None, description="组织"),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页数量"),
-    _: bool = Depends(require_admin),
 ):
     """搜索用户（管理员）"""
 
@@ -171,7 +161,6 @@ async def search_users(
 async def get_user_by_id(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
-    _: bool = Depends(require_admin),
 ):
     """获取用户详情（管理员）"""
 
@@ -185,14 +174,11 @@ async def get_user_by_id(
     return ApiResponse.success_response(user, "获取用户详情成功")
 
 
-
-
 @router.post("/{user_id}/suspend", response_model=ApiResponse[bool], summary="暂停用户")
 async def suspend_user(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
     reason: str = Query(..., description="暂停原因"),
-    _: bool = Depends(require_admin),
 ):
     """暂停用户（管理员）"""
 
@@ -204,9 +190,52 @@ async def suspend_user(
 async def activate_user(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
-    _: bool = Depends(require_admin),
 ):
     """激活用户（管理员）"""
 
     success = await user_service.activate_user(user_id)
     return ApiResponse.success_response(success, "用户已激活")
+
+
+# 权限相关API
+@router.get("/{user_id}/permissions", response_model=ApiResponse[dict], summary="获取用户权限")
+async def get_user_permissions(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
+    user_id: UUID,
+):
+    """获取用户完整权限（管理员）"""
+
+    permissions = await user_service.get_user_permissions(user_id)
+    return ApiResponse.success_response(permissions, "获取用户权限成功")
+
+
+@router.get("/{user_id}/permissions/check", response_model=ApiResponse[dict], summary="检查用户权限")
+async def check_user_permission(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
+    user_id: UUID,
+    permission: str = Query(..., description="权限名称，格式：module.resource.action"),
+):
+    """检查用户是否拥有指定权限（管理员）"""
+
+    result = await user_service.check_user_permission(user_id, permission)
+    return ApiResponse.success_response(result, "权限检查完成")
+
+
+@router.post("/{user_id}/roles", response_model=ApiResponse[UserResponse], summary="分配用户角色")
+async def assign_user_roles(
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
+    user_id: UUID,
+    role_ids: list[UUID],
+    current_user_id: Annotated[UUID, Depends(get_current_user_id)],
+):
+    """为用户分配角色（管理员）"""
+
+    # 防止用户修改自己的角色
+    if user_id == current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="不能修改自己的角色"
+        )
+
+    user = await user_service.assign_user_roles(user_id, role_ids)
+    return ApiResponse.success_response(user, "用户角色分配成功")
