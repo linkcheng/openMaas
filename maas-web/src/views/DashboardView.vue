@@ -33,17 +33,7 @@
 
     <!-- 主要内容区域 -->
     <el-row :gutter="24" class="main-content">
-      <!-- 模型性能图表 -->
-      <el-col :xs="24" :lg="12">
-        <el-card class="chart-card">
-          <template #header>
-            <span class="card-title">模型性能趋势</span>
-          </template>
-          <div class="chart-placeholder">
-            <p>图表区域 - 集成实际图表库</p>
-          </div>
-        </el-card>
-      </el-col>
+
 
       <!-- 最近活动 -->
       <el-col :xs="24" :lg="12">
@@ -90,8 +80,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { DataAnalysis, Coin, Cpu, Monitor, User, TrendCharts } from '@element-plus/icons-vue'
+import { useAuth } from '@/composables/useAuth'
+
+const { getCurrentUser, isAuthenticated, currentUser } = useAuth()
+
+// 组件挂载时确保用户信息已加载
+onMounted(async () => {
+  if (isAuthenticated.value && !currentUser.value) {
+    try {
+      await getCurrentUser()
+    } catch (error) {
+      console.warn('获取用户信息失败:', error)
+    }
+  }
+})
 
 interface StatItem {
   icon: typeof DataAnalysis

@@ -126,6 +126,10 @@ limitations under the License.
             <el-icon><Connection /></el-icon>
             <template #title>供应商管理</template>
           </el-menu-item>
+          <el-menu-item index="/admin/permission/roles">
+            <el-icon><Key /></el-icon>
+            <template #title>权限管理</template>
+          </el-menu-item>
           <el-menu-item index="/admin/audit-logs">
             <el-icon><Document /></el-icon>
             <template #title>系统日志</template>
@@ -165,6 +169,7 @@ import {
   Monitor,
   UserFilled,
   Document,
+  Key,
 } from '@element-plus/icons-vue'
 import { useAuth } from '@/composables/useAuth'
 

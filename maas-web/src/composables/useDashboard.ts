@@ -98,33 +98,6 @@ export function useDashboard() {
     systemHealth: false,
   })
 
-  // 加载用户统计数据
-  const loadUserStats = async (): Promise<boolean> => {
-    try {
-      apiError.value.userStats = false
-      const response = await apiClient.stats.getUserStats()
-      if (response.data?.success && response.data.data) {
-        Object.assign(userStats, response.data.data)
-        return true
-      }
-      throw new Error('API响应格式错误')
-    } catch (error) {
-      console.error('加载用户统计失败:', handleApiError(error))
-      apiError.value.userStats = true
-
-      // 对于API不存在的情况，使用模拟数据
-      Object.assign(userStats, {
-        api_keys_count: 3,
-        requests_count: 1240,
-        usage_cost: 24.5,
-        total_api_calls: 1240,
-        models_created: 2,
-        applications_created: 1,
-      })
-      return false
-    }
-  }
-
   // 加载管理员统计数据
   const loadAdminStats = async (): Promise<boolean> => {
     try {
@@ -236,7 +209,7 @@ export function useDashboard() {
     error.value = null
 
     try {
-      const promises: Promise<boolean>[] = [loadUserStats(), loadRecentActivities()]
+      const promises: Promise<boolean>[] = [loadRecentActivities()]
 
       if (isAdmin.value) {
         promises.push(loadAdminStats(), loadSystemHealth())

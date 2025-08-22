@@ -38,19 +38,6 @@ export interface User {
     description: string
     permissions: string[]
   }>
-  quota?: {
-    api_calls_limit: number
-    api_calls_used: number
-    api_calls_remaining: number
-    api_usage_percentage: number
-    storage_limit: number
-    storage_used: number
-    storage_remaining: number
-    storage_usage_percentage: number
-    compute_hours_limit: number
-    compute_hours_used: number
-    compute_hours_remaining: number
-  }
   created_at: string
   updated_at: string
   last_login_at?: string
@@ -148,12 +135,6 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  const updateUserQuota = (quotaData: Partial<User['quota']>) => {
-    if (user.value && user.value.quota) {
-      user.value.quota = { ...user.value.quota, ...quotaData }
-    }
-  }
-
   // 检查token是否过期
   const isTokenExpired = (token: string): boolean => {
     try {
@@ -213,7 +194,6 @@ export const useUserStore = defineStore('user', () => {
     clearAuth,
     initializeAuth,
     updateUserProfile,
-    updateUserQuota,
     getAccessToken,
   }
 })

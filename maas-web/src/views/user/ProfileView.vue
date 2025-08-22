@@ -159,96 +159,6 @@ limitations under the License.
         </el-descriptions>
       </el-card>
 
-      <!-- 安全设置卡片 -->
-      <el-card class="info-card" shadow="never">
-        <template #header>
-          <div class="card-header">
-            <span>安全设置</span>
-            <el-button type="primary" :icon="Key" @click="showPasswordDialog = true">
-              修改密码
-            </el-button>
-          </div>
-        </template>
-
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="密码强度">
-            <el-tag type="success">强</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="最后修改">
-            {{ formatDateTime(user?.password_updated_at) || '从未修改' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="二步验证">
-            <el-tag :type="user?.two_factor_enabled ? 'success' : 'info'">
-              {{ user?.two_factor_enabled ? '已启用' : '未启用' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="活跃会话">
-            <el-link type="primary" @click="$router.push('/user/settings')"> 查看详情 </el-link>
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <!-- 使用统计卡片 -->
-      <el-card class="stats-card" shadow="never">
-        <template #header>
-          <span>使用统计</span>
-        </template>
-
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <div class="stat-item">
-              <div class="stat-icon">
-                <el-icon :size="32" color="#409EFF">
-                  <DataAnalysis />
-                </el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ stats?.total_requests || 0 }}</div>
-                <div class="stat-label">API 请求总数</div>
-              </div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="stat-item">
-              <div class="stat-icon">
-                <el-icon :size="32" color="#67C23A">
-                  <Key />
-                </el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ stats?.api_keys_count || 0 }}</div>
-                <div class="stat-label">API 密钥数量</div>
-              </div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="stat-item">
-              <div class="stat-icon">
-                <el-icon :size="32" color="#E6A23C">
-                  <Calendar />
-                </el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ getDaysFromRegistration() }}</div>
-                <div class="stat-label">注册天数</div>
-              </div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="stat-item">
-              <div class="stat-icon">
-                <el-icon :size="32" color="#F56C6C">
-                  <TrendCharts />
-                </el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ stats?.success_rate || '0' }}%</div>
-                <div class="stat-label">成功率</div>
-              </div>
-            </div>
-          </el-col>
-        </el-row>
-      </el-card>
     </div>
 
     <!-- 修改密码对话框 -->
@@ -493,40 +403,6 @@ const loadProfile = async () => {
         bio: '',
         avatar_url: '',
       })
-    }
-  }
-}
-
-const loadStats = async () => {
-  try {
-    // 调用 /users/me/stats API 获取用户统计数据
-    const response = await apiClient.stats.getUserStats()
-
-    if (response.data.success && response.data.data) {
-      const apiStats = response.data.data
-      stats.value = {
-        total_requests: apiStats.total_api_calls || 0,
-        api_keys_count: apiStats.api_keys_count || 0,
-        success_rate: 98.5, // 这个字段可能需要根据实际 API 响应调整
-      }
-    } else {
-      // 如果 API 调用失败，使用默认值
-      stats.value = {
-        total_requests: 0,
-        api_keys_count: 0,
-        success_rate: 0,
-      }
-    }
-  } catch (error) {
-    const errorMessage = handleApiError(error)
-    ElMessage.warning(`无法加载统计数据: ${errorMessage}`)
-    console.error('加载统计数据失败:', error)
-
-    // 使用默认值
-    stats.value = {
-      total_requests: 0,
-      api_keys_count: 0,
-      success_rate: 0,
     }
   }
 }
@@ -776,7 +652,6 @@ const resetPasswordDialog = () => {
 
 onMounted(() => {
   loadProfile()
-  loadStats()
 })
 </script>
 

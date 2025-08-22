@@ -16,6 +16,14 @@ limitations under the License.
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { onMounted } from 'vue'
+import { useAuth } from '@/composables/useAuth'
+
+const { initializeAuth } = useAuth()
+
+onMounted(async () => {
+  await initializeAuth()
+})
 </script>
 
 <template>

@@ -165,6 +165,52 @@ const router = createRouter({
           meta: { requiresAuth: true, requiresAdmin: true, title: '系统日志' },
         },
 
+        // 权限管理路由
+        {
+          path: 'admin/permission',
+          component: () => import('../views/admin/permission/PermissionLayout.vue'),
+          meta: { requiresAuth: true, requiresAdmin: true },
+          children: [
+            {
+              path: '',
+              redirect: 'roles',
+            },
+            {
+              path: 'roles',
+              name: 'permission-roles',
+              component: () => import('../views/admin/permission/RoleManagement.vue'),
+              meta: { 
+                requiresAuth: true, 
+                requiresAdmin: true, 
+                title: '角色管理',
+                permissions: { resource: 'role', action: 'view' }
+              },
+            },
+            {
+              path: 'permissions',
+              name: 'permission-permissions',
+              component: () => import('../views/admin/permission/PermissionManagement.vue'),
+              meta: { 
+                requiresAuth: true, 
+                requiresAdmin: true, 
+                title: '权限管理',
+                permissions: { resource: 'permission', action: 'view' }
+              },
+            },
+            {
+              path: 'user-roles',
+              name: 'permission-user-roles',
+              component: () => import('../views/admin/permission/UserRoleManagement.vue'),
+              meta: { 
+                requiresAuth: true, 
+                requiresAdmin: true, 
+                title: '用户权限',
+                permissions: { resource: 'user', action: 'manage' }
+              },
+            },
+          ],
+        },
+
         // 权限拒绝页面
         {
           path: 'permission-denied',
@@ -179,10 +225,15 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, isAdmin, hasPermission, initializeAuth } = useAuth()
+  const { isAuthenticated, isAdmin, hasPermission, initializeAuth, currentUser } = useAuth()
 
-  // 初始化认证状态
+  // 初始化认证状态（只在必要时进行）
   if (!isAuthenticated.value) {
+    await initializeAuth()
+  }
+  
+  // 如果已认证但缺少用户信息，重新获取
+  if (isAuthenticated.value && !currentUser.value) {
     await initializeAuth()
   }
 
@@ -198,39 +249,36 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // 暂时移除权限检查，让功能能够正常运行
-  // TODO: 后续添加完整的权限系统后再启用
-  
-  // // 检查是否需要管理员权限
-  // if (to.meta.requiresAdmin && !isAdmin.value) {
-  //   // 如果用户已认证但没有管理员权限，跳转到权限拒绝页面
-  //   next({
-  //     name: 'permission-denied',
-  //     query: {
-  //       reason: 'admin_required',
-  //       from: to.path,
-  //     },
-  //   })
-  //   return
-  // }
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin && !isAdmin.value) {
+    // 如果用户已认证但没有管理员权限，跳转到权限拒绝页面
+    next({
+      name: 'permission-denied',
+      query: {
+        reason: 'admin_required',
+        from: to.path,
+      },
+    })
+    return
+  }
 
-  // // 检查具体权限
-  // if (to.meta.permissions && isAuthenticated.value) {
-  //   const { resource, action } = to.meta.permissions as { resource: string; action: string }
-  //   if (!hasPermission(resource, action)) {
-  //     // 权限不足，跳转到权限拒绝页面
-  //     next({
-  //       name: 'permission-denied',
-  //       query: {
-  //         reason: 'insufficient_permissions',
-  //         resource,
-  //         action,
-  //         from: to.path,
-  //       },
-  //     })
-  //     return
-  //   }
-  // }
+  // 检查具体权限
+  if (to.meta.permissions && isAuthenticated.value) {
+    const { resource, action } = to.meta.permissions as { resource: string; action: string }
+    if (!hasPermission(resource, action)) {
+      // 权限不足，跳转到权限拒绝页面
+      next({
+        name: 'permission-denied',
+        query: {
+          reason: 'insufficient_permissions',
+          resource,
+          action,
+          from: to.path,
+        },
+      })
+      return
+    }
+  }
 
   // 预加载路由组件
   if (to.name && typeof to.name === 'string') {

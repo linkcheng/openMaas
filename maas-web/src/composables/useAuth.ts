@@ -252,21 +252,61 @@ export const useAuth = () => {
   }
 
   // 权限检查
-  const hasPermission = (resource: string, action: string) => {
-    return userStore.hasPermission(resource, action)
+  const hasPermission = (permission: string): boolean => {
+    if (!isAuthenticated.value) return false
+    
+    // 如果是管理员，默认拥有所有权限
+    if (isAdmin.value) return true
+    
+    // 支持resource.action格式或直接权限字符串
+    if (permission.includes('.')) {
+      return userStore.hasPermission(permission)
+    } else {
+      // 向后兼容：假设是resource.action的拆分调用
+      return userStore.hasPermission(permission)
+    }
+  }
+
+  // 检查多个权限（任一匹配）
+  const hasAnyPermission = (permissions: string[]): boolean => {
+    if (!isAuthenticated.value) return false
+    if (isAdmin.value) return true
+    
+    return permissions.some(permission => hasPermission(permission))
+  }
+
+  // 检查多个权限（全部匹配）
+  const hasAllPermissions = (permissions: string[]): boolean => {
+    if (!isAuthenticated.value) return false
+    if (isAdmin.value) return true
+    
+    return permissions.every(permission => hasPermission(permission))
   }
 
   // 角色检查
-  const hasRole = (roleName: string) => {
+  const hasRole = (roleName: string): boolean => {
+    if (!isAuthenticated.value) return false
     return userStore.hasRole(roleName)
+  }
+
+  // 检查多个角色（任一匹配）
+  const hasAnyRole = (roleNames: string[]): boolean => {
+    if (!isAuthenticated.value) return false
+    return roleNames.some(roleName => hasRole(roleName))
+  }
+
+  // 检查多个角色（全部匹配）
+  const hasAllRoles = (roleNames: string[]): boolean => {
+    if (!isAuthenticated.value) return false
+    return roleNames.every(roleName => hasRole(roleName))
   }
 
   // 初始化认证状态
   const initializeAuth = async () => {
     userStore.initializeAuth()
 
-    // 如果有token，尝试获取用户信息验证token有效性
-    if (userStore.tokens && userStore.isAuthenticated) {
+    // 如果有token且用户信息缺失，尝试获取用户信息验证token有效性
+    if (userStore.tokens && userStore.isAuthenticated && !userStore.user) {
       const result = await getCurrentUser()
       if (!result.success) {
         // 获取用户信息失败，说明token无效，已在getCurrentUser中清除了认证状态
@@ -297,7 +337,11 @@ export const useAuth = () => {
     resetPassword,
     verifyEmail,
     hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
     hasRole,
+    hasAnyRole,
+    hasAllRoles,
     initializeAuth,
   }
 }

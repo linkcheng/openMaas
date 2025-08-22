@@ -122,19 +122,6 @@ export interface LoginResponse {
       description: string
       permissions: string[]
     }>
-    quota?: {
-      api_calls_limit: number
-      api_calls_used: number
-      api_calls_remaining: number
-      api_usage_percentage: number
-      storage_limit: number
-      storage_used: number
-      storage_remaining: number
-      storage_usage_percentage: number
-      compute_hours_limit: number
-      compute_hours_used: number
-      compute_hours_remaining: number
-    }
     created_at: string
     updated_at: string
     last_login_at?: string
@@ -642,15 +629,6 @@ class ApiClient {
     changePassword: (data: PasswordChangeRequest) =>
       this.client.post<ApiResponse>('/users/me/change-password', data),
 
-    getStats: () => this.client.get<ApiResponse>('/users/me/stats'),
-
-    getApiKeys: () => this.client.get<ApiResponse>('/users/me/api-keys'),
-
-    createApiKey: (data: ApiKeyCreateRequest) =>
-      this.client.post<ApiResponse>('/users/me/api-keys', data),
-
-    revokeApiKey: (keyId: string) => this.client.delete<ApiResponse>(`/users/me/api-keys/${keyId}`),
-
     // 管理员API
     searchUsers: (params: {
       keyword?: string
@@ -672,8 +650,6 @@ class ApiClient {
 
   // 统计数据API
   stats = {
-    // 用户统计
-    getUserStats: () => this.client.get<ApiResponse<UserStatsResponse>>('/users/me/stats'),
 
     // 管理员统计
     getAdminStats: () => this.client.get<ApiResponse<AdminStatsResponse>>('/admin/stats'),
@@ -841,15 +817,12 @@ export const {
     updateProfile,
     changePassword,
     getStats,
-    getApiKeys,
-    createApiKey,
-    revokeApiKey,
     searchUsers,
     getUserById,
     suspendUser,
     activateUser,
   },
-  stats: { getUserStats, getAdminStats, getUserActivityLogs, getAllActivityLogs },
+  stats: { getAdminStats, getUserActivityLogs, getAllActivityLogs },
   system: {
     getHealth: getSystemHealth,
     getMetrics: getSystemMetrics,

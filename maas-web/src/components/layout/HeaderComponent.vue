@@ -62,7 +62,7 @@ limitations under the License.
             <el-avatar :size="32" :src="currentUser?.profile?.avatar_url" class="user-avatar">
               <el-icon><User /></el-icon>
             </el-avatar>
-            <span class="username">{{ currentUser?.username || '用户' }}</span>
+            <span class="username">{{ displayUsername }}</span>
             <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -81,17 +81,35 @@ limitations under the License.
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Bell, Setting, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-const { currentUser, logout } = useAuth()
+const { currentUser, logout, getCurrentUser, isAuthenticated } = useAuth()
 
 const searchQuery = ref('')
 const notificationCount = ref(3)
+
+// 计算用户显示名称
+const displayUsername = computed(() => {
+  if (!isAuthenticated.value) return '未登录'
+  if (!currentUser.value) return '加载中...'
+  return currentUser.value.username || currentUser.value.profile?.full_name || '用户'
+})
+
+// 组件挂载时确保用户信息已加载
+onMounted(async () => {
+  if (isAuthenticated.value && !currentUser.value) {
+    try {
+      await getCurrentUser()
+    } catch (error) {
+      console.warn('获取用户信息失败:', error)
+    }
+  }
+})
 
 const showNotifications = () => {
   ElMessage.info('通知功能开发中')
