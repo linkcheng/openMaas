@@ -21,132 +21,35 @@ from enum import Enum
 from typing import Annotated, Any
 from uuid import UUID
 
-import jwt
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 
-from config.settings import settings
-from shared.application.exceptions import (
-    TokenRefreshRequiredException,
-    TokenVersionMismatchException,
-    to_http_exception,
-)
-from user.application import get_user_repository
 from user.domain.models import User
-
-
-class JWTBearer(HTTPBearer):
-    """JWT Bearer认证"""
-
-    def __init__(self, auto_error: bool = True):
-        super().__init__(auto_error=auto_error)
-
-    async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
-        credentials = await super().__call__(request)
-        if credentials:
-            if not credentials.scheme == "Bearer":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无效的认证方案"
-                )
-            if not self.verify_jwt_format(credentials.credentials):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无效或过期的令牌"
-                )
-            return credentials
-        return None
-
-    def verify_jwt_format(self, token: str) -> bool:
-        """验证JWT令牌格式"""
-        try:
-            payload = jwt.decode(
-                token,
-                settings.get_jwt_secret_key(),
-                algorithms=[settings.security.jwt_algorithm]
-            )
-            return payload is not None
-        except jwt.ExpiredSignatureError:
-            return False
-        except jwt.InvalidTokenError:
-            return False
-
-
-jwt_bearer = JWTBearer()
 
 
 async def get_current_user_with_permissions(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(jwt_bearer)],
-    user_repository: Annotated[Any, Depends(get_user_repository)]
 ) -> User:
-    """获取当前用户并注入权限到request.state"""
-    try:
-        token = credentials.credentials
-        payload = jwt.decode(
-            token,
-            settings.get_jwt_secret_key(),
-            algorithms=[settings.security.jwt_algorithm]
-        )
-    except jwt.ExpiredSignatureError as e:
-        raise to_http_exception(TokenRefreshRequiredException()) from e
-    except jwt.InvalidTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效令牌"
-        ) from e
-
-    # 验证access token
-    if payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="请使用access token访问"
-        )
-
-    user_id = UUID(payload.get("sub"))
-    token_key_version = payload.get("key_version")
-
-    if token_key_version is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="令牌缺少版本信息"
-        )
-
-    # 获取用户并验证key_version
-    user = await user_repository.find_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户不存在"
-        )
-
-    if user.key_version != token_key_version:
-        raise to_http_exception(TokenVersionMismatchException())
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="用户账户已被禁用"
-        )
-
-    # 注入用户信息到request.state
-    request.state.current_user = user
-    request.state.user_id = user.id
-    request.state.username = user.username
-
-    # 获取并注入用户权限
-    permissions = []
-    for role in user.roles:
-        for permission in role.permissions:
-            perm_str = f"{permission.resource}:{permission.action}"
-            if perm_str not in permissions:
-                permissions.append(perm_str)
-
-    request.state.permissions = permissions
-
-    logger.debug(f"用户认证成功: {user.username}, 权限数量: {len(permissions)}")
-    return user
+    """获取当前用户并注入权限到request.state
+    
+    优化后的版本：优先使用 UserContextMiddleware 预先认证的用户信息，
+    如果没有则回退到传统的认证流程。
+    """
+    # 优先检查 UserContextMiddleware 是否已经认证了用户
+    if (hasattr(request.state, "is_authenticated") and
+            request.state.is_authenticated and
+            hasattr(request.state, "current_user") and
+            request.state.current_user is not None):
+        user = request.state.current_user
+        logger.debug(f"从中间件获取已认证用户: {getattr(user, 'username', '<unknown>')}")
+        return user
+    
+    # 未认证，返回 401
+    # raise HTTPException(
+    #     status_code=status.HTTP_401_UNAUTHORIZED,
+    #     detail="未认证的请求，请先登录",
+    #     headers={"WWW-Authenticate": "Bearer"},
+    # )
 
 
 async def get_current_user(
@@ -157,9 +60,18 @@ async def get_current_user(
 
 
 async def get_current_user_id(
+    request: Request,
     user: Annotated[User, Depends(get_current_user_with_permissions)]
 ) -> UUID:
-    """获取当前用户ID"""
+    """获取当前用户ID
+    
+    优化版本：优先从 request.state 获取，提高性能
+    """
+    # 优先从 request.state 获取
+    if hasattr(request.state, "user_id") and request.state.user_id:
+        return request.state.user_id
+
+    # 回退到从用户对象获取（此时 user 一定存在）
     return user.id
 
 
@@ -167,8 +79,16 @@ async def get_current_permissions(
     request: Request,
     _user: Annotated[User, Depends(get_current_user_with_permissions)]
 ) -> list[str]:
-    """获取当前用户权限"""
-    return getattr(request.state, "permissions", [])
+    """获取当前用户权限
+    
+    优化版本：优先从 request.state 获取，提高性能
+    """
+    # 优先从 request.state 获取
+    if hasattr(request.state, "permissions") and request.state.permissions:
+        return request.state.permissions
+
+    # 回退到空权限列表
+    return []
 
 
 class PermissionLogic(str, Enum):

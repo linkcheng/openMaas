@@ -49,6 +49,9 @@ class UserApplicationService:
         self._user_repository = user_repository
         self._user_domain_service = user_domain_service
 
+    async def authenticate_user(self, login_id: str, password: str) -> User:
+        return await self._user_domain_service.authenticate_user(login_id, password)
+
     async def create_user(self, command: UserCreateCommand) -> UserResponse:
         """创建用户"""
         # 使用 Domain Service 创建用户
@@ -145,15 +148,6 @@ class UserApplicationService:
             inactive_users=inactive_count,
             suspended_users=suspended_count
         )
-
-    async def authenticate_user(self, login_id: str, password: str) -> UserResponse:
-        """认证用户"""
-        # 使用 Domain Service 认证用户
-        user = await self._user_domain_service.authenticate_user(login_id, password)
-
-        # 保存用户（更新最后登录时间）
-        saved_user = await self._user_repository.save(user)
-        return await self._to_user_response(saved_user)
 
     async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
         """根据ID获取用户"""

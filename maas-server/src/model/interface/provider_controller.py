@@ -42,7 +42,7 @@ from model.domain.exceptions import (
     ProviderNotFoundException,
 )
 from shared.application.response import ApiResponse, PaginatedData
-from user.infrastructure.auth_middleware import get_current_user_id
+from user.infrastructure.permission import get_current_user_id
 
 router = APIRouter(prefix="/models", tags=["模型管理"])
 

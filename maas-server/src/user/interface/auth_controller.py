@@ -23,8 +23,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
 
-from audit.domain.models import ActionType, ResourceType
-from audit.shared.decorators import audit_log, audit_user_operation
+from user.application.decorators import audit_user_create, audit_login, audit_logout
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
 from user.application import (
@@ -43,7 +42,8 @@ from user.application.user_service import (
     PasswordHashService,
     UserApplicationService,
 )
-from user.infrastructure.auth_middleware import get_current_user_id, jwt_bearer
+from user.infrastructure.jwt_service import jwt_bearer
+from user.infrastructure.permission import get_current_user_id
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -62,16 +62,8 @@ async def get_public_key():
     return ApiResponse.success_response(key_info, "获取公钥成功")
 
 
-
 @router.post("/register", response_model=ApiResponse[UserResponse], summary="用户注册")
-@audit_log(
-    action=ActionType.USER_CREATE,
-    description="用户注册",
-    resource_type=ResourceType.USER,
-    extract_user_from_result=True,
-    success_condition=lambda result: isinstance(result, ApiResponse) and result.success,
-    custom_description=lambda request, **kwargs: f"用户 {request.username} 尝试注册"
-)
+@audit_user_create("用户注册")
 async def register(
     request: UserCreateRequest,
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
@@ -110,17 +102,11 @@ async def register(
 
 
 @router.post("/login", response_model=ApiResponse[AuthTokenResponse], summary="用户登录")
-@audit_log(
-    action=ActionType.LOGIN,
-    description="用户登录",
-    resource_type=ResourceType.USER,
-    extract_user_from_result=True,
-    success_condition=lambda result: isinstance(result, ApiResponse) and result.success,
-    custom_description=lambda request, **kwargs: f"用户 {request.login_id} 尝试登录"
-)
+@audit_login("用户登录")
 async def login(
+    http_request: Request,  # noqa
     request: UserLoginRequest,
-    http_request: Request,
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
     """
@@ -137,8 +123,13 @@ async def login(
     if not decrypted_password:
         raise ValueError("密码解密后为空")
 
+    user = await user_service.authenticate_user(request.login_id, decrypted_password)
     # 创建令牌
-    token_response = await auth_service.create_token_response(request.login_id, decrypted_password)
+    token_response = await auth_service.create_token_response(user)
+
+    http_request.state.current_user = user
+    http_request.state.user_id = user.id
+    http_request.state.username = user.username
 
     return ApiResponse.success_response(token_response, "登录成功")
 
@@ -159,10 +150,7 @@ async def refresh_token(
 
 
 @router.post("/logout", response_model=ApiResponse[bool], summary="退出登录")
-@audit_user_operation(
-    action=ActionType.LOGOUT,
-    description="用户退出登录"
-)
+@audit_logout("用户退出登录")
 async def logout(
     http_request: Request,
     user_id: Annotated[UUID, Depends(get_current_user_id)],

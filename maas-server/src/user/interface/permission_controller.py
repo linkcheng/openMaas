@@ -22,8 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from loguru import logger
 
-from audit.domain.models import ActionType, ResourceType
-from audit.shared.decorators import audit_resource_operation
+from user.application.decorators import audit_admin_operation
 from shared.application.response import ApiResponse
 from user.application import get_permission_application_service
 from user.application.permission_service import PermissionApplicationService
@@ -118,11 +117,7 @@ async def get_all_permissions(
 
 
 @router.post("", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_CREATE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="创建权限"
-)
+@audit_admin_operation("管理员操作")
 async def create_permission(
     request: PermissionRequest,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -152,11 +147,7 @@ async def get_permission(
 
 
 @router.put("/{permission_id}", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_UPDATE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="更新权限"
-)
+@audit_admin_operation("管理员操作")
 async def update_permission(
     permission_id: UUID,
     request: PermissionUpdateRequest,
@@ -170,11 +161,7 @@ async def update_permission(
 
 
 @router.delete("/{permission_id}", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_DELETE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="删除权限"
-)
+@audit_admin_operation("管理员操作")
 async def delete_permission(
     permission_id: UUID,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -191,11 +178,7 @@ async def delete_permission(
 
 # 批量操作接口
 @router.post("/batch", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_CREATE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="批量创建权限"
-)
+@audit_admin_operation("管理员操作")
 async def batch_create_permissions(
     request: PermissionBatchRequest,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -212,11 +195,7 @@ async def batch_create_permissions(
 
 
 @router.delete("/batch", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_DELETE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="批量删除权限"
-)
+@audit_admin_operation("管理员操作")
 async def batch_delete_permissions(
     permission_ids: list[UUID],
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -250,11 +229,7 @@ async def export_permissions(
 
 
 @router.post("/import", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_CREATE,
-    resource_type=ResourceType.PERMISSION,
-    description_template="导入权限配置"
-)
+@audit_admin_operation("管理员操作")
 async def import_permissions(
     import_data: list[dict[str, Any]],
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],

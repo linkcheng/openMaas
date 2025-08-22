@@ -372,3 +372,84 @@ class RoleORM(Base):
         secondaryjoin="PermissionORM.permission_id == RolePermissionORM.permission_id",
         lazy="selectin"
     )
+
+
+class AuditLogORM(Base):
+    """审计日志ORM模型（简化版）"""
+    __tablename__ = "audit_logs"
+    __table_args__ = (
+        UniqueConstraint("log_id", name="uq_audit_log_id"), 
+        # 基本索引
+        Index("ix_audit_logs_created_at", "created_at"),
+        # 复合索引 - 优化常见查询
+        Index("ix_audit_logs_user_created", "user_id", "created_at"),
+        Index("ix_audit_logs_action_created", "action", "created_at"),
+    )
+
+    # 自增主键
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True
+    )
+    log_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        unique=True,
+        nullable=False,
+        default=uuid7
+    )
+    # 操作用户信息
+    user_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,  # 系统操作可以为空
+        comment="操作用户ID，系统操作时为空"
+    )
+    username: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="操作用户名快照"
+    )
+
+    # 操作信息
+    action: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        comment="操作类型"
+    )
+    description: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="操作描述"
+    )
+
+    # 请求信息
+    ip_address: Mapped[str | None] = mapped_column(
+        String(45),  # IPv6最大长度
+        nullable=True,
+        comment="客户端IP地址"
+    )
+    user_agent: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="用户代理字符串"
+    )
+
+    # 操作结果
+    success: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="操作是否成功"
+    )
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="错误信息，操作失败时记录"
+    )
+
+    # 时间戳
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="记录创建时间"
+    )

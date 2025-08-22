@@ -494,23 +494,20 @@ class User(AggregateRoot):
         if role not in self._roles:
             self._roles.append(role)
             self.updated_at = datetime.utcnow()
-            # 权限变更时需要使缓存失效
-            self.increment_key_version()
+
 
     def remove_role(self, role: Role) -> None:
         """移除角色"""
         if role in self._roles:
             self._roles.remove(role)
             self.updated_at = datetime.utcnow()
-            # 权限变更时需要使缓存失效
-            self.increment_key_version()
+
 
     def set_roles(self, roles: list[Role]) -> None:
         """设置角色列表（替换现有角色）"""
         self._roles = roles.copy()
         self.updated_at = datetime.utcnow()
-        # 权限变更时需要使缓存失效
-        self.increment_key_version()
+
 
     def has_permission(self, permission_name: str) -> bool:
         """检查是否有权限"""
@@ -562,10 +559,6 @@ class User(AggregateRoot):
         all_permissions = self.get_all_permissions()
         return [perm for perm in all_permissions if perm.module == module or perm.name.value == "*.*.*"]
 
-    def invalidate_permission_cache(self) -> None:
-        """使权限缓存失效"""
-        self.increment_key_version()
-
     def suspend(self, reason: str) -> None:
         """暂停用户"""
         if self.status == UserStatus.SUSPENDED:
@@ -616,3 +609,52 @@ class InvalidCredentialsException(DomainException):
 class EmailNotVerifiedException(DomainException):
     """邮箱未验证异常"""
     pass
+
+
+class AuditLog(Entity):
+    """审计日志实体（简化版）"""
+    
+    def __init__(
+        self,
+        id: UUID | None,
+        user_id: UUID | None,
+        username: str | None,
+        action: str | None,
+        description: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        success: bool = True,
+        error_message: str | None = None,
+        created_at: datetime | None = None
+    ):
+        super().__init__(id)
+        self.user_id = user_id
+        self.username = username
+        self.action = action
+        self.description = description
+        self.ip_address = ip_address
+        self.user_agent = user_agent
+        self.success = success
+        self.error_message = error_message
+        self.created_at = created_at or datetime.utcnow()
+        
+        # 验证领域规则
+        self._validate()
+    
+    def _validate(self) -> None:
+        """验证领域规则"""
+        if not self.description or len(self.description.strip()) == 0:
+            raise ValueError("操作描述不能为空")
+        
+        if not self.success and not self.error_message:
+            raise ValueError("操作失败时必须提供错误信息")
+    
+    @property
+    def is_system_operation(self) -> bool:
+        """是否为系统操作"""
+        return self.user_id is None
+    
+    def get_operation_summary(self) -> str:
+        """获取操作摘要"""
+        actor = self.username if self.username else "系统"
+        return f"{actor} {self.action}"

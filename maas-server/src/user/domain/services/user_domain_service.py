@@ -138,7 +138,7 @@ class UserDomainService:
         user.last_login_at = datetime.utcnow()
 
         # 保存用户
-        await self._user_repository.update(user)
+        await self._user_repository.save(user)
 
         logger.info(f"用户 {user.username} 登录成功")
         return user

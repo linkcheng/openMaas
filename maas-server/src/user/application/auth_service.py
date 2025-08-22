@@ -16,27 +16,15 @@ limitations under the License.
 
 """用户应用层 - 认证服务"""
 
-from datetime import datetime, timedelta
-from typing import Any
-from uuid import UUID
-
-import jwt
-
-from shared.application.exceptions import (
-    ApplicationException,
-    TokenRefreshRequiredException,
-    TokenVersionMismatchException,
-)
-from shared.domain.base import DomainException
+from loguru import logger
 from config.settings import settings
 from user.application.schemas import (
     AuthTokenResponse,
-    RoleResponse,
-    UserProfileResponse,
-    UserResponse,
 )
 from user.domain.services.auth_domain_service import AuthDomainService
 from user.domain.services.user_domain_service import UserDomainService
+from user.domain.models import User
+
 
 class AuthService:
     """认证服务"""
@@ -47,8 +35,8 @@ class AuthService:
 
     async def refresh_access_token(self, refresh_token: str) -> AuthTokenResponse:
         """刷新访问令牌"""
-
-        auth_token = self._auth_domain_svc.refresh_access_token(refresh_token)
+        logger.info(f"刷新访问令牌: {refresh_token}")
+        auth_token = await self._auth_domain_svc.refresh_access_token(refresh_token)
         return AuthTokenResponse(
             access_token=auth_token.access_token,
             refresh_token=refresh_token,
@@ -56,12 +44,10 @@ class AuthService:
             expires_in=auth_token.expires_in,
         )
 
-    async def create_token_response(self, login_id: str, password: str) -> AuthTokenResponse:
+    async def create_token_response(self, user: User) -> AuthTokenResponse:
         """创建令牌响应"""
-        user = await self._user_domain_svc.authenticate_user(login_id, password)
-
-        access_token = self._auth_domain_svc.create_access_token(user.id, user.key_version)
-        refresh_token = self._auth_domain_svc.create_refresh_token(user.id)
+        access_token = self._auth_domain_svc.create_access_token(user)
+        refresh_token = self._auth_domain_svc.create_refresh_token(user)
 
         return AuthTokenResponse(
             access_token=access_token,

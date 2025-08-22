@@ -61,12 +61,6 @@ async_session_factory = async_sessionmaker(
     future=True,           # 启用2.0特性
 )
 
-# async_session_factory = async_sessionmaker(
-#     bind=async_engine,
-#     twophase=True,  # 启用两阶段提交
-#     info={"require_new_connection": True}  # 强制新连接
-# )
-
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_factory() as session:

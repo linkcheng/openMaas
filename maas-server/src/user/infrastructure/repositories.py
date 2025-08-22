@@ -19,13 +19,15 @@ limitations under the License.
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from uuid_extensions import uuid7
 
 from shared.domain.base import EmailAddress
 from shared.infrastructure.repository import SQLAlchemyRepository
+from user.infrastructure.models import AuditLogORM
+
 from user.domain.models import (
     Permission,
     PermissionName,
@@ -34,11 +36,13 @@ from user.domain.models import (
     User,
     UserProfile,
     UserStatus,
+    AuditLog,
 )
 from user.domain.repositories import (
     IPermissionRepository,
     IRoleRepository,
     IUserRepository,
+    IAuditLogRepository,
 )
 from user.infrastructure.models import (
     PermissionORM,
@@ -47,6 +51,7 @@ from user.infrastructure.models import (
     UserORM,
     UserRoleORM,
 )
+
 
 
 class UserRepository(SQLAlchemyRepository[User, UserORM], IUserRepository):
@@ -902,4 +907,200 @@ class PermissionRepository(SQLAlchemyRepository[Permission, PermissionORM], IPer
         orm_obj.module = permission.module
         orm_obj.resource = permission.resource
         orm_obj.action = permission.action
+        return orm_obj
+
+
+class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogRepository):
+    """审计日志仓储（简化版）"""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, AuditLog, AuditLogORM)
+    
+    async def find_with_count(
+        self,
+        user_id: UUID | None = None,
+        action = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        success: bool | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list, int]:
+        """查询审计日志并返回总数"""
+        
+        try:
+            # 构建查询条件
+            conditions = []
+            if user_id is not None:
+                conditions.append(AuditLogORM.user_id == user_id)
+            if action is not None:
+                conditions.append(AuditLogORM.action == action)
+            if start_time is not None:
+                conditions.append(AuditLogORM.created_at >= start_time)
+            if end_time is not None:
+                conditions.append(AuditLogORM.created_at <= end_time)
+            if success is not None:
+                conditions.append(AuditLogORM.success == success)
+            
+            # 构建查询
+            data_query = select(AuditLogORM)
+            count_query = select(func.count(AuditLogORM.id))
+            
+            if conditions:
+                data_query = data_query.where(and_(*conditions))
+                count_query = count_query.where(and_(*conditions))
+            
+            # 执行计数查询
+            count_result = await self.session.execute(count_query)
+            total = count_result.scalar() or 0
+            
+            if total == 0:
+                return [], 0
+            
+            # 执行数据查询
+            data_query = data_query.order_by(AuditLogORM.created_at.desc()).offset(offset).limit(limit)
+            data_result = await self.session.execute(data_query)
+            orm_objects = data_result.scalars().all()
+            
+            # 转换为领域对象
+            logs = []
+            for orm_obj in orm_objects:
+                log = AuditLog(
+                    id=orm_obj.id,
+                    user_id=orm_obj.user_id,
+                    username=orm_obj.username,
+                    action=orm_obj.action,
+                    description=orm_obj.description,
+                    ip_address=orm_obj.ip_address,
+                    user_agent=orm_obj.user_agent,
+                    success=orm_obj.success,
+                    error_message=orm_obj.error_message,
+                    created_at=orm_obj.created_at,
+                )
+                logs.append(log)
+            
+            return logs, total
+            
+        except Exception:
+            await self.session.rollback()
+            raise
+    
+    async def get_stats(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> dict:
+        """获取审计统计信息"""
+        
+        try:
+            # 基本统计
+            conditions = []
+            if start_time is not None:
+                conditions.append(AuditLogORM.created_at >= start_time)
+            if end_time is not None:
+                conditions.append(AuditLogORM.created_at <= end_time)
+            
+            # 总数和成功失败统计
+            stats_query = select(
+                func.count(AuditLogORM.id).label("total"),
+                func.sum(case((AuditLogORM.success == True, 1), else_=0)).label("successful"),
+                func.sum(case((AuditLogORM.success == False, 1), else_=0)).label("failed"),
+                func.count(func.distinct(AuditLogORM.user_id)).label("unique_users")
+            )
+            
+            if conditions:
+                stats_query = stats_query.where(and_(*conditions))
+            
+            stats_result = await self.session.execute(stats_query)
+            stats_row = stats_result.first()
+            
+            # 热门操作统计
+            action_query = select(
+                AuditLogORM.action,
+                func.count(AuditLogORM.id).label("count")
+            ).group_by(AuditLogORM.action).order_by(func.count(AuditLogORM.id).desc()).limit(5)
+            
+            if conditions:
+                action_query = action_query.where(and_(*conditions))
+            
+            action_result = await self.session.execute(action_query)
+            top_actions = [
+                {"action": row.action, "count": row.count}
+                for row in action_result.fetchall()
+            ]
+            
+            return {
+                "total": stats_row.total or 0,
+                "successful": stats_row.successful or 0,
+                "failed": stats_row.failed or 0,
+                "unique_users": stats_row.unique_users or 0,
+                "top_actions": top_actions,
+            }
+            
+        except Exception:
+            await self.session.rollback()
+            raise
+    
+    async def cleanup_old_logs(self, before_date: datetime) -> int:
+        """清理旧的审计日志"""        
+        try:
+            # 先统计要删除的数量
+            count_query = select(func.count(AuditLogORM.id)).where(AuditLogORM.created_at < before_date)
+            count_result = await self.session.execute(count_query)
+            count = count_result.scalar() or 0
+            
+            if count > 0:
+                # 执行删除
+                delete_query = delete(AuditLogORM).where(AuditLogORM.created_at < before_date)
+                await self.session.execute(delete_query)
+                await self.session.commit()
+            
+            return count
+            
+        except Exception:
+            await self.session.rollback()
+            raise
+
+    def _to_domain_entity(self, orm_obj: AuditLogORM) -> AuditLog:
+        """将ORM对象转换为领域实体"""
+        return AuditLog(
+            id=orm_obj.log_id,
+            user_id=orm_obj.user_id,
+            username=orm_obj.username,
+            action=orm_obj.action,
+            description=orm_obj.description,
+            ip_address=orm_obj.ip_address,
+            user_agent=orm_obj.user_agent,
+            success=orm_obj.success,
+            error_message=orm_obj.error_message,
+            created_at=orm_obj.created_at,
+        )
+
+    def _create_orm_object(self, audit_log: AuditLog) -> AuditLogORM:
+        """创建ORM对象"""
+        return AuditLogORM(
+            log_id=audit_log.id,
+            user_id=audit_log.user_id,
+            username=audit_log.username,
+            action=audit_log.action,
+            description=audit_log.description,
+            ip_address=audit_log.ip_address,
+            user_agent=audit_log.user_agent,
+            success=audit_log.success,
+            error_message=audit_log.error_message,
+            created_at=audit_log.created_at,
+        )
+
+    def _update_orm_object(self, orm_obj: AuditLogORM, audit_log: AuditLog) -> AuditLogORM:
+        """更新ORM对象"""
+        orm_obj.log_id = audit_log.id
+        orm_obj.user_id = audit_log.user_id
+        orm_obj.username = audit_log.username
+        orm_obj.action = audit_log.action
+        orm_obj.description = audit_log.description
+        orm_obj.ip_address = audit_log.ip_address
+        orm_obj.user_agent = audit_log.user_agent
+        orm_obj.success = audit_log.success
+        orm_obj.error_message = audit_log.error_message
+        orm_obj.created_at = audit_log.created_at
         return orm_obj

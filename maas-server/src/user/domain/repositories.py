@@ -18,9 +18,10 @@ limitations under the License.
 
 from abc import abstractmethod
 from uuid import UUID
+from datetime import datetime
 
 from shared.domain.base import Repository
-from user.domain.models import Permission, Role, User
+from user.domain.models import Permission, Role, User, AuditLog
 
 
 class IUserRepository(Repository[User]):
@@ -232,3 +233,34 @@ class IPermissionRepository(Repository[Permission]):
         """统计权限数量"""
         pass
 
+
+
+class IAuditLogRepository(Repository[AuditLog]):
+    """审计日志仓储接口"""
+
+    @abstractmethod
+    async def save(self, audit_log: AuditLog) -> AuditLog:
+        """保存审计日志"""
+        pass
+
+    @abstractmethod
+    async def find_with_count(self, 
+        user_id: UUID | None = None, 
+        action = None, start_time: datetime | None = None, 
+        end_time: datetime | None = None, 
+        success: bool | None = None, 
+        limit: int = 20,
+         offset: int = 0
+    ) -> tuple[list, int]:
+        """查找审计日志"""
+        pass
+    
+    @abstractmethod
+    async def get_stats(self, start_time: datetime | None = None, end_time: datetime | None = None) -> dict:
+        """获取统计数据"""
+        pass
+    
+    @abstractmethod
+    async def cleanup_old_logs(self, before_date: datetime) -> int:
+        """清理旧的审计日志"""
+        pass

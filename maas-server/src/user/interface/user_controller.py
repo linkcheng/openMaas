@@ -38,9 +38,10 @@ from user.application.user_service import (
     PasswordHashService,
     UserApplicationService,
 )
-from user.infrastructure.auth_middleware import (
+from user.infrastructure.permission import (
     get_current_user_id,
 )
+from user.application.decorators import audit_user_operation
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -96,6 +97,7 @@ async def update_current_user(
 
 
 @router.post("/me/change-password", response_model=ApiResponse[bool], summary="修改密码")
+@audit_user_operation("修改密码")
 async def change_password(
     request: PasswordChangeRequest,
     user_id: Annotated[UUID, Depends(get_current_user_id)],

@@ -22,8 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from loguru import logger
 
-from audit.domain.models import ActionType, ResourceType
-from audit.shared.decorators import audit_resource_operation, audit_user_operation
+from user.application.decorators import audit_admin_operation
 from shared.application.response import ApiResponse
 from user.application import get_role_application_service
 from user.application.role_service import RoleApplicationService
@@ -34,7 +33,7 @@ from user.application.schemas import (
     RoleUpdateRequest,
     UserRoleAssignRequest,
 )
-from user.infrastructure.auth_middleware import (
+from user.infrastructure.permission import (
     get_current_user_id,
 )
 
@@ -42,11 +41,7 @@ router = APIRouter(prefix="/roles", tags=["角色管理"])
 
 
 @router.post("/permissions", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.PERMISSION_CREATE,
-    resource_type=ResourceType.ROLE,
-    description_template="创建权限"
-)
+@audit_admin_operation("创建权限")
 async def create_permission(
     request: PermissionRequest,
     role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
@@ -69,11 +64,7 @@ async def get_all_permissions(
 
 
 @router.post("", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.ROLE_CREATE,
-    resource_type=ResourceType.ROLE,
-    description_template="创建角色"
-)
+@audit_admin_operation("创建角色")
 async def create_role(
     request: RoleCreateRequest,
     role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
@@ -126,11 +117,7 @@ async def get_role(
 
 
 @router.put("/{role_id}", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.ROLE_UPDATE,
-    resource_type=ResourceType.ROLE,
-    description_template="更新角色"
-)
+@audit_admin_operation("更新角色")
 async def update_role(
     role_id: UUID,
     request: RoleUpdateRequest,
@@ -144,11 +131,7 @@ async def update_role(
 
 
 @router.put("/{role_id}/permissions", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.ROLE_UPDATE,
-    resource_type=ResourceType.ROLE,
-    description_template="更新角色权限"
-)
+@audit_admin_operation("更新角色权限")
 async def update_role_permissions(
     role_id: UUID,
     permission_ids: list[UUID],
@@ -162,11 +145,7 @@ async def update_role_permissions(
 
 
 @router.delete("/{role_id}", response_model=dict)
-@audit_resource_operation(
-    action=ActionType.ROLE_DELETE,
-    resource_type=ResourceType.ROLE,
-    description_template="删除角色"
-)
+@audit_admin_operation("删除角色")
 async def delete_role(
     role_id: UUID,
     role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
@@ -183,11 +162,7 @@ async def delete_role(
 
 
 @router.post("/users/assign", response_model=dict)
-@audit_user_operation(
-    action=ActionType.ROLE_ASSIGN,
-    description="为用户分配角色",
-    extract_target_user=True
-)
+@audit_admin_operation("为用户分配角色")
 async def assign_user_roles(
     request: UserRoleAssignRequest,
     current_user_id: Annotated[UUID, Depends(get_current_user_id)],

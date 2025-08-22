@@ -310,8 +310,6 @@ class FrontendMenuData(BaseModel):
     username: str
 
 
-
-
 # 内部DTO（应用层内部使用）
 class UserCreateCommand(BaseModel):
     """用户创建命令"""
@@ -347,3 +345,77 @@ class UserSearchQuery(BaseModel):
     organization: str | None = None
     limit: int = 20
     offset: int = 0
+
+
+# 审计日志相关 Schema
+class AuditLogCommand(BaseModel):
+    """审计日志记录命令"""
+    user_id: UUID | None = None
+    username: str | None = None
+    action: str = Field(..., description="操作类型")
+    description: str = Field(..., min_length=1, description="操作描述")
+    ip_address: str | None = None
+    user_agent: str | None = None
+    success: bool = True
+    error_message: str | None = None
+
+
+class AuditLogQuery(BaseModel):
+    """审计日志查询"""
+    page: int = Field(1, ge=1, description="页码")
+    page_size: int = Field(20, ge=1, le=100, description="每页数量")
+    user_id: UUID | None = Field(None, description="用户ID筛选")
+    action: str | None = Field(None, description="操作类型筛选")
+    start_time: datetime | None = Field(None, description="开始时间")
+    end_time: datetime | None = Field(None, description="结束时间")
+    success: bool | None = Field(None, description="操作结果筛选")
+
+
+class AuditLogResponse(BaseModel):
+    """审计日志响应"""
+    id: int
+    user_id: UUID | None
+    username: str | None
+    action: str
+    description: str
+    ip_address: str | None
+    user_agent: str | None
+    success: bool
+    error_message: str | None
+    created_at: datetime
+    operation_summary: str
+    is_system_operation: bool
+
+
+class AuditLogListResponse(BaseModel):
+    """审计日志列表响应"""
+    items: list[AuditLogResponse]
+    pagination: dict[str, Any]
+
+
+class AuditStatsQuery(BaseModel):
+    """审计统计查询"""
+    days: int = Field(7, ge=1, le=365, description="统计天数")
+
+
+class AuditStatsResponse(BaseModel):
+    """审计统计响应"""
+    period: str
+    total_operations: int
+    successful_operations: int
+    failed_operations: int
+    unique_users: int
+    top_actions: list[dict[str, Any]]
+    generated_at: str
+
+
+class AuditCleanupCommand(BaseModel):
+    """审计日志清理命令"""
+    days: int = Field(90, ge=30, le=365, description="保留天数")
+
+
+class AuditCleanupResponse(BaseModel):
+    """审计日志清理响应"""
+    deleted_count: int
+    retention_days: int
+    cleanup_time: str

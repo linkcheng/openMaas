@@ -25,8 +25,6 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from audit.interface import router as audit_router
-from audit.shared.middleware import create_audit_middleware
 from config.settings import settings
 from model.interface import router as model_router
 from shared.application.exceptions import ApplicationException, to_http_exception
@@ -39,6 +37,8 @@ from shared.infrastructure.database import (
     init_database,
 )
 from shared.infrastructure.logging_service import get_logging_service
+from shared.middleware import RequestContextMiddleware
+from user.infrastructure.middleware import UserContextMiddleware
 from user.interface import router as user_router
 
 _ = get_logging_service()
@@ -106,8 +106,10 @@ app.add_middleware(
     allowed_hosts=settings.security.trusted_hosts
 )
 
+app.add_middleware(RequestContextMiddleware)
 
-create_audit_middleware(app)
+# 添加用户上下文中间件（在请求上下文中间件之后）
+app.add_middleware(UserContextMiddleware)
 
 
 # 全局异常处理器
@@ -207,7 +209,7 @@ async def root():
 
 # 注册路由
 app.include_router(user_router)
-app.include_router(audit_router)
+# audit路由已合并到user模块中
 app.include_router(model_router)
 
 

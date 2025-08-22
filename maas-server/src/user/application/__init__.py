@@ -20,6 +20,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.infrastructure.database import get_db_session
+from user.application.audit_service import AuditApplicationService
 from user.application.auth_service import AuthService
 from user.application.permission_service import PermissionApplicationService
 from user.application.role_service import RoleApplicationService
@@ -28,7 +29,9 @@ from user.domain.repositories import (
     IPermissionRepository,
     IRoleRepository,
     IUserRepository,
+    IAuditLogRepository,
 )
+from user.domain.services.audit_domain_service import AuditDomainService
 from user.domain.services.auth_domain_service import AuthDomainService
 from user.domain.services.permission_domain_service import PermissionDomainService
 from user.domain.services.role_domain_service import RoleDomainService
@@ -39,6 +42,7 @@ from user.domain.services.permission_calculation_service import PermissionCalcul
 from user.infrastructure.email_service import EmailVerificationService
 from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.repositories import (
+    AuditLogRepository,
     PermissionRepository,
     RoleRepository,
     UserRepository,
@@ -57,6 +61,10 @@ async def get_permission_repository(db: AsyncSession = Depends(get_db_session)) 
 async def get_role_repository(db: AsyncSession = Depends(get_db_session)) -> AsyncGenerator[IRoleRepository, None]:
     """获取角色仓储"""
     yield RoleRepository(session=db)
+
+async def get_audit_repository(db: AsyncSession = Depends(get_db_session)) -> AsyncGenerator[IAuditLogRepository, None]:
+    """获取审计仓储"""
+    yield AuditLogRepository(session=db)
 
 
 # Infrastructure Service Dependencies
@@ -128,6 +136,12 @@ async def get_auth_domain_service(
     """获取认证领域服务"""
     yield AuthDomainService(user_repo)
 
+async def get_audit_domain_service(
+    audit_repo: IAuditLogRepository = Depends(get_audit_repository),
+) -> AsyncGenerator[AuditDomainService, None]:
+    """获取审计领域服务"""
+    yield AuditDomainService(audit_repo)
+
 
 # Application Service Dependencies
 async def get_user_application_service(
@@ -158,7 +172,11 @@ async def get_permission_application_service(
         permission_domain_service=permission_domain_service,
     )
 
-
+async def get_audit_application_service(
+    audit_domain_service: AuditDomainService = Depends(get_audit_domain_service),
+) -> AsyncGenerator[AuditApplicationService, None]:
+    """获取审计应用服务"""
+    yield AuditApplicationService(audit_domain_service=audit_domain_service)
 
 async def get_auth_service(
     auth_domain_svc: AuthDomainService = Depends(get_auth_domain_service),
