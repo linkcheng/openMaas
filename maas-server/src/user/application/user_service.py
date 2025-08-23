@@ -297,14 +297,20 @@ class UserApplicationService:
         )
 
         roles = []
+        is_system_role = False
         for role in user.roles:
+            if role.is_system_role:
+                is_system_role = True
+
             role_permissions = []
             for perm in role.permissions:
-                role_permissions.append(f"{perm.resource}:{perm.action}")
+                role_permissions.append(f"{perm.module}.{perm.resource}:{perm.action}")
 
             roles.append(RoleResponse(
                 id=role.id,
                 name=role.name,
+                role_type=role.role_type,
+                is_system_role=role.is_system_role,
                 description=role.description,
                 permissions=role_permissions
             ))
@@ -316,6 +322,7 @@ class UserApplicationService:
             profile=profile,
             status=user.status,
             email_verified=user.email_verified,
+            is_system_role=is_system_role,
             roles=roles,
             created_at=user.created_at,
             updated_at=user.updated_at,

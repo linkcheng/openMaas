@@ -53,7 +53,6 @@ from user.infrastructure.models import (
 )
 
 
-
 class UserRepository(SQLAlchemyRepository[User, UserORM], IUserRepository):
     """SQLAlchemy用户仓储实现"""
 

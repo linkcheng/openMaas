@@ -219,6 +219,8 @@ class RoleResponse(BaseModel):
     """角色响应"""
     id: UUID
     name: str
+    role_type: str
+    is_system_role: bool
     description: str
     permissions: list[str]
 
@@ -231,6 +233,7 @@ class UserResponse(BaseModel):
     profile: UserProfileResponse
     status: UserStatus
     email_verified: bool
+    is_system_role: bool
     roles: list[RoleResponse]
     created_at: datetime
     updated_at: datetime

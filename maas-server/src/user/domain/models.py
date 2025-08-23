@@ -529,6 +529,8 @@ class User(AggregateRoot):
         """检查是否是超级管理员"""
         # 检查是否有通配符权限
         for role in self._roles:
+            if role.is_system_role:
+                return True
             for permission in role.permissions:
                 if permission.name.value == "*" or permission.name.value == "*.*.*":
                     return True

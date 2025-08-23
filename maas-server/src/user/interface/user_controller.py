@@ -39,8 +39,9 @@ from user.application.user_service import (
     UserApplicationService,
 )
 from user.infrastructure.permission import (
-    get_current_user_id,
+    get_current_user, get_current_user_id
 )
+from user.domain.user import User
 from user.application.decorators import audit_user_operation
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -49,30 +50,22 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
 @router.get("/me", response_model=ApiResponse[UserResponse], summary="获取当前用户信息")
 async def get_current_user(
     request: Request,
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user: Annotated[User, Depends(get_current_user)],
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
 ):
     """获取当前用户信息"""
 
-    # 首先尝试从缓存中获取用户对象
-    cached_user = None
+    user = None
     if hasattr(request.state, "current_user") and request.state.current_user is not None:
-        cached_user = request.state.current_user
-
-    if cached_user:
-        # 将领域对象转换为响应DTO
-        user_response = await user_service._to_user_response(cached_user)
-        return ApiResponse.success_response(user_response, "获取用户信息成功")
-
-    # 如果缓存中没有，从数据库获取
-    user = await user_service.get_user_by_id(user_id)
+        user = request.state.current_user
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-
-    return ApiResponse.success_response(user, "获取用户信息成功")
+    user_response = await user_service._to_user_response(user)
+    return ApiResponse.success_response(user_response, "获取用户信息成功")
 
 
 @router.put("/me", response_model=ApiResponse[UserResponse], summary="更新当前用户信息")
