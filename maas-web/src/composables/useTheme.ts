@@ -1,8 +1,7 @@
 import { ref, computed, watch } from 'vue'
+import { LocalStorageCache, CACHE_KEYS } from '../utils/cache'
 
 export type Theme = 'light' | 'dark' | 'auto'
-
-const THEME_STORAGE_KEY = 'maas-theme'
 
 // 主题状态
 const currentTheme = ref<Theme>('auto')
@@ -39,8 +38,8 @@ const updateTheme = () => {
 
 // 初始化主题
 const initTheme = () => {
-  // 从本地存储读取主题设置
-  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme
+  // 从缓存读取主题设置（永久缓存）
+  const savedTheme = LocalStorageCache.get<Theme>(CACHE_KEYS.USER_THEME)
   if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
     currentTheme.value = savedTheme
   }
@@ -62,7 +61,8 @@ export function useTheme() {
   // 设置主题
   const setTheme = (theme: Theme) => {
     currentTheme.value = theme
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
+    // 永久缓存主题设置
+    LocalStorageCache.set(CACHE_KEYS.USER_THEME, theme, Number.MAX_SAFE_INTEGER)
     updateTheme()
   }
 

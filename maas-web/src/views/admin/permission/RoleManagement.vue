@@ -308,8 +308,7 @@ const handleCreateRole = () => {
 }
 
 const handleViewRole = (role: Role) => {
-  // 可以导航到详情页面或显示详情对话框
-  console.log('查看角色:', role)
+  // TODO: 导航到详情页面或显示详情对话框
 }
 
 const handleEditRole = (role: Role) => {

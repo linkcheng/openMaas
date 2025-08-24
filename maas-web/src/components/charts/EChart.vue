@@ -20,8 +20,34 @@ limitations under the License.
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import * as echarts from 'echarts'
-import type { ECharts, EChartsOption } from 'echarts'
+// 按需导入 ECharts 核心模块
+import * as echarts from 'echarts/core'
+import type { EChartsOption, EChartsType } from 'echarts/core'
+// 按需导入图表类型
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+// 按需导入组件
+import {
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  ToolboxComponent
+} from 'echarts/components'
+// 导入渲染器
+import { CanvasRenderer } from 'echarts/renderers'
+
+// 注册必须的组件
+echarts.use([
+  BarChart,
+  LineChart,
+  PieChart,
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  ToolboxComponent,
+  CanvasRenderer
+])
 
 interface Props {
   option: EChartsOption
@@ -37,7 +63,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const chartContainer = ref<HTMLElement>()
-let chart: ECharts | null = null
+let chart: EChartsType | null = null
 let resizeHandler: (() => void) | null = null
 
 // 初始化图表

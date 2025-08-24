@@ -21,6 +21,7 @@
 
 import { sm2 } from 'sm-crypto'
 import { apiClient, handleApiError } from './api'
+import { LocalStorageCache, CACHE_KEYS } from './cache'
 
 /**
  * 十六进制字符串转Base64（浏览器兼容）
@@ -42,11 +43,6 @@ export interface SM2PublicKey {
 }
 
 export class SM2CryptoUtil {
-  /**
-   * localStorage缓存key
-   */
-  private static readonly LOCAL_KEY = 'sm2_public_key_cache'
-  private static readonly CACHE_EXPIRE_MS = 24 * 60 * 60 * 1000 // 24小时
 
   /**
    * 使用SM2公钥加密数据
@@ -75,36 +71,23 @@ export class SM2CryptoUtil {
   }
 
   /**
-   * 获取服务器公钥（带localStorage缓存，24小时有效）
+   * 获取服务器公钥（带缓存，24小时有效）
    * @returns Promise<SM2PublicKey> 公钥信息
    */
   static async getPublicKey(): Promise<SM2PublicKey> {
-    // 1. 先查localStorage缓存
-    const cacheStr = localStorage.getItem(this.LOCAL_KEY)
-    if (cacheStr) {
-      try {
-        const cacheObj = JSON.parse(cacheStr)
-        if (cacheObj && cacheObj.data && cacheObj.ts) {
-          const now = Date.now()
-          if (now - cacheObj.ts < this.CACHE_EXPIRE_MS) {
-            return cacheObj.data as SM2PublicKey
-          } else {
-            // 过期，清理
-            localStorage.removeItem(this.LOCAL_KEY)
-          }
-        }
-      } catch {
-        // 解析失败，清理
-        localStorage.removeItem(this.LOCAL_KEY)
-      }
+    // 先查缓存
+    const cached = LocalStorageCache.get<SM2PublicKey>(CACHE_KEYS.SM2_PUBLIC_KEY)
+    if (cached) {
+      return cached
     }
-    // 2. 无缓存或过期，请求接口
+    
+    // 请求接口
     try {
       const response = await apiClient.auth.getPublicKey()
       if (response.data.success && response.data.data) {
         const keyInfo = response.data.data as SM2PublicKey
-        // 写入localStorage
-        localStorage.setItem(this.LOCAL_KEY, JSON.stringify({ data: keyInfo, ts: Date.now() }))
+        // 缓存24小时
+        LocalStorageCache.set(CACHE_KEYS.SM2_PUBLIC_KEY, keyInfo, 24 * 60 * 60 * 1000)
         return keyInfo
       } else {
         throw new Error(response.data.error || '获取公钥失败')

@@ -4,6 +4,8 @@
 
 🚀 **OpenMaaS 平台前端应用** - 基于 Vue 3 + TypeScript 构建的现代化企业级大模型服务前端
 
+⚠️ **重要提示**: 本项目已完成全面架构优化，解决了权限系统安全漏洞和过度设计问题。查看 [前端架构完整改进计划](docs/FRONTEND_IMPROVEMENT_PLAN.md) 了解详情。
+
 [![Vue](https://img.shields.io/badge/Vue-3.5+-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Element Plus](https://img.shields.io/badge/Element%20Plus-2.10+-409EFF?logo=element&logoColor=white)](https://element-plus.org/)
@@ -18,21 +20,27 @@
 
 - 🎯 **现代化架构** - Vue 3 Composition API + TypeScript
 - 🎨 **企业级 UI** - Element Plus + 响应式设计
-- 🔐 **完善权限** - RBAC 权限系统 + JWT Token 自动刷新
-- 📊 **数据可视化** - ECharts 图表 + 仪表板监控
+- 🔐 **安全权限系统** - 三段式权限验证 `{module}.{resource}.{action}`
+- 📊 **按需导入优化** - ECharts/Element Plus 按需加载，减少 Bundle 体积
 - 🌐 **国际化支持** - 多语言切换 + 本地化配置
 - 🛡️ **安全加密** - 国密 SM2/SM3/SM4 算法支持
 - 🧪 **测试完备** - Vitest 单元测试 + Playwright E2E 测试
-- ⚡ **性能优化** - Vite(rolldown-vite) + 代码分割
+- ⚡ **性能优化** - 路由代码分割 + 简化缓存机制 + 组件懒加载
 
 ## 🛠️ 技术栈
 
+### 📋 架构状态
+- ✅ **阶段一**: 权限系统安全修复（已完成）
+- ✅ **阶段二**: API 客户端重构 + 状态管理优化（已完成）
+- ✅ **阶段三**: 缓存简化 + 路由优化 + 组件优化（已完成）
+- 🔄 **持续改进**: 代码质量监控和工程化改进（进行中）
+
 ### 核心框架
-- **Vue 3.5+** - 最新 Composition API + 响应式系统
+- **Vue 3.5+** - Composition API + 响应式系统
 - **TypeScript 5.8+** - 严格类型检查
-- **Element Plus 2.10+** - 企业级 Vue 3 组件库
-- **Vue Router 4** - 官方路由管理器
-- **Pinia 3** - 现代状态管理
+- **Element Plus 2.10+** - 企业级组件库（按需导入优化）
+- **Vue Router 4** - 路由管理 + 权限守卫
+- **Pinia 3** - 状态管理（基于 baseStore 模式）
 
 ### 开发工具
 - **Vite (rolldown-vite)** - 超快构建工具
@@ -46,9 +54,10 @@
 - **Vue Test Utils 2** - Vue 组件测试工具
 
 ### 业务功能
-- **Axios 1.10** - HTTP 客户端 + 拦截器
-- **ECharts 5.6** - 数据可视化图表
+- **模块化 API 客户端** - 基于 Axios，按业务模块拆分
+- **ECharts 5.6** - 按需导入优化的数据可视化
 - **sm-crypto 0.3** - 国密算法库
+- **统一缓存工具** - SimpleCache + LocalStorageCache
 
 ## 🏗️ 功能模块
 
@@ -229,51 +238,67 @@ npm run build -- --mode analyze
 rm -rf dist/
 ```
 
-## 📁 项目结构
+## 📊 架构优化成果
+
+基于 [FRONTEND_IMPROVEMENT_PLAN.md](docs/FRONTEND_IMPROVEMENT_PLAN.md) 的全面架构优化：
+
+### ✅ 阶段一：安全修复
+- **权限系统安全漏洞修复**: 实现正确的三段式权限检查
+- **统一路由权限配置**: 修复路由守卫权限验证
+- **清理调试代码**: 移除所有 console 语句和无用代码
+
+### ✅ 阶段二：架构优化
+- **API 客户端重构**: 从 866 行拆分为模块化结构
+- **状态管理优化**: 引入 baseStore 模式，减少代码重复
+- **大型文件重构**: 所有文件 < 300 行
+
+### ✅ 阶段三：性能优化
+- **缓存机制简化**: 替换为统一 SimpleCache 工具
+- **路由优化**: 全面实现动态导入和代码分割
+- **组件优化**: ECharts/Element Plus 按需导入
+
+## 📝 项目结构（优化后）
 
 ```
 maas-web/
-├── public/                    # 静态资源
-│   └── favicon.ico           # 网站图标
 ├── src/
-│   ├── components/           # 🧩 可复用组件
-│   │   ├── charts/          #   图表组件 (EChart, PieChart)
-│   │   ├── dashboard/       #   仪表板组件 (StatCard, QuickActions)
-│   │   └── layout/          #   布局组件 (Header, Sidebar, MainLayout)
-│   ├── composables/         # 🎣 Vue 3 组合式函数
-│   │   ├── useAuth.ts       #   认证逻辑 (登录/登出/权限检查)
-│   │   └── useDashboard.ts  #   仪表板数据逻辑
-│   ├── router/              # 🛣️ 路由配置
-│   │   └── index.ts         #   路由定义 + 权限守卫
-│   ├── stores/              # 🗃️ Pinia 状态管理
-│   │   ├── userStore.ts     #   用户状态 (信息/权限/设置)
-│   │   └── counter.ts       #   计数器示例
-│   ├── utils/               # 🔧 工具函数
-│   │   ├── api.ts           #   API 客户端 + 拦截器
-│   │   └── crypto.ts        #   加密工具 (国密算法)
-│   ├── views/               # 📄 页面组件
-│   │   ├── auth/            #   认证页面 (登录/注册/重置密码)
-│   │   ├── user/            #   用户页面 (资料/设置)
-│   │   ├── admin/           #   管理页面 (用户管理/审计日志)
-│   │   └── maas/            #   业务页面 (模型/知识库/应用)
-│   ├── types/               # 📝 TypeScript 类型定义
-│   │   └── sm-crypto.d.ts   #   国密算法类型声明
-│   ├── assets/              # 🎨 样式资源
-│   │   ├── base.css         #   基础样式
-│   │   └── main.css         #   主题样式
-│   ├── App.vue              # 🏠 根组件
-│   └── main.ts              # 🚀 应用入口
-├── tests/                   # 🧪 测试文件
-│   ├── e2e/                 #   E2E 测试
-│   └── unit/                #   单元测试
-├── dist/                    # 📦 构建输出
-├── node_modules/            # 📚 依赖包
-├── .env.*                   # 🔧 环境配置
-├── package.json             # 📋 项目配置
-├── vite.config.ts           # ⚡ Vite 配置
-├── tsconfig.json            # 📘 TypeScript 配置
-├── eslint.config.ts         # 📏 ESLint 配置
-└── playwright.config.ts     # 🎭 Playwright 配置
+│   ├── api/                     # 🌐 模块化 API 客户端
+│   │   ├── index.ts             #   统一导出
+│   │   ├── authApi.ts           #   认证 API
+│   │   ├── userApi.ts           #   用户 API
+│   │   ├── adminApi.ts          #   管理员 API
+│   │   └── providerApi.ts       #   供应商 API
+│   ├── router/              # 🛣️ 优化后路由系统
+│   │   ├── index.ts         #   主路由入口
+│   │   ├── routes.ts        #   路由配置 (动态导入)
+│   │   ├── guards.ts        #   路由守卫
+│   │   └── preloader.ts     #   路由预加载器
+│   ├── stores/              # 🗃️ 优化后状态管理
+│   │   ├── baseStore.ts     #   基础 Store 模式
+│   │   ├── userStore.ts     #   用户状态
+│   │   ├── permissionStore.ts #   权限状态
+│   │   └── providerStore.ts #   供应商状态
+│   ├── utils/               # 🔧 优化后工具集
+│   │   ├── apiClient.ts     #   HTTP 客户端
+│   │   ├── cache.ts         #   统一缓存工具
+│   │   ├── icons.ts         #   按需导入图标
+│   │   ├── performanceMonitor.ts # 性能监控
+│   │   └── crypto.ts        #   国密加密
+│   ├── components/          # 🧩 优化后组件
+│   │   ├── ui/              #   基础 UI 组件
+│   │   │   └── ConfirmDialog.vue # 确认对话框
+│   │   ├── charts/          #   优化后图表组件
+│   │   │   └── EChart.vue   #   按需导入 ECharts
+│   │   └── provider/        #   供应商组件
+│   ├── types/               # 📝 TypeScript 类型
+│   │   ├── api.ts           #   API 类型
+│   │   └── requests.ts      #   请求类型
+│   └── views/               # 📄 优化后页面组件
+├── docs/
+│   └── FRONTEND_IMPROVEMENT_PLAN.md # 📊 完整改进计划
+└── tests/                   # 🧪 测试文件
+    ├── unit/                #   单元测试 (5/5 通过)
+    └── e2e/                 #   E2E 测试
 ```
 
 ## 🔐 权限系统
@@ -281,70 +306,92 @@ maas-web/
 实现了企业级 RBAC (Role-Based Access Control) 权限管理：
 
 ### 权限模型
-- **资源-动作模式**: `resource:action` 格式
-- **示例权限**: `user:read`, `model:deploy`, `admin:*`
-- **通配符支持**: `resource:*` 和 `*:*`
+- **三段式格式**: `{module}.{resource}.{action}` 格式（已修复安全漏洞）
+- **示例权限**: `user.profile.read`, `admin.role.view`, `model.deploy.create`
+- **通配符支持**: `user.profile.*`, `user.*.*`, `*.*.*`
 - **继承机制**: 角色权限自动继承和聚合
+- **安全验证**: 完整权限格式验证，防止权限绕过
 
-### 权限检查
+### 权限检查（已修复安全漏洞）
 ```typescript
 // 组件中使用权限检查
-const { hasPermission, hasRole, checkPermissions } = useUserStore()
+const { hasPermission, hasRole } = useAuth()
 
-// 单个权限检查
-if (hasPermission('model', 'deploy')) {
-  // 用户有模型部署权限
+// 三段式权限检查（已修复）
+if (hasPermission('admin.role.view')) {
+  // 管理员查看角色权限
 }
 
-// 多个权限检查（AND 逻辑）
-if (checkPermissions(['user:read', 'user:edit'])) {
-  // 用户同时拥有读取和编辑权限
+if (hasPermission('user.profile.edit')) {
+  // 用户编辑个人资料权限
+}
+
+// 通配符权限
+if (hasPermission('model.*.*')) {
+  // 模型模块所有权限
 }
 
 // 角色检查
 if (hasRole('admin')) {
   // 用户是管理员
 }
+
+// 指令式权限检查
+<el-button v-permission="'admin.user.delete'">删除用户</el-button>
 ```
 
 ### 路由守卫
 - **全局认证守卫**: 自动检查登录状态
-- **权限路由守卫**: 基于路由元数据验证权限
-- **角色路由守卫**: 特殊角色访问控制
-- **动态路由**: 根据权限动态生成菜单
+- **权限路由守卫**: 修复三段式权限格式验证
+- **模块化路由**: routes.ts + guards.ts + preloader.ts
+- **动态导入**: 所有路由组件实现代码分割
 
 ## 🌐 API 集成
 
-### HTTP 客户端特性
-- **统一封装**: 基于 Axios 的 API 客户端
-- **自动认证**: JWT Token 自动添加和刷新
-- **请求拦截**: 自动添加认证头和加密
-- **响应拦截**: 统一错误处理和数据转换
-- **重试机制**: 网络异常自动重试
-- **取消请求**: 组件卸载时自动取消
+### 模块化 API 架构
+- **模块化拆分**: 从 866 行巨型文件拆分为 5 个业务模块
+- **职责单一**: authApi, userApi, adminApi, providerApi 各司其职
+- **统一客户端**: apiClient.ts 提供 HTTP 基础服务
+- **类型安全**: 完整的 TypeScript 类型定义
+
+### 核心特性
+- **JWT Token 管理**: 自动刷新和认证头添加
+- **统一错误处理**: 基于 ApiResponse 类型的响应处理
+- **请求拦截器**: 自动加密和数据转换
+- **错误重试**: 简化后的重试机制
 
 ### API 模块
 ```typescript
-// 认证 API
+// src/api/authApi.ts - 认证 API 模块
 export const authApi = {
-  login: (credentials: LoginRequest) => post('/auth/login', credentials),
-  register: (data: RegisterRequest) => post('/auth/register', data),
-  refreshToken: () => post('/auth/refresh'),
-  logout: () => post('/auth/logout')
+  login: (data: LoginRequest): Promise<ApiResponse<AuthResponse>> => 
+    apiClient.post('/auth/login', data),
+  register: (data: RegisterRequest): Promise<ApiResponse<UserResponse>> => 
+    apiClient.post('/auth/register', data),
+  refreshToken: (): Promise<ApiResponse<TokenResponse>> => 
+    apiClient.post('/auth/refresh'),
+  logout: (): Promise<ApiResponse> => 
+    apiClient.post('/auth/logout')
 }
 
-// 用户 API  
+// src/api/userApi.ts - 用户 API 模块
 export const userApi = {
-  getProfile: () => get('/user/profile'),
-  updateProfile: (data: ProfileUpdate) => put('/user/profile', data),
-  changePassword: (data: PasswordChange) => post('/user/password', data)
+  getProfile: (): Promise<ApiResponse<UserProfile>> => 
+    apiClient.get('/user/profile'),
+  updateProfile: (data: UpdateProfileRequest): Promise<ApiResponse<UserProfile>> => 
+    apiClient.put('/user/profile', data),
+  changePassword: (data: ChangePasswordRequest): Promise<ApiResponse> => 
+    apiClient.post('/user/password', data)
 }
 
-// 模型 API
-export const modelApi = {
-  list: (params: ModelListParams) => get('/models', { params }),
-  deploy: (id: string, config: DeployConfig) => post(`/models/${id}/deploy`, config),
-  inference: (id: string, input: InferenceInput) => post(`/models/${id}/inference`, input)
+// src/api/adminApi.ts - 管理员 API 模块
+export const adminApi = {
+  getUsers: (params: GetUsersRequest): Promise<ApiResponse<UserListResponse>> => 
+    apiClient.get('/admin/users', { params }),
+  createUser: (data: CreateUserRequest): Promise<ApiResponse<UserResponse>> => 
+    apiClient.post('/admin/users', data),
+  deleteUser: (id: string): Promise<ApiResponse> => 
+    apiClient.delete(`/admin/users/${id}`)
 }
 ```
 

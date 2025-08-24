@@ -251,20 +251,15 @@ export const useAuth = () => {
     }
   }
 
-  // 权限检查
+  // 权限检查 - 支持 module.resource.action 格式
   const hasPermission = (permission: string): boolean => {
     if (!isAuthenticated.value) return false
     
     // 如果是管理员，默认拥有所有权限
     if (isAdmin.value) return true
     
-    // 支持resource.action格式或直接权限字符串
-    if (permission.includes('.')) {
-      return userStore.hasPermission(permission)
-    } else {
-      // 向后兼容：假设是resource.action的拆分调用
-      return userStore.hasPermission(permission)
-    }
+    // 使用userStore的权限检查逻辑
+    return userStore.hasPermission(permission)
   }
 
   // 检查多个权限（任一匹配）

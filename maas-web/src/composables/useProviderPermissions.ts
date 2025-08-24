@@ -24,12 +24,9 @@ import { useAuth } from '@/composables/useAuth'
 export const useProviderPermissions = () => {
   const { isAdmin, hasPermission, hasRole, isAuthenticated } = useAuth()
 
-  // 暂时移除权限检查，让所有用户都能访问供应商管理功能
-  // TODO: 后续添加完整的权限系统后再启用具体的权限控制
-  
-  // 基础权限检查 - 只要用户已认证就允许访问
+  // 基础权限检查 - 使用完整的权限系统
   const canAccessProviderManagement = computed(() => {
-    return isAuthenticated.value
+    return isAuthenticated.value && (isAdmin.value || hasPermission('admin.provider.view'))
   })
 
   // 查看权限 - 允许所有已认证用户查看

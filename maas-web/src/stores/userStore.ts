@@ -72,10 +72,26 @@ export const useUserStore = defineStore('user', () => {
     () => user.value?.roles.some((role) => role.name === 'developer') || false,
   )
 
-  // 权限检查 - 暂时简化，只要用户已认证就返回 true
-  const hasPermission = (resource: string, action: string): boolean => {
-    // 只要用户已登录就允许所有权限
-    return !!user.value
+  // 权限检查 - 支持 module.resource.action 三段式权限结构
+  const hasPermission = (permission: string): boolean => {
+    if (!user.value) return false
+    
+    // 验证权限格式
+    const parts = permission.split('.')
+    if (parts.length !== 3) {
+      console.warn(`Invalid permission format: ${permission}. Expected: module.resource.action`)
+      return false
+    }
+    
+    const [module, resource, action] = parts
+    
+    // 检查用户角色中的权限
+    return user.value.roles.some(role =>
+      role.permissions.includes(permission) ||                    // 完整权限: user.profile.read
+      role.permissions.includes(`${module}.${resource}.*`) ||     // 资源级通配符: user.profile.*
+      role.permissions.includes(`${module}.*.*`) ||               // 模块级通配符: user.*.*
+      role.permissions.includes('*.*.*')                          // 超级权限: *.*.*
+    )
   }
 
   // 角色检查 - 暂时简化，只要用户已认证就返回 true

@@ -446,12 +446,8 @@ const saveProfile = async () => {
       updateData.avatar_url = form.avatar_url
     }
 
-    console.log('发送更新数据:', updateData)
-
     // 调用 /users/me API 更新用户资料
     const response = await apiClient.users.updateProfile(updateData)
-
-    console.log('更新响应:', response.data)
 
     if (response.data.success) {
       // 更新成功后，重新加载用户信息

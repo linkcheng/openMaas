@@ -299,6 +299,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
 import DialogOverlay from '../ui/DialogOverlay.vue'
 import type { Provider } from '../../types/providerTypes'
 import { PROVIDER_TYPE_OPTIONS, PROVIDER_ICONS } from '../../types/providerTypes'
@@ -430,8 +431,7 @@ const copyToClipboard = async (text: string, isSensitive = false) => {
 
   try {
     await navigator.clipboard.writeText(text)
-    // TODO: Show success toast
-    console.log('Copied to clipboard')
+    ElMessage.success('复制成功')
   } catch (error) {
     console.error('Failed to copy to clipboard:', error)
     // Fallback for older browsers

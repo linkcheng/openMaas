@@ -15,6 +15,7 @@
  */
 
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
+import { memoryCache } from './cache'
 
 /**
  * 防抖函数
@@ -194,192 +195,30 @@ export function useVirtualScroll<T>(
   }
 }
 
-/**
- * API 响应缓存
- */
-class ApiCache {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
-
-  set(key: string, data: any, ttl = 5 * 60 * 1000) {
-    // 默认5分钟
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl,
-    })
-  }
-
-  get(key: string) {
-    const item = this.cache.get(key)
-    if (!item) return null
-
-    const now = Date.now()
-    if (now - item.timestamp > item.ttl) {
-      this.cache.delete(key)
-      return null
-    }
-
-    return item.data
-  }
-
-  has(key: string): boolean {
-    const item = this.cache.get(key)
-    if (!item) return false
-
-    const now = Date.now()
-    if (now - item.timestamp > item.ttl) {
-      this.cache.delete(key)
-      return false
-    }
-
-    return true
-  }
-
-  delete(key: string) {
-    this.cache.delete(key)
-  }
-
-  clear() {
-    this.cache.clear()
-  }
-
-  // 清理过期缓存
-  cleanup() {
-    const now = Date.now()
-    for (const [key, item] of this.cache.entries()) {
-      if (now - item.timestamp > item.ttl) {
-        this.cache.delete(key)
-      }
-    }
-  }
-}
-
-export const apiCache = new ApiCache()
-
-// 定期清理过期缓存
-setInterval(() => {
-  apiCache.cleanup()
-}, 60 * 1000) // 每分钟清理一次
+// 简化的API缓存（使用统一缓存工具）
 
 /**
- * 缓存装饰器
- * @param cacheKey 缓存键
- * @param ttl 缓存时间（毫秒）
- * @returns 装饰器函数
+ * 缓存API响应
+ * @param key 缓存键
+ * @param fetchFn 获取数据的函数
+ * @param ttlMs 缓存时间（毫秒），默认5分钟
  */
-export function cached(cacheKey: string, ttl?: number) {
-  return function <T extends (...args: any[]) => Promise<any>>(
-    target: any,
-    propertyName: string,
-    descriptor: TypedPropertyDescriptor<T>,
-  ) {
-    const method = descriptor.value!
-
-    descriptor.value = async function (this: any, ...args: any[]) {
-      const key = `${cacheKey}:${JSON.stringify(args)}`
-
-      if (apiCache.has(key)) {
-        return apiCache.get(key)
-      }
-
-      const result = await method.apply(this, args)
-      apiCache.set(key, result, ttl)
-
-      return result
-    } as T
+export async function cacheApiResponse<T>(
+  key: string,
+  fetchFn: () => Promise<T>,
+  ttlMs = 5 * 60 * 1000
+): Promise<T> {
+  // 检查缓存
+  const cached = memoryCache.get<T>(key)
+  if (cached) {
+    return cached
   }
+
+  // 获取数据并缓存
+  const result = await fetchFn()
+  memoryCache.set(key, result, ttlMs)
+  return result
 }
-
-/**
- * 性能监控
- */
-export class PerformanceMonitor {
-  private static instance: PerformanceMonitor
-  private metrics = new Map<string, number[]>()
-
-  static getInstance(): PerformanceMonitor {
-    if (!PerformanceMonitor.instance) {
-      PerformanceMonitor.instance = new PerformanceMonitor()
-    }
-    return PerformanceMonitor.instance
-  }
-
-  // 测量函数执行时间
-  measure<T>(name: string, fn: () => T): T {
-    const start = performance.now()
-    const result = fn()
-    const end = performance.now()
-
-    this.recordMetric(name, end - start)
-    return result
-  }
-
-  // 测量异步函数执行时间
-  async measureAsync<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    const start = performance.now()
-    const result = await fn()
-    const end = performance.now()
-
-    this.recordMetric(name, end - start)
-    return result
-  }
-
-  // 记录指标
-  recordMetric(name: string, value: number) {
-    if (!this.metrics.has(name)) {
-      this.metrics.set(name, [])
-    }
-
-    const values = this.metrics.get(name)!
-    values.push(value)
-
-    // 只保留最近100个记录
-    if (values.length > 100) {
-      values.shift()
-    }
-  }
-
-  // 获取指标统计
-  getStats(name: string) {
-    const values = this.metrics.get(name)
-    if (!values || values.length === 0) {
-      return null
-    }
-
-    const sorted = [...values].sort((a, b) => a - b)
-    const sum = values.reduce((a, b) => a + b, 0)
-
-    return {
-      count: values.length,
-      min: sorted[0],
-      max: sorted[sorted.length - 1],
-      avg: sum / values.length,
-      median: sorted[Math.floor(sorted.length / 2)],
-      p95: sorted[Math.floor(sorted.length * 0.95)],
-      p99: sorted[Math.floor(sorted.length * 0.99)],
-    }
-  }
-
-  // 获取所有指标
-  getAllStats() {
-    const stats: Record<string, any> = {}
-    for (const name of this.metrics.keys()) {
-      stats[name] = this.getStats(name)
-    }
-    return stats
-  }
-
-  // 清除指标
-  clearMetrics(name?: string) {
-    if (name) {
-      this.metrics.delete(name)
-    } else {
-      this.metrics.clear()
-    }
-  }
-}
-
-export const performanceMonitor = PerformanceMonitor.getInstance()
 
 /**
  * 资源预加载
@@ -408,72 +247,10 @@ export function preloadResources(urls: string[], type: 'image' | 'script' | 'sty
   })
 }
 
-/**
- * 检测设备性能
- */
-export function getDevicePerformance() {
-  // 检测设备内存
-  const memory = (navigator as any).deviceMemory || 4 // 默认4GB
-
-  // 检测CPU核心数
-  const cores = navigator.hardwareConcurrency || 4 // 默认4核
-
-  // 检测网络连接
-  const connection = (navigator as any).connection
-  const effectiveType = connection?.effectiveType || '4g'
-
-  // 性能等级评估
-  let performanceLevel: 'low' | 'medium' | 'high' = 'medium'
-
-  if (memory >= 8 && cores >= 8 && ['4g', '5g'].includes(effectiveType)) {
-    performanceLevel = 'high'
-  } else if (memory <= 2 || cores <= 2 || effectiveType === 'slow-2g') {
-    performanceLevel = 'low'
-  }
-
-  return {
-    memory,
-    cores,
-    effectiveType,
-    performanceLevel,
-  }
-}
-
-/**
- * 根据设备性能调整配置
- */
-export function getOptimalConfig() {
-  const { performanceLevel } = getDevicePerformance()
-
-  const configs = {
-    low: {
-      pageSize: 10,
-      debounceDelay: 500,
-      throttleDelay: 100,
-      cacheSize: 50,
-      enableVirtualScroll: true,
-      enableImageLazyLoad: true,
-      enablePreload: false,
-    },
-    medium: {
-      pageSize: 20,
-      debounceDelay: 300,
-      throttleDelay: 50,
-      cacheSize: 100,
-      enableVirtualScroll: false,
-      enableImageLazyLoad: true,
-      enablePreload: true,
-    },
-    high: {
-      pageSize: 50,
-      debounceDelay: 200,
-      throttleDelay: 16,
-      cacheSize: 200,
-      enableVirtualScroll: false,
-      enableImageLazyLoad: false,
-      enablePreload: true,
-    },
-  }
-
-  return configs[performanceLevel]
-}
+// 重新导出性能监控相关功能
+export {
+  PerformanceMonitor,
+  performanceMonitor,
+  getDevicePerformance,
+  getOptimalConfig,
+} from './performanceMonitor'

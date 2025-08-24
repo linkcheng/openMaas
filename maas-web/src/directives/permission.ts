@@ -7,8 +7,9 @@ import type { Directive, DirectiveBinding } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 
 export interface PermissionDirectiveValue {
-  resource: string
-  action: string
+  module?: string
+  resource?: string
+  action?: string
   logic?: 'AND' | 'OR'
   permissions?: string[]
 }
@@ -16,9 +17,9 @@ export interface PermissionDirectiveValue {
 /**
  * 权限验证指令
  * 用法:
- * v-permission="{ resource: 'user', action: 'create' }"
- * v-permission="{ permissions: ['user.create', 'user.update'], logic: 'OR' }"
- * v-permission="'user.create'"
+ * v-permission="'user.profile.create'" (推荐：完整权限字符串)
+ * v-permission="{ module: 'user', resource: 'profile', action: 'create' }"
+ * v-permission="{ permissions: ['user.profile.create', 'user.profile.update'], logic: 'OR' }"
  */
 export const permission: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding<string | PermissionDirectiveValue>) {
@@ -44,7 +45,7 @@ function updateElementVisibility(
     // 简单权限字符串检查
     hasRequiredPermission = hasPermission(binding.value)
   } else if (binding.value && typeof binding.value === 'object') {
-    const { resource, action, logic = 'AND', permissions } = binding.value
+    const { module, resource, action, logic = 'AND', permissions } = binding.value
 
     if (permissions && Array.isArray(permissions)) {
       // 多权限检查
@@ -53,8 +54,12 @@ function updateElementVisibility(
       } else {
         hasRequiredPermission = hasAllPermissions(permissions)
       }
+    } else if (module && resource && action) {
+      // 三段式权限检查
+      hasRequiredPermission = hasPermission(`${module}.${resource}.${action}`)
     } else if (resource && action) {
-      // 资源-操作权限检查
+      // 向后兼容：假设resource是完整的module.resource
+      console.warn('Deprecated permission format. Please use complete module.resource.action format.')
       hasRequiredPermission = hasPermission(`${resource}.${action}`)
     }
   }
