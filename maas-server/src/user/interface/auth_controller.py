@@ -23,7 +23,6 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from loguru import logger
 
-from user.application.decorators import audit_user_create, audit_login, audit_logout
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
 from user.application import (
@@ -31,6 +30,7 @@ from user.application import (
     get_user_application_service,
 )
 from user.application.auth_service import AuthService
+from user.application.decorators import audit_login, audit_logout, audit_user_create
 from user.application.schemas import (
     AuthTokenResponse,
     UserCreateCommand,
@@ -38,10 +38,8 @@ from user.application.schemas import (
     UserLoginRequest,
     UserResponse,
 )
-from user.application.user_service import (
-    PasswordHashService,
-    UserApplicationService,
-)
+from user.application.user_service import UserApplicationService
+from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.jwt_service import jwt_bearer
 from user.infrastructure.permission import get_current_user_id
 
@@ -104,9 +102,8 @@ async def register(
 @router.post("/login", response_model=ApiResponse[AuthTokenResponse], summary="用户登录")
 @audit_login("用户登录")
 async def login(
-    http_request: Request,  # noqa
+    http_request: Request,
     request: UserLoginRequest,
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
     """
@@ -123,9 +120,7 @@ async def login(
     if not decrypted_password:
         raise ValueError("密码解密后为空")
 
-    user = await user_service.authenticate_user(request.login_id, decrypted_password)
-    # 创建令牌
-    token_response = await auth_service.create_token_response(user)
+    user, token_response = await auth_service.authenticate_user(request.login_id, decrypted_password)
 
     http_request.state.current_user = user
     http_request.state.user_id = user.id

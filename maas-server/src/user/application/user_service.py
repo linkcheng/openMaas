@@ -19,7 +19,10 @@ limitations under the License.
 from typing import Any
 from uuid import UUID
 
-from shared.application.exceptions import ApplicationException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared.application.exceptions import ApplicationException, ErrorCode
+from shared.infrastructure.transaction_manager import transactional
 from user.application.schemas import (
     PasswordChangeCommand,
     RoleResponse,
@@ -32,10 +35,8 @@ from user.application.schemas import (
     UserUpdateCommand,
 )
 from user.domain.models import User
-from user.domain.repositories import IUserRepository
+from user.domain.repositories import IUserRepository, IRoleRepository
 from user.domain.services.user_domain_service import UserDomainService
-from user.infrastructure.email_service import EmailVerificationService
-from user.infrastructure.password_service import PasswordHashService
 
 
 class UserApplicationService:
@@ -43,33 +44,67 @@ class UserApplicationService:
 
     def __init__(
         self,
-        user_repository: IUserRepository,
         user_domain_service: UserDomainService,
+        user_repository: IUserRepository,
+        role_repository: IRoleRepository,
     ):
-        self._user_repository = user_repository
         self._user_domain_service = user_domain_service
+        self._user_repository = user_repository
+        self._role_repository = role_repository
 
-    async def authenticate_user(self, login_id: str, password: str) -> User:
-        return await self._user_domain_service.authenticate_user(login_id, password)
-
-    async def create_user(self, command: UserCreateCommand) -> UserResponse:
-        """创建用户"""
-        # 使用 Domain Service 创建用户
-        user = await self._user_domain_service.create_user_with_role(
+    @transactional()
+    async def create_user(
+        self,
+        command: UserCreateCommand,
+        session: AsyncSession
+    ) -> UserResponse:
+        """创建用户 - 事务操作"""
+        # 1. 使用Domain Service验证创建数据
+        self._user_domain_service.validate_user_creation_data(
+            command.username, command.email
+        )
+        
+        # 2. Application Service检查用户唯一性
+        existing_user_by_email = await self._user_repository.find_by_email(command.email)
+        existing_user_by_username = await self._user_repository.find_by_username(command.username)
+        self._user_domain_service.validate_user_uniqueness(
+            existing_user_by_email, existing_user_by_username, command.email, command.username
+        )
+        
+        # 3. Application Service获取默认角色
+        role = await self._role_repository.find_by_name(command.role_type)
+        
+        # 4. 使用Domain Service创建用户实体
+        user = self._user_domain_service.create_user_entity(
             username=command.username,
             email=command.email,
             password_hash=command.password_hash,
+            default_role=role,
             first_name=command.first_name,
             last_name=command.last_name,
             organization=command.organization,
         )
-        return await self._to_user_response(user)
+        
+        # 5. Application Service保存用户
+        saved_user = await self._user_repository.save(user)
+        # 事务在装饰器中自动提交
+        return await self._to_user_response(saved_user)
 
-    async def update_user_profile(self, command: UserUpdateCommand) -> UserResponse:
-        """更新用户档案"""
-        # 使用 Domain Service 更新用户档案
-        user = await self._user_domain_service.update_user_profile(
-            user_id=command.user_id,
+    @transactional()
+    async def update_user_profile(
+        self,
+        command: UserUpdateCommand,
+        session: AsyncSession
+    ) -> UserResponse:
+        """更新用户档案 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(command.user_id)
+        if not user:
+            raise ApplicationException(f"用户 {command.user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service更新用户档案
+        updated_user = self._user_domain_service.update_user_profile_entity(
+            user=user,
             first_name=command.first_name,
             last_name=command.last_name,
             avatar_url=command.avatar_url,
@@ -77,55 +112,40 @@ class UserApplicationService:
             bio=command.bio
         )
 
-        # 保存用户
-        saved_user = await self._user_repository.save(user)
+        # 3. Application Service保存用户
+        saved_user = await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
         return await self._to_user_response(saved_user)
 
-    async def get_user_stats(self, user_id: UUID) -> UserStatsResponse:
-        """获取用户统计信息"""
-        # 这里可以添加特定用户的统计信息
-        # 暂时返回全局统计
-        return await self.get_global_user_stats()
-
-    async def change_password(self, command: PasswordChangeCommand) -> bool:
-        """修改密码"""
-        # 使用 Domain Service 修改密码
-        user = await self._user_domain_service.change_user_password(
-            user_id=command.user_id,
+    @transactional()
+    async def change_password(
+        self,
+        command: PasswordChangeCommand,
+        session: AsyncSession
+    ) -> bool:
+        """修改密码 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(command.user_id)
+        if not user:
+            raise ApplicationException(f"用户 {command.user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service修改密码
+        updated_user = self._user_domain_service.change_user_password_entity(
+            user=user,
             current_password=command.current_password,
             new_password_hash=command.new_password_hash
         )
 
-        # 保存用户
-        await self._user_repository.save(user)
+        # 3. Application Service保存用户
+        await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
         return True
 
-    async def update_user(self, user_id: UUID, command: UserUpdateCommand) -> UserResponse:
-        """更新用户"""
-        # 使用 Domain Service 更新用户档案
-        user = await self._user_domain_service.update_user_profile(
-            user_id=user_id,
-            first_name=command.first_name,
-            last_name=command.last_name,
-            avatar_url=command.avatar_url,
-            organization=command.organization,
-            bio=command.bio
-        )
-
-        # 保存用户
-        saved_user = await self._user_repository.save(user)
-        return await self._to_user_response(saved_user)
-
-    async def get_user(self, user_id: UUID) -> UserResponse | None:
-        """获取用户"""
-        user = await self._user_repository.find_by_id(user_id)
-        if not user:
-            return None
-
-        return await self._to_user_response(user)
-
-    async def search_users(self, query: UserSearchQuery) -> list[UserSummaryResponse]:
-        """搜索用户"""
+    async def search_users(
+        self,
+        query: UserSearchQuery,
+    ) -> list[UserSummaryResponse]:
+        """搜索用户 - 只读操作"""
         users = await self._user_repository.search_users(
             keyword=query.keyword,
             status=query.status.value if query.status else None,
@@ -136,7 +156,9 @@ class UserApplicationService:
 
         return [self._to_user_summary_response(user) for user in users]
 
-    async def get_global_user_stats(self) -> UserStatsResponse:
+    async def get_global_user_stats(
+        self,
+    ) -> UserStatsResponse:
         """获取用户统计"""
         active_count = len(await self._user_repository.find_by_status("active"))
         inactive_count = len(await self._user_repository.find_by_status("inactive"))
@@ -157,133 +179,147 @@ class UserApplicationService:
 
         return await self._to_user_response(user)
 
-    async def logout_user(self, user_id: UUID) -> None:
-        """用户登出,增加key_version使所有token失效"""
-        # 使用 Domain Service 处理登出逻辑
-        user = await self._user_domain_service.logout_user(user_id)
+    @transactional()
+    async def logout_user(
+        self, 
+        user_id: UUID,
+        session: AsyncSession
+    ) -> None:
+        """用户登出,增加key_version使所有token失效 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service处理登出逻辑
+        updated_user = self._user_domain_service.logout_user_entity(user)
 
-        # 保存用户
-        await self._user_repository.save(user)
+        # 3. Application Service保存用户
+        await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
 
-    async def invalidate_user_tokens(self, user_id: UUID, reason: str = "权限变更") -> None:
-        """使用户所有token失效"""
-        # 使用 Domain Service 处理token失效逻辑
-        user = await self._user_domain_service.invalidate_user_tokens(user_id, reason)
+    @transactional()
+    async def invalidate_user_tokens(
+        self, 
+        user_id: UUID, 
+        *,
+        reason: str = "权限变更",
+        session: AsyncSession
+    ) -> None:
+        """使用户所有token失效 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service处理token失效逻辑
+        updated_user = self._user_domain_service.invalidate_user_tokens_entity(user, reason)
 
-        # 保存用户
-        await self._user_repository.save(user)
+        # 3. Application Service保存用户
+        await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
 
-    async def change_user_role(self, user_id: UUID, new_role_ids: list[UUID]) -> UserResponse:
-        """更改用户角色并使token失效"""
-        # 使用 Domain Service 处理角色变更逻辑
-        user = await self._user_domain_service.change_user_roles(
-            user_id=user_id,
-            new_role_ids=new_role_ids,
-            operator_id=user_id  # 这里应该传入操作者ID，暂时使用用户自己的ID
-        )
+    @transactional()
+    async def suspend_user(
+        self, 
+        user_id: UUID, 
+        reason: str, 
+        suspended_by: UUID,
+        session: AsyncSession
+    ) -> bool:
+        """暂停用户并使token失效 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service处理暂停逻辑
+        updated_user = self._user_domain_service.suspend_user_entity(user, reason, suspended_by)
 
-        # 保存用户
-        saved_user = await self._user_repository.save(user)
-        return await self._to_user_response(saved_user)
-
-    async def suspend_user(self, user_id: UUID, reason: str, suspended_by: UUID) -> bool:
-        """暂停用户并使token失效"""
-        # 使用 Domain Service 处理暂停逻辑
-        user = await self._user_domain_service.suspend_user(user_id, reason, suspended_by)
-
-        # 保存用户
-        await self._user_repository.save(user)
+        # 3. Application Service保存用户
+        await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
         return True
 
-    async def assign_user_roles(self, user_id: UUID, role_ids: list[UUID], assigned_by: UUID) -> UserResponse:
-        """分配用户角色"""
-        # 使用 Domain Service 处理角色分配逻辑
-        user = await self._user_domain_service.change_user_roles(
-            user_id=user_id,
-            new_role_ids=role_ids,
+    @transactional()
+    async def assign_user_roles(
+        self, 
+        user_id: UUID, 
+        role_ids: list[UUID], 
+        assigned_by: UUID,
+        session: AsyncSession
+    ) -> UserResponse:
+        """分配用户角色 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. Application Service查询角色
+        new_roles = []
+        for role_id in role_ids:
+            role = await self._role_repository.find_by_id(role_id)
+            if role:
+                new_roles.append(role)
+        
+        # 3. 使用Domain Service处理角色分配逻辑
+        updated_user = self._user_domain_service.change_user_roles_entity(
+            user=user,
+            new_roles=new_roles,
             operator_id=assigned_by
         )
 
-        # 保存用户
-        saved_user = await self._user_repository.save(user)
+        # 4. Application Service保存用户
+        saved_user = await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
         return await self._to_user_response(saved_user)
 
-    async def get_user_permissions(self, user_id: UUID) -> dict[str, Any]:
-        """获取用户完整权限"""
-        # 使用 Domain Service 获取权限
-        return await self._user_domain_service.get_user_permissions(user_id)
+    async def get_user_permissions(
+        self, 
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        """获取用户完整权限 - 只读操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service计算权限
+        return self._user_domain_service.calculate_user_permissions(user)
 
     async def check_user_permission(
-        self, user_id: UUID, permission_name: str
+        self, 
+        user_id: UUID, 
+        permission_name: str,
     ) -> dict[str, Any]:
-        """验证用户权限"""
-        # 使用 Domain Service 检查权限
-        return await self._user_domain_service.check_user_permission(user_id, permission_name)
-
-    async def check_user_permission_by_parts(
-        self, user_id: UUID, resource: str, action: str, module: str | None = None
-    ) -> dict[str, Any]:
-        """通过资源和操作验证用户权限"""
-        # 使用 Domain Service 检查权限
-        return await self._user_domain_service.check_user_permission_by_parts(
-            user_id, resource, action, module
-        )
-
-    async def activate_user(self, user_id: UUID) -> bool:
-        """激活用户"""
-        # 使用 Domain Service 处理激活逻辑
-        user = await self._user_domain_service.activate_user(user_id)
-
-        # 保存用户
-        await self._user_repository.save(user)
-        return True
-
-    async def validate_role_assignment(self, user_id: UUID, role_ids: list[UUID], assigner_id: UUID) -> dict:
-        """验证角色分配权限"""
-        # 这个方法需要角色相关的Domain Service，暂时保留简单实现
+        """验证用户权限 - 只读操作"""
+        # 1. Application Service查询用户
         user = await self._user_repository.find_by_id(user_id)
-        assigner = await self._user_repository.find_by_id(assigner_id)
-
         if not user:
-            raise ApplicationException(f"用户 {user_id} 不存在")
-        if not assigner:
-            raise ApplicationException(f"分配者 {assigner_id} 不存在")
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service检查权限
+        return self._user_domain_service.check_user_permission_logic(user, permission_name)
 
-        validation_results = []
+    @transactional()
+    async def activate_user(
+        self, 
+        user_id: UUID,
+        session: AsyncSession
+    ) -> bool:
+        """激活用户 - 事务操作"""
+        # 1. Application Service查询用户
+        user = await self._user_repository.find_by_id(user_id)
+        if not user:
+            raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
+        
+        # 2. 使用Domain Service处理激活逻辑
+        updated_user = self._user_domain_service.activate_user_entity(user)
 
-        for role_id in role_ids:
-            role = await self._role_repository.find_by_id(role_id)
-            if not role:
-                validation_results.append({
-                    "role_id": str(role_id),
-                    "can_assign": False,
-                    "reason": "角色不存在"
-                })
-                continue
-
-            # 简化的权限检查
-            can_assign = True
-            reason = "可以分配"
-
-            if role.is_system_role and not assigner.is_super_admin():
-                can_assign = False
-                reason = "只有超级管理员才能分配系统角色"
-
-            validation_results.append({
-                "role_id": str(role_id),
-                "role_name": role.name,
-                "can_assign": can_assign,
-                "reason": reason
-            })
-
-        all_assignable = all(result["can_assign"] for result in validation_results)
-
-        return {
-            "user_id": str(user_id),
-            "assigner_id": str(assigner_id),
-            "all_roles_assignable": all_assignable,
-            "role_validations": validation_results
-        }
+        # 3. Application Service保存用户
+        await self._user_repository.save(updated_user)
+        # 事务在装饰器中自动提交
+        return True
 
     async def _to_user_response(self, user: User) -> UserResponse:
         """转换为用户响应DTO"""

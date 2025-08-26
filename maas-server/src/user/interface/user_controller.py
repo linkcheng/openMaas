@@ -19,30 +19,34 @@ limitations under the License.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request
 
+from shared.application.exceptions import (
+    AuthorizationException,
+    ResourceNotFoundException,
+)
 from shared.application.response import ApiResponse
 from shared.infrastructure.crypto_service import get_sm2_service
 from user.application import get_user_application_service
+from user.application.decorators import audit_user_operation
 from user.application.schemas import (
     PasswordChangeCommand,
     PasswordChangeRequest,
+    UserCreateRequest,
     UserResponse,
     UserSearchQuery,
     UserStatsResponse,
     UserSummaryResponse,
+    UserCreateCommand,
     UserUpdateCommand,
     UserUpdateRequest,
 )
 from user.application.user_service import (
-    PasswordHashService,
     UserApplicationService,
 )
-from user.infrastructure.permission import (
-    get_current_user, get_current_user_id
-)
-from user.domain.user import User
-from user.application.decorators import audit_user_operation
+from user.infrastructure.password_service import PasswordHashService
+from user.domain.models import User
+from user.infrastructure.permission import get_current_user, get_current_user_id
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -58,12 +62,9 @@ async def get_current_user(
     user = None
     if hasattr(request.state, "current_user") and request.state.current_user is not None:
         user = request.state.current_user
-    
+
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise ResourceNotFoundException("用户", "当前用户")
     user_response = await user_service._to_user_response(user)
     return ApiResponse.success_response(user_response, "获取用户信息成功")
 
@@ -115,18 +116,6 @@ async def change_password(
     return ApiResponse.success_response(success, "密码修改成功")
 
 
-
-@router.get("/me/stats", response_model=ApiResponse[UserStatsResponse], summary="获取用户统计信息")
-async def get_user_stats(
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
-    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
-):
-    """获取用户统计信息"""
-
-    stats = await user_service.get_user_stats(user_id)
-    return ApiResponse.success_response(stats, "获取统计信息成功")
-
-
 # 管理员API
 @router.get("/", response_model=ApiResponse[list[UserSummaryResponse]], summary="搜索用户")
 async def search_users(
@@ -161,10 +150,7 @@ async def get_user_by_id(
 
     user = await user_service.get_user_by_id(user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise ResourceNotFoundException("用户", str(user_id))
 
     return ApiResponse.success_response(user, "获取用户详情成功")
 
@@ -227,10 +213,33 @@ async def assign_user_roles(
 
     # 防止用户修改自己的角色
     if user_id == current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="不能修改自己的角色"
-        )
+        raise AuthorizationException("不能修改自己的角色")
 
     user = await user_service.assign_user_roles(user_id, role_ids)
     return ApiResponse.success_response(user, "用户角色分配成功")
+
+
+@router.post("/", response_model=ApiResponse[UserResponse], summary="创建用户（管理员）")
+async def create_user(
+    req: UserCreateRequest,
+    user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
+):
+    """创建用户（管理员）"""
+
+    sm2 = get_sm2_service()
+    raw_password = sm2.decrypt(req.password)
+    password_hash = PasswordHashService.hash_password(raw_password)
+
+    command = UserCreateCommand(
+        username=req.username,
+        email=str(req.email),
+        password_hash=password_hash,
+        first_name=req.first_name,
+        last_name=req.last_name,
+        organization=req.organization,
+        roletype=req.role_type,
+    )
+
+    user = await user_service.create_user(command)
+    return ApiResponse.success_response(user, "用户创建成功")
+

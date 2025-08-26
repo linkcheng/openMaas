@@ -19,8 +19,11 @@ limitations under the License.
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
-from loguru import logger
 
+from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared.infrastructure.transaction_manager import transactional
 from user.application.schemas import (
     AuditCleanupCommand,
     AuditCleanupResponse,
@@ -30,18 +33,27 @@ from user.application.schemas import (
     AuditStatsResponse,
 )
 from user.domain.services.audit_domain_service import AuditDomainService
+from user.domain.repositories import IAuditLogRepository
 
 
 class AuditApplicationService:
     """审计应用服务 - 负责协调和编排，DTO转换"""
-    
-    def __init__(self, audit_domain_service: AuditDomainService):
+
+    def __init__(
+        self, 
+        audit_domain_service: AuditDomainService,
+        audit_repository: IAuditLogRepository
+    ):
         self._audit_domain_service = audit_domain_service
-    
-    async def get_logs(self, query: AuditLogQuery) -> dict[str, Any]:
-        """分页查询审计日志"""
+        self._audit_repository = audit_repository
+
+    async def get_logs(
+        self, 
+        query: AuditLogQuery,
+    ) -> dict[str, Any]:
+        """分页查询审计日志 - 只读操作"""
         offset = (query.page - 1) * query.page_size
-        
+
         # 调用领域服务
         logs, total = await self._audit_domain_service.query_audit_logs(
             user_id=query.user_id,
@@ -52,7 +64,7 @@ class AuditApplicationService:
             limit=query.page_size,
             offset=offset,
         )
-        
+
         # 转换为响应DTO
         log_responses = [
             AuditLogResponse(
@@ -71,42 +83,45 @@ class AuditApplicationService:
             )
             for log in logs
         ]
-        
+
         # 计算分页信息
         pagination = self._audit_domain_service.calculate_pagination(
             total, query.page, query.page_size
         )
-        
+
         return {
             "logs": log_responses,
             "pagination": pagination,
         }
-    
+
     async def get_user_logs(
         self,
         user_id: UUID,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        """获取指定用户的审计日志"""
+        """获取指定用户的审计日志 - 只读操作"""
         query = AuditLogQuery(
             page=page,
             page_size=page_size,
             user_id=user_id,
         )
         return await self.get_logs(query)
-    
-    async def get_stats(self, query: AuditStatsQuery) -> AuditStatsResponse:
-        """获取审计统计信息"""
+
+    async def get_stats(
+        self, 
+        query: AuditStatsQuery,
+    ) -> AuditStatsResponse:
+        """获取审计统计信息 - 只读操作"""
         start_time = datetime.utcnow() - timedelta(days=query.days)
         end_time = datetime.utcnow()
-        
+
         # 调用领域服务
         stats = await self._audit_domain_service.get_audit_statistics(
             start_time=start_time,
             end_time=end_time,
         )
-        
+
         # 转换为响应DTO
         return AuditStatsResponse(
             period=f"最近 {query.days} 天",
@@ -117,13 +132,21 @@ class AuditApplicationService:
             top_actions=stats.get("top_actions", []),
             generated_at=datetime.utcnow().isoformat(),
         )
-    
-    async def cleanup_old_logs(self, command: AuditCleanupCommand) -> AuditCleanupResponse:
-        """清理旧的审计日志"""
-        # 调用领域服务
-        deleted_count = await self._audit_domain_service.cleanup_expired_logs(
+
+    @transactional()
+    async def cleanup_old_logs(
+        self, 
+        command: AuditCleanupCommand,
+        session: AsyncSession
+    ) -> AuditCleanupResponse:
+        """清理旧的审计日志 - 事务操作"""
+        # 调用领域服务验证业务规则
+        before_date = self._audit_domain_service.validate_cleanup_policy(
             retention_days=command.days
         )
+        
+        # 应用服务层调用Repository执行数据操作
+        deleted_count = await self._audit_repository.cleanup_old_logs(before_date)
         
         # 转换为响应DTO
         return AuditCleanupResponse(

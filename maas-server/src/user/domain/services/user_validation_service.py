@@ -138,14 +138,3 @@ class UserValidationService:
         """验证权限描述"""
         if description and len(description.strip()) > 500:
             raise DomainException("权限描述长度不能超过500个字符")
-
-    @staticmethod
-    def validate_permission_module(module: str | None) -> None:
-        """验证权限模块名称"""
-        if module:
-            module = module.strip()
-            if len(module) > 50:
-                raise DomainException("权限模块名称长度不能超过50个字符")
-
-            if not re.match(r"^[a-zA-Z0-9_]+$", module):
-                raise DomainException("权限模块名称只能包含字母、数字和下划线")

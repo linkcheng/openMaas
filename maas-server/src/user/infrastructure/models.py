@@ -378,7 +378,7 @@ class AuditLogORM(Base):
     """审计日志ORM模型（简化版）"""
     __tablename__ = "audit_logs"
     __table_args__ = (
-        UniqueConstraint("log_id", name="uq_audit_log_id"), 
+        UniqueConstraint("log_id", name="uq_audit_log_id"),
         # 基本索引
         Index("ix_audit_logs_created_at", "created_at"),
         # 复合索引 - 优化常见查询

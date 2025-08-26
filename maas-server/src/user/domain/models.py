@@ -594,7 +594,7 @@ class User(AggregateRoot):
     @property
     def is_active(self) -> bool:
         """是否活跃"""
-        return self.status == UserStatus.ACTIVE and self.email_verified
+        return self.status == UserStatus.ACTIVE
 
 
 # 领域异常
@@ -615,7 +615,7 @@ class EmailNotVerifiedException(DomainException):
 
 class AuditLog(Entity):
     """审计日志实体（简化版）"""
-    
+
     def __init__(
         self,
         id: UUID | None,
@@ -639,23 +639,23 @@ class AuditLog(Entity):
         self.success = success
         self.error_message = error_message
         self.created_at = created_at or datetime.utcnow()
-        
+
         # 验证领域规则
         self._validate()
-    
+
     def _validate(self) -> None:
         """验证领域规则"""
         if not self.description or len(self.description.strip()) == 0:
             raise ValueError("操作描述不能为空")
-        
+
         if not self.success and not self.error_message:
             raise ValueError("操作失败时必须提供错误信息")
-    
+
     @property
     def is_system_operation(self) -> bool:
         """是否为系统操作"""
         return self.user_id is None
-    
+
     def get_operation_summary(self) -> str:
         """获取操作摘要"""
         actor = self.username if self.username else "系统"

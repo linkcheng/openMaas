@@ -1,8 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
-  "include": ["src"],
-  "extraPaths": ["src"],
+  "include": [
+    "src"
+  ],
+  "extraPaths": [
+    "src"
+  ],
   "pythonVersion": "3.13",
   "typeCheckingMode": "standard"
 }
-

@@ -26,9 +26,8 @@ from uuid_extensions import uuid7
 
 from shared.domain.base import EmailAddress
 from shared.infrastructure.repository import SQLAlchemyRepository
-from user.infrastructure.models import AuditLogORM
-
 from user.domain.models import (
+    AuditLog,
     Permission,
     PermissionName,
     Role,
@@ -36,15 +35,15 @@ from user.domain.models import (
     User,
     UserProfile,
     UserStatus,
-    AuditLog,
 )
 from user.domain.repositories import (
+    IAuditLogRepository,
     IPermissionRepository,
     IRoleRepository,
     IUserRepository,
-    IAuditLogRepository,
 )
 from user.infrastructure.models import (
+    AuditLogORM,
     PermissionORM,
     RoleORM,
     RolePermissionORM,
@@ -61,7 +60,6 @@ class UserRepository(SQLAlchemyRepository[User, UserORM], IUserRepository):
 
     async def save(self, user: User) -> User:
         """保存用户"""
-        # 查找现有用户
         stmt = select(UserORM).where(UserORM.user_id == user.id)
         result = await self.session.execute(stmt)
         existing_orm = result.scalar_one_or_none()
@@ -80,8 +78,59 @@ class UserRepository(SQLAlchemyRepository[User, UserORM], IUserRepository):
             # 处理角色关联
             await self._sync_user_roles(new_orm, user)
 
-        await self.session.commit()
+        # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+        await self.session.flush()
+        # ❌ 移除事务提交
+        # await self.session.commit()
         return user
+
+    async def batch_save(self, users: list[User]) -> list[User]:
+        """批量保存用户
+
+        说明：
+        - 不提交事务，仅执行 flush，由上层应用服务管理事务
+        - 批量查询已存在记录，分别执行创建或更新
+        - 在完成基本保存后统一同步用户-角色关联
+        - 返回输入的领域用户列表
+        """
+        if not users:
+            return []
+
+        # 批量查询已存在的用户ORM对象
+        user_ids = [u.id for u in users]
+        stmt = select(UserORM).where(UserORM.user_id.in_(user_ids))
+        result = await self.session.execute(stmt)
+        existing_orms = result.scalars().all()
+        existing_map = {orm.user_id: orm for orm in existing_orms}
+
+        # 记录新创建的ORM对象，便于后续同步角色
+        created_map: dict[UUID, UserORM] = {}
+
+        # 先创建或更新用户基本信息
+        for user in users:
+            orm = existing_map.get(user.id)
+            if orm is not None:
+                # 更新
+                self._update_orm_object(orm, user)
+            else:
+                # 新建
+                new_orm = self._create_orm_object(user)
+                self.session.add(new_orm)
+                created_map[user.id] = new_orm
+
+        # 先flush以确保新建对象有持久化上下文，再处理关联
+        await self.session.flush()
+
+        # 同步用户-角色关联
+        for user in users:
+            orm = existing_map.get(user.id) or created_map.get(user.id)
+            if orm is not None:
+                await self._sync_user_roles(orm, user)
+
+        # 仅flush，不提交事务
+        await self.session.flush()
+        return users
+
 
     async def _sync_user_roles(self, user_orm: UserORM, user: User):
         """同步用户角色"""
@@ -348,12 +397,16 @@ class UserRepository(SQLAlchemyRepository[User, UserORM], IUserRepository):
             if new_role_relations:
                 self.session.add_all(new_role_relations)
 
-            await self.session.commit()
+            # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+            await self.session.flush()
+            # ❌ 移除事务提交
+            # await self.session.commit()
             return True
         except Exception:
-            await self.session.rollback()
+            # ❌ 移除事务管理 - 由上层管理
+            # await self.session.rollback()
             # 可以记录错误日志
-            return False
+            raise  # 抛出异常让上层处理
 
     async def find_by_ids(self, user_ids: list[UUID]) -> list[User]:
         """批量根据ID查找用户"""
@@ -580,7 +633,10 @@ class RoleRepository(SQLAlchemyRepository[Role, RoleORM], IRoleRepository):
 
         if orm_obj:
             await self.session.delete(orm_obj)
-            await self.session.commit()
+            # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+            await self.session.flush()
+            # ❌ 移除事务提交
+            # await self.session.commit()
             return True
         return False
 
@@ -685,7 +741,10 @@ class RoleRepository(SQLAlchemyRepository[Role, RoleORM], IRoleRepository):
             # 处理权限关联
             await self._sync_role_permissions(new_orm, role)
 
-        await self.session.commit()
+        # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+        await self.session.flush()
+        # ❌ 移除事务提交
+        # await self.session.commit()
         return role
 
     async def _sync_role_permissions(self, role_orm: RoleORM, role: Role):
@@ -740,11 +799,9 @@ class PermissionRepository(SQLAlchemyRepository[Permission, PermissionORM], IPer
         """根据ID获取权限（重写基类方法）"""
         return await self.find_by_id(permission_id)
 
-    async def find_by_resource_action(self, resource: str, action: str) -> Permission | None:
-        """根据资源和操作查找权限"""
-        stmt = select(PermissionORM).where(
-            and_(PermissionORM.resource == resource, PermissionORM.action == action)
-        )
+    async def find_by_name(self, name: str) -> Permission | None:
+        """根据name查找权限"""
+        stmt = select(PermissionORM).where(PermissionORM.name == name)
         result = await self.session.execute(stmt)
         orm_obj = result.scalar_one_or_none()
         return self._to_domain_entity(orm_obj) if orm_obj else None
@@ -793,8 +850,9 @@ class PermissionRepository(SQLAlchemyRepository[Permission, PermissionORM], IPer
     async def save(self, permission: Permission) -> Permission:
         """保存权限（重写基类方法）"""
         # 查找现有权限
+        tx = self.session
         stmt = select(PermissionORM).where(PermissionORM.permission_id == permission.id)
-        result = await self.session.execute(stmt)
+        result = await tx.execute(stmt)
         existing_orm = result.scalar_one_or_none()
 
         if existing_orm:
@@ -803,9 +861,12 @@ class PermissionRepository(SQLAlchemyRepository[Permission, PermissionORM], IPer
         else:
             # 创建新权限
             new_orm = self._create_orm_object(permission)
-            self.session.add(new_orm)
+            tx.add(new_orm)
 
-        await self.session.commit()
+        # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+        await tx.flush()
+        # ❌ 移除事务提交
+        # await self.session.commit()
         return permission
 
     async def search_permissions(
@@ -911,10 +972,10 @@ class PermissionRepository(SQLAlchemyRepository[Permission, PermissionORM], IPer
 
 class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogRepository):
     """审计日志仓储（简化版）"""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(session, AuditLog, AuditLogORM)
-    
+
     async def find_with_count(
         self,
         user_id: UUID | None = None,
@@ -926,7 +987,7 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
         offset: int = 0,
     ) -> tuple[list, int]:
         """查询审计日志并返回总数"""
-        
+
         try:
             # 构建查询条件
             conditions = []
@@ -940,27 +1001,27 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
                 conditions.append(AuditLogORM.created_at <= end_time)
             if success is not None:
                 conditions.append(AuditLogORM.success == success)
-            
+
             # 构建查询
             data_query = select(AuditLogORM)
             count_query = select(func.count(AuditLogORM.id))
-            
+
             if conditions:
                 data_query = data_query.where(and_(*conditions))
                 count_query = count_query.where(and_(*conditions))
-            
+
             # 执行计数查询
             count_result = await self.session.execute(count_query)
             total = count_result.scalar() or 0
-            
+
             if total == 0:
                 return [], 0
-            
+
             # 执行数据查询
             data_query = data_query.order_by(AuditLogORM.created_at.desc()).offset(offset).limit(limit)
             data_result = await self.session.execute(data_query)
             orm_objects = data_result.scalars().all()
-            
+
             # 转换为领域对象
             logs = []
             for orm_obj in orm_objects:
@@ -977,20 +1038,21 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
                     created_at=orm_obj.created_at,
                 )
                 logs.append(log)
-            
+
             return logs, total
-            
+
         except Exception:
-            await self.session.rollback()
+            # ❌ 移除事务管理 - 由上层管理
+            # await self.session.rollback()
             raise
-    
+
     async def get_stats(
         self,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
     ) -> dict:
         """获取审计统计信息"""
-        
+
         try:
             # 基本统计
             conditions = []
@@ -998,7 +1060,7 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
                 conditions.append(AuditLogORM.created_at >= start_time)
             if end_time is not None:
                 conditions.append(AuditLogORM.created_at <= end_time)
-            
+
             # 总数和成功失败统计
             stats_query = select(
                 func.count(AuditLogORM.id).label("total"),
@@ -1006,28 +1068,28 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
                 func.sum(case((AuditLogORM.success == False, 1), else_=0)).label("failed"),
                 func.count(func.distinct(AuditLogORM.user_id)).label("unique_users")
             )
-            
+
             if conditions:
                 stats_query = stats_query.where(and_(*conditions))
-            
+
             stats_result = await self.session.execute(stats_query)
             stats_row = stats_result.first()
-            
+
             # 热门操作统计
             action_query = select(
                 AuditLogORM.action,
                 func.count(AuditLogORM.id).label("count")
             ).group_by(AuditLogORM.action).order_by(func.count(AuditLogORM.id).desc()).limit(5)
-            
+
             if conditions:
                 action_query = action_query.where(and_(*conditions))
-            
+
             action_result = await self.session.execute(action_query)
             top_actions = [
                 {"action": row.action, "count": row.count}
                 for row in action_result.fetchall()
             ]
-            
+
             return {
                 "total": stats_row.total or 0,
                 "successful": stats_row.successful or 0,
@@ -1035,30 +1097,32 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
                 "unique_users": stats_row.unique_users or 0,
                 "top_actions": top_actions,
             }
-            
+
         except Exception:
-            await self.session.rollback()
+            # ❌ 移除事务管理 - 由上层管理
+            # await self.session.rollback()
             raise
-    
+
     async def cleanup_old_logs(self, before_date: datetime) -> int:
-        """清理旧的审计日志"""        
-        try:
-            # 先统计要删除的数量
-            count_query = select(func.count(AuditLogORM.id)).where(AuditLogORM.created_at < before_date)
-            count_result = await self.session.execute(count_query)
-            count = count_result.scalar() or 0
-            
-            if count > 0:
-                # 执行删除
-                delete_query = delete(AuditLogORM).where(AuditLogORM.created_at < before_date)
-                await self.session.execute(delete_query)
-                await self.session.commit()
-            
-            return count
-            
-        except Exception:
-            await self.session.rollback()
-            raise
+        """清理旧的审计日志"""
+        
+        # 先统计要删除的数量
+        count_query = select(func.count(AuditLogORM.id)).where(AuditLogORM.created_at < before_date)
+        count_result = await self.session.execute(count_query)
+        count = count_result.scalar() or 0
+
+        if count > 0:
+            # 执行删除
+            delete_query = delete(AuditLogORM).where(AuditLogORM.created_at < before_date)
+            await self.session.execute(delete_query)
+            # ✅ 仅flush，不提交事务 - 由上层应用服务层管理
+            await self.session.flush()
+            # ❌ 移除事务提交
+            # await self.session.commit()
+
+        return count
+
+
 
     def _to_domain_entity(self, orm_obj: AuditLogORM) -> AuditLog:
         """将ORM对象转换为领域实体"""

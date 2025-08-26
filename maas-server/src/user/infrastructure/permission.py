@@ -43,7 +43,7 @@ async def get_current_user_with_permissions(
         user = request.state.current_user
         logger.debug(f"从中间件获取已认证用户: {getattr(user, 'username', '<unknown>')}")
         return user
-    
+
     # 未认证，返回 401
     # raise HTTPException(
     #     status_code=status.HTTP_401_UNAUTHORIZED,

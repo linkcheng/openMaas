@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field, validator
+
 from model.infrastructure.security import SecurityValidator
 
 T = TypeVar("T")

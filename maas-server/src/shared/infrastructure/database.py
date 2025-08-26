@@ -16,8 +16,6 @@ limitations under the License.
 
 """共享基础设施层 - 数据库配置"""
 
-from collections.abc import AsyncGenerator
-
 from loguru import logger
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -58,27 +56,9 @@ async_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=True,  # 确保数据一致性
     autoflush=False,
+    autocommit=False,
     future=True,           # 启用2.0特性
 )
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception as exc:
-            await session.rollback()
-            logger.error(f"Database operation failed: {exc}")
-            raise
-        finally:
-            await session.close()
-            logger.debug("Session closed")
-
-
-# 别名，用于依赖注入
-get_db_session = get_async_session
-
 
 
 async def check_database_health():

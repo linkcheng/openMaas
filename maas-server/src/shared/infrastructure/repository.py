@@ -26,18 +26,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.domain.base import AggregateRoot, Repository
 from shared.infrastructure.database import Base
+from shared.infrastructure.transaction_manager import TransactionManager
 
 T = TypeVar("T", bound=AggregateRoot)
 M = TypeVar("M", bound=Base)
 
 
 class SQLAlchemyRepository(Repository[T], Generic[T, M]):
-    """SQLAlchemy仓储基类"""
+    """SQLAlchemy仓储基类 - 支持事务上下文感知"""
 
     def __init__(self, session: AsyncSession, entity_class, model_class):
-        self.session = session
+        self._default_session = session
         self.entity_class = entity_class
         self.model_class = model_class
+    
+    @property
+    def session(self) -> AsyncSession:
+        """动态获取当前应该使用的session - 事务上下文感知
+        
+        优先使用事务上下文中的session，确保在@transactional装饰器管理的方法中
+        使用同一个session，保证事务一致性。
+        """
+        current_session = TransactionManager.get_current_session()
+        return current_session or self._default_session
+
+    async def commit(self):
+        await self.session.commit()
 
     async def get_by_id(self, id: UUID) -> T | None:
         """根据ID获取聚合根"""
@@ -50,7 +64,7 @@ class SQLAlchemyRepository(Repository[T], Generic[T, M]):
             return None
 
     async def save(self, aggregate: T) -> T:
-        """保存聚合根"""
+        """保存聚合根 - 仅负责数据持久化"""
         orm_obj = await self._get_orm_object(aggregate.id)
         if orm_obj:
             # 更新现有对象
@@ -60,14 +74,20 @@ class SQLAlchemyRepository(Repository[T], Generic[T, M]):
             orm_obj = self._create_orm_object(aggregate)
             self.session.add(orm_obj)
 
+        # ✅ 仅flush，确保获得ID等，但不提交事务
         await self.session.flush()
+        # ❌ 移除事务提交 - 由上层应用服务层管理
+        # await self.session.commit()
+
         return self._to_domain_entity(orm_obj)
 
     async def delete(self, aggregate: T) -> None:
-        """删除聚合根"""
+        """删除聚合根 - 仅负责数据操作"""
         stmt = delete(self.model_class).where(self.model_class.id == aggregate.id)
         await self.session.execute(stmt)
+        # ✅ 仅flush，不提交事务
         await self.session.flush()
+        # ❌ 移除事务提交 - 由上层应用服务层管理
 
     async def find_by_criteria(self, criteria: dict[str, Any]) -> list[T]:
         """根据条件查找"""

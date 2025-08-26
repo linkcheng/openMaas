@@ -22,9 +22,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from loguru import logger
 
-from user.application.decorators import audit_admin_operation
 from shared.application.response import ApiResponse
 from user.application import get_permission_application_service
+from user.application.decorators import audit_admin_operation
 from user.application.permission_service import PermissionApplicationService
 from user.application.schemas import (
     PermissionBatchRequest,
@@ -272,7 +272,7 @@ async def validate_user_permission_by_parts(
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
     resource: str = Query(..., description="资源"),
     action: str = Query(..., description="操作"),
-    module: str | None = Query(None, description="模块"),
+    module: str = Query(None, description="模块"),
 ):
     """通过资源和操作验证用户权限"""
 
@@ -280,11 +280,7 @@ async def validate_user_permission_by_parts(
         user_id, resource, action, module
     )
 
-    # 构建权限名称用于显示
-    if module:
-        permission_name = f"{module}.{resource}.{action}"
-    else:
-        permission_name = f"*.{resource}.{action}"
+    permission_name = f"{module}.{resource}.{action}"
 
     return ApiResponse.success_response(
         data={

@@ -27,11 +27,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from config.settings import settings
-
 from shared.infrastructure.database import async_session_factory
-
 from user.infrastructure.repositories import UserRepository
-
 
 
 class UserContextMiddleware(BaseHTTPMiddleware):
@@ -82,7 +79,7 @@ class UserContextMiddleware(BaseHTTPMiddleware):
                         logger.debug(f"Skip parsing body in middleware: {e}")
 
         response = await call_next(request)
-        
+
         return response
 
     async def _authenticate_user(self, token: str) -> dict[str, Any] | None:
@@ -96,29 +93,15 @@ class UserContextMiddleware(BaseHTTPMiddleware):
             )
 
             # 验证token类型
-            if payload.get("type") != "access":
-                return None
-
-            user_id = UUID(payload.get("sub"))
-            token_key_version = payload.get("key_version")
-
-            if token_key_version is None:
-                return None
-
+            payload_type = payload.get("type")
             user = None
-            async with async_session_factory() as session:
-            # 获取用户仓储（动态导入避免循环依赖）
-                user_repository = UserRepository(session)
-                # 获取用户信息
-                user = await user_repository.find_by_id(user_id)
-        
-            if not user:
+            if payload_type == "access":
+                user = await self.handle_access_token(payload)
+            # elif payload_type == "refresh":
+            #     user = await self.handle_refresh_token(payload)
+            else:
                 return None
-
-            # 验证key_version和用户状态
-            if user.key_version != token_key_version or not user.is_active:
-                return None
-
+            
             # 提取用户权限
             permissions = []
             for role in user.roles:
@@ -137,3 +120,40 @@ class UserContextMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"用户认证失败: {e}", exc_info=True)
             return None
+
+    async def handle_access_token(self, payload):
+        user_id = UUID(payload.get("sub"))
+        token_key_version = payload.get("key_version")
+        if token_key_version is None:
+            return None
+
+        user = None
+        async with async_session_factory() as session:
+            user_repository = UserRepository(session)
+            user = await user_repository.find_by_id(user_id)
+
+        if not user:
+            return None
+
+        # 验证key_version和用户状态
+        if user.key_version != token_key_version or not user.is_active:
+            return None
+
+        return user
+
+    # async def handle_refresh_token(self, payload):
+    #     user_id = UUID(payload.get("sub"))
+
+    #     user = None
+    #     async with async_session_factory() as session:
+    #         user_repository = UserRepository(session)
+    #         user = await user_repository.find_by_id(user_id)
+
+    #     if not user:
+    #         return None
+
+    #     # 验证用户状态
+    #     if  not user.is_active:
+    #         return None
+
+    #     return user

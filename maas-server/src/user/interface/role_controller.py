@@ -22,9 +22,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from loguru import logger
 
-from user.application.decorators import audit_admin_operation
 from shared.application.response import ApiResponse
 from user.application import get_role_application_service
+from user.application.decorators import audit_admin_operation
 from user.application.role_service import RoleApplicationService
 from user.application.schemas import (
     PermissionRequest,

@@ -23,6 +23,13 @@ build/
 .env.test.local
 .env.production.local
 
+# 密钥文件（安全）
+keys/
+*.pem
+*.key
+*.p12
+*.pfx
+
 # IDE和编辑器
 .vscode/
 .idea/
@@ -92,3 +99,5 @@ cover/
 # 其他
 .claude/
 .cursor/
+.codebuddy/
+CLAUDE.md

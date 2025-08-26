@@ -18,8 +18,8 @@ limitations under the License.
 
 from fastapi import APIRouter
 
-from user.interface.auth_controller import router as auth_router
 from user.interface.audit_controller import router as audit_router
+from user.interface.auth_controller import router as auth_router
 from user.interface.permission_controller import router as permission_router
 from user.interface.role_controller import router as role_router
 from user.interface.user_controller import router as user_router

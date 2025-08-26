@@ -30,7 +30,6 @@ from user.application.schemas import (
     AuditLogQuery,
     AuditStatsQuery,
 )
-from user.application.decorators import audit_admin_operation
 from user.infrastructure.permission import require_admin_permission
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])
@@ -54,7 +53,7 @@ async def get_audit_logs(
     success: bool | None = Query(None, description="操作结果筛选"),
 ) -> ApiResponse[dict]:
     """获取审计日志列表"""
-    
+
     # 构建查询对象
     query = AuditLogQuery(
         page=page,
@@ -65,10 +64,10 @@ async def get_audit_logs(
         end_time=end_time,
         success=success,
     )
-    
+
     # 调用应用服务
     result = await audit_service.get_logs(query)
-    
+
     # 转换响应格式
     response_data = {
         "items": [
@@ -90,7 +89,7 @@ async def get_audit_logs(
         ],
         "pagination": result["pagination"],
     }
-    
+
     return ApiResponse.success_response(response_data, "获取审计日志成功")
 
 
@@ -106,10 +105,10 @@ async def get_audit_stats(
     days: int = Query(7, ge=1, le=365, description="统计天数"),
 ) -> ApiResponse[dict]:
     """获取审计日志统计"""
-    
+
     query = AuditStatsQuery(days=days)
     stats = await audit_service.get_stats(query)
-    
+
     return ApiResponse.success_response(stats.dict(), "获取统计信息成功")
 
 
@@ -127,13 +126,13 @@ async def get_user_audit_logs(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
 ) -> ApiResponse[dict]:
     """获取指定用户的审计日志"""
-    
+
     result = await audit_service.get_user_logs(
         user_id=user_id,
         page=page,
         page_size=page_size,
     )
-    
+
     # 转换返回格式
     response_data = {
         "user_id": str(user_id),
@@ -152,7 +151,7 @@ async def get_user_audit_logs(
         ],
         "pagination": result["pagination"],
     }
-    
+
     return ApiResponse.success_response(response_data, "获取用户审计日志成功")
 
 
@@ -168,10 +167,10 @@ async def cleanup_audit_logs(
     days: int = Query(90, ge=30, le=365, description="保留天数，30-365天"),
 ) -> ApiResponse[dict]:
     """清理旧的审计日志"""
-    
+
     command = AuditCleanupCommand(days=days)
     result = await audit_service.cleanup_old_logs(command)
-    
+
     response_data = result.dict()
-    
+
     return ApiResponse.success_response(response_data, f"清理完成，删除了 {result.deleted_count} 条记录")

@@ -19,7 +19,6 @@ limitations under the License.
 from typing import Any
 
 from loguru import logger
-from sqlalchemy.engine import default
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.domain.initializer import DataInitializer
@@ -31,19 +30,22 @@ from user.domain.models import (
 from user.domain.repositories import (
     IPermissionRepository,
     IRoleRepository,
+    IUserRepository,
+)
+from user.domain.services.permission_calculation_service import (
+    PermissionCalculationService,
 )
 from user.domain.services.permission_domain_service import PermissionDomainService
 from user.domain.services.role_domain_service import RoleDomainService
 from user.domain.services.user_domain_service import UserDomainService
+from user.domain.services.user_lifecycle_service import UserLifecycleService
+from user.domain.services.user_validation_service import UserValidationService
+from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.repositories import (
     PermissionRepository,
     RoleRepository,
     UserRepository,
 )
-from user.domain.services.user_validation_service import UserValidationService
-from user.domain.services.user_lifecycle_service import UserLifecycleService
-from user.domain.services.permission_calculation_service import PermissionCalculationService
-from user.infrastructure.password_service import PasswordHashService
 
 
 class UserDataInitializer(DataInitializer):
@@ -71,210 +73,134 @@ class UserDataInitializer(DataInitializer):
                 "name": "system.system.view",
                 "display_name": "查看系统",
                 "description": "查看系统信息",
-                "module": "system",
-                "resource": "system",
-                "action": "view"
             },
             {
                 "name": "system.system.update",
                 "display_name": "更新系统",
                 "description": "更新系统配置",
-                "module": "system",
-                "resource": "system",
-                "action": "update"
             },
             {
                 "name": "system.system.monitor",
                 "display_name": "系统监控",
                 "description": "监控系统状态",
-                "module": "system",
-                "resource": "system",
-                "action": "monitor"
             },
             # 用户管理权限
             {
                 "name": "system.users.view",
                 "display_name": "查看用户",
                 "description": "查看用户列表和详情",
-                "module": "system",
-                "resource": "users",
-                "action": "view"
             },
             {
                 "name": "system.users.create",
                 "display_name": "创建用户",
                 "description": "创建新用户账户",
-                "module": "system",
-                "resource": "users",
-                "action": "create"
             },
             {
                 "name": "system.users.update",
                 "display_name": "更新用户",
                 "description": "更新用户信息",
-                "module": "system",
-                "resource": "users",
-                "action": "update"
             },
             {
                 "name": "system.users.delete",
                 "display_name": "删除用户",
                 "description": "删除用户账户",
-                "module": "system",
-                "resource": "users",
-                "action": "delete"
             },
             # 角色管理权限
             {
                 "name": "system.roles.view",
                 "display_name": "查看角色",
                 "description": "查看角色列表和详情",
-                "module": "system",
-                "resource": "roles",
-                "action": "view"
             },
             {
                 "name": "system.roles.create",
                 "display_name": "创建角色",
                 "description": "创建新角色",
-                "module": "system",
-                "resource": "roles",
-                "action": "create"
             },
             {
                 "name": "system.roles.update",
                 "display_name": "更新角色",
                 "description": "更新角色信息",
-                "module": "system",
-                "resource": "roles",
-                "action": "update"
             },
             {
                 "name": "system.roles.delete",
                 "display_name": "删除角色",
                 "description": "删除角色",
-                "module": "system",
-                "resource": "roles",
-                "action": "delete"
             },
             # 权限管理权限
             {
                 "name": "system.permissions.view",
                 "display_name": "查看权限",
                 "description": "查看权限列表和详情",
-                "module": "system",
-                "resource": "permissions",
-                "action": "view"
             },
             {
                 "name": "system.permissions.create",
                 "display_name": "创建权限",
                 "description": "创建新权限",
-                "module": "system",
-                "resource": "permissions",
-                "action": "create"
             },
             {
                 "name": "system.permissions.update",
                 "display_name": "更新权限",
                 "description": "更新权限信息",
-                "module": "system",
-                "resource": "permissions",
-                "action": "update"
             },
             {
                 "name": "system.permissions.delete",
                 "display_name": "删除权限",
                 "description": "删除权限",
-                "module": "system",
-                "resource": "permissions",
-                "action": "delete"
             },
             # 审计日志管理权限
             {
                 "name": "system.audit.view",
                 "display_name": "查看审计日志",
                 "description": "查看审计日志列表和详情",
-                "module": "system",
-                "resource": "audit",
-                "action": "view"
             },
             {
                 "name": "system.audit.create",
                 "display_name": "创建审计日志",
                 "description": "创建新审计日志",
-                "module": "system",
-                "resource": "audit",
-                "action": "create"
             },
             {
                 "name": "system.audit.update",
                 "display_name": "更新审计日志",
                 "description": "更新审计日志信息",
                 "module": "system",
-                "resource": "audit",
-                "action": "update"
             },
             {
                 "name": "system.audit.delete",
                 "display_name": "删除审计日志",
                 "description": "删除审计日志",
-                "module": "system",
-                "resource": "audit",
-                "action": "delete"
             },
             # 用户管理权限
             {
                 "name": "user.users.view",
                 "display_name": "查看用户",
-                "description": "查看用户列表和详情",
-                "module": "user",
-                "resource": "users",
-                "action": "view"
+                "description": "查看用户详情",
             },
             {
                 "name": "user.users.update",
                 "display_name": "更新用户",
                 "description": "更新用户信息",
-                "module": "user",
-                "resource": "users",
-                "action": "update"
             },
             # 模型管理权限
             {
                 "name": "model.models.view",
                 "display_name": "查看模型",
                 "description": "查看模型列表和详情",
-                "module": "model",
-                "resource": "models",
-                "action": "view"
             },
             {
                 "name": "model.models.create",
                 "display_name": "创建模型",
                 "description": "创建新模型",
-                "module": "model",
-                "resource": "models",
-                "action": "create"
             },
             {
                 "name": "model.models.update",
                 "display_name": "更新模型",
                 "description": "更新模型信息",
-                "module": "model",
-                "resource": "models",
-                "action": "update"
             },
             {
                 "name": "model.models.delete",
                 "display_name": "删除模型",
                 "description": "删除模型",
-                "module": "model",
-                "resource": "models",
-                "action": "delete"
             },
-            
-            
         ]
 
     def _get_initial_roles_data(self) -> list[dict[str, Any]]:
@@ -353,19 +279,9 @@ class UserDataInitializer(DataInitializer):
             permission_calculation_service = PermissionCalculationService()
 
             # 创建领域服务实例
-            permission_domain_service = PermissionDomainService(
-                permission_repository=permission_repository,
-                role_repository=role_repository,
-                user_repository=user_repository
-            )
-            role_domain_service = RoleDomainService(
-                role_repository=role_repository,
-                permission_repository=permission_repository,
-                user_repository=user_repository
-            )
+            permission_domain_service = PermissionDomainService()
+            role_domain_service = RoleDomainService()
             user_domain_service = UserDomainService(
-                user_repository=user_repository,
-                role_repository=role_repository,
                 password_service=password_service,
                 validation_service=validation_service,
                 lifecycle_service=lifecycle_service,
@@ -373,13 +289,13 @@ class UserDataInitializer(DataInitializer):
             )
 
             # 初始化权限
-            await self._initialize_permissions(permission_domain_service)
+            await self._initialize_permissions(permission_domain_service, permission_repository)
 
             # 初始化角色
-            await self._initialize_roles(role_domain_service, permission_repository)
+            await self._initialize_roles(role_domain_service, role_repository, permission_repository)
 
             # 初始化管理员用户
-            _ = await self._initialize_admin_user(user_domain_service)
+            _ = await self._initialize_admin_user(user_domain_service, role_repository, user_repository)
 
             return True
 
@@ -388,34 +304,47 @@ class UserDataInitializer(DataInitializer):
             await session.rollback()
             return False
 
-    async def _initialize_permissions(self, permission_domain_service: PermissionDomainService) -> None:
+    async def _initialize_permissions(self, 
+        permission_domain_service: PermissionDomainService,
+        permission_repository: IPermissionRepository
+    ) -> None:
         """初始化权限数据"""
         logger.info("初始化权限数据...")
 
         for permission_data in self._permissions_data:
             try:
                 # 检查权限是否已存在
-                existing_permissions = await permission_domain_service._permission_repository.find_by_names([permission_data["name"]])
-                
+                existing_permissions = await permission_repository.find_by_names([permission_data["name"]])
+
                 if existing_permissions:
                     logger.info(f"权限已存在，跳过: {permission_data['name']}")
                     continue
 
+                """
+                    "name": "user.users.view",
+                    "display_name": "查看用户",
+                    "description": "查看用户列表和详情",
+                    "module": "user",
+                    "resource": "users",
+                    "action": "view"
+                """
                 # 创建新权限
-                permission = await permission_domain_service.create_permission(
+                permission = await permission_domain_service.create_permission_entity(
                     name=permission_data["name"],
                     display_name=permission_data["display_name"],
                     description=permission_data["description"],
-                    module=permission_data["module"]
                 )
+                _ = await permission_repository.save(permission)
+                await permission_repository.commit()
                 logger.info(f"创建权限: {permission.name.value}")
 
             except Exception as e:
                 logger.warning(f"创建权限失败 {permission_data['name']}: {e}")
 
     async def _initialize_roles(
-        self, 
-        role_domain_service: RoleDomainService, 
+        self,
+        role_domain_service: RoleDomainService,
+        role_repository: IRoleRepository,
         permission_repository: IPermissionRepository
     ) -> None:
         """初始化角色数据"""
@@ -424,8 +353,8 @@ class UserDataInitializer(DataInitializer):
         for role_data in self._roles_data:
             try:
                 # 检查角色是否已存在
-                existing_role = await role_domain_service._role_repository.find_by_name(role_data["name"])
-                
+                existing_role = await role_repository.find_by_name(role_data["name"])
+
                 if existing_role:
                     logger.info(f"角色已存在，跳过: {role_data['name']}")
                     continue
@@ -436,20 +365,22 @@ class UserDataInitializer(DataInitializer):
                 permission_ids = [perm.id for perm in permissions]
 
                 # 创建新角色
-                role = await role_domain_service.create_role_with_permissions(
+                role = await role_domain_service.create_role_entity(
                     name=role_data["name"],
                     display_name=role_data["display_name"],
                     description=role_data["description"],
-                    permission_ids=permission_ids,
+                    permissions=permissions,
                     role_type=role_data["role_type"],
                     is_system_role=role_data["is_system_role"],
                 )
+                _ = await role_repository.save(role)
+                await role_repository.commit()
                 logger.info(f"创建角色: {role.name}")
 
             except Exception as e:
                 logger.warning(f"创建角色失败 {role_data['name']}: {e}")
 
-    async def _initialize_admin_user(self, user_domain_service: UserDomainService) -> User | None:
+    async def _initialize_admin_user(self, user_domain_service: UserDomainService, role_repository: IRoleRepository, user_repository: IUserRepository) -> User | None:
         """初始化管理员用户"""
         logger.info("初始化管理员用户...")
 
@@ -457,21 +388,23 @@ class UserDataInitializer(DataInitializer):
 
         try:
             # 检查管理员用户是否已存在
-            existing_user = await user_domain_service._user_repository.find_by_username(admin_data["username"])
-            
+            existing_user = await user_repository.find_by_username(admin_data["username"])
+
             if existing_user:
                 logger.info(f"管理员用户已存在: {admin_data['username']}")
                 return existing_user
 
+            role = await role_repository.find_by_name(RoleType.ADMIN.value)
+
             # 创建新的管理员用户
-            admin_user = await user_domain_service.create_user_with_role(
+            admin_user = await user_domain_service.create_user_entity(
                 username=admin_data["username"],
                 email=admin_data["email"],
                 password_hash=admin_data["password_hash"],
                 first_name=admin_data["first_name"],
                 last_name=admin_data["last_name"],
                 organization=admin_data["organization"],
-                default_role_type=RoleType.ADMIN
+                role=role
             )
             logger.info(f"创建管理员用户: {admin_data['username']}")
             return admin_user

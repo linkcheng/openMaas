@@ -40,28 +40,25 @@ class AuditDomainService(DomainService):
     def __init__(self, audit_repository: IAuditLogRepository):
         self._audit_repository = audit_repository
 
-    async def record_audit_log(self, audit_log: AuditLog) -> None:
-        """记录审计日志
+    def validate_audit_log(self, audit_log: AuditLog) -> AuditLog:
+        """验证并处理审计日志（纯业务逻辑）
         
         Args:
             audit_log: 审计日志领域实体
+            
+        Returns:
+            验证后的审计日志实体
         """
-        try:
-            # 业务规则验证
-            self._validate_audit_log(audit_log)
-            
-            # 数据存储
-            await self._audit_repository.save(audit_log)
-            
-            # 记录到应用日志
-            if audit_log.success:
-                logger.info(f"审计日志: {audit_log.get_operation_summary()}")
-            else:
-                logger.warning(f"审计日志 (失败): {audit_log.get_operation_summary()} - {audit_log.error_message}")
-                
-        except Exception as e:
-            logger.error(f"保存审计日志失败: {e}", exc_info=True)
-            # 不抛出异常，避免影响主业务流程
+        # 业务规则验证
+        self._validate_audit_log(audit_log)
+
+        # 记录到应用日志（领域事件）
+        if audit_log.success:
+            logger.info(f"审计日志: {audit_log.get_operation_summary()}")
+        else:
+            logger.warning(f"审计日志 (失败): {audit_log.get_operation_summary()} - {audit_log.error_message}")
+
+        return audit_log
 
     async def query_audit_logs(
         self,
@@ -89,7 +86,7 @@ class AuditDomainService(DomainService):
         """
         # 业务规则验证
         self._validate_query_parameters(limit, offset, start_time, end_time)
-        
+
         # Repository 操作
         return await self._audit_repository.find_with_count(
             user_id=user_id,
@@ -118,37 +115,34 @@ class AuditDomainService(DomainService):
         # 业务规则验证
         if start_time and end_time and start_time >= end_time:
             raise ValueError("开始时间必须早于结束时间")
-        
+
         # Repository 操作
         return await self._audit_repository.get_stats(
             start_time=start_time,
             end_time=end_time,
         )
 
-    async def cleanup_expired_logs(self, retention_days: int) -> int:
-        """清理过期的审计日志
+    def validate_cleanup_policy(self, retention_days: int) -> datetime:
+        """验证清理策略并计算截止时间（纯业务逻辑）
         
         Args:
             retention_days: 保留天数
             
         Returns:
-            删除的记录数
+            删除截止时间
         """
         # 业务规则验证
         if retention_days <= 0:
             raise ValueError("保留天数必须大于0")
-        
+
         if retention_days < 30:
             raise ValueError("为保证合规性，审计日志保留天数不能少于30天")
-        
+
         # 计算删除截止时间
         before_date = datetime.now(UTC) - timedelta(days=retention_days)
         
-        # Repository 操作
-        deleted_count = await self._audit_repository.cleanup_old_logs(before_date)
-        
-        logger.info(f"清理了 {deleted_count} 条超过 {retention_days} 天的审计日志")
-        return deleted_count
+        logger.info(f"审计日志清理策略验证通过: 保留{retention_days}天，截止时间{before_date}")
+        return before_date
 
     def _validate_audit_log(self, audit_log: AuditLog) -> None:
         """验证审计日志的业务规则
@@ -159,10 +153,10 @@ class AuditDomainService(DomainService):
         # 基本字段验证
         if not audit_log.description or len(audit_log.description.strip()) == 0:
             raise ValueError("操作描述不能为空")
-        
+
         if not audit_log.success and not audit_log.error_message:
             raise ValueError("操作失败时必须提供错误信息")
-        
+
         # 用户信息一致性验证
         if audit_log.user_id and not audit_log.username:
             logger.warning(f"用户ID {audit_log.user_id} 缺少用户名信息")
@@ -184,13 +178,13 @@ class AuditDomainService(DomainService):
         """
         if limit <= 0 or limit > 100:
             raise ValueError("查询数量必须在1-100之间")
-        
+
         if offset < 0:
             raise ValueError("查询偏移量不能为负数")
-        
+
         if start_time and end_time and start_time >= end_time:
             raise ValueError("开始时间必须早于结束时间")
-        
+
         # 防止查询时间范围过大
         if start_time and end_time:
             time_diff = end_time - start_time
@@ -209,7 +203,7 @@ class AuditDomainService(DomainService):
             分页信息字典
         """
         total_pages = math.ceil(total / page_size) if total > 0 else 1
-        
+
         return {
             "page": page,
             "page_size": page_size,

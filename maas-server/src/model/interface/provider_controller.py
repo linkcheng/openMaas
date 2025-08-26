@@ -21,8 +21,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 
 from model.application import (
-    provider_application_service,
     ProviderApplicationService,
+    provider_application_service,
 )
 from model.application.schemas import (
     CreateModelConfigRequest,

@@ -36,7 +36,7 @@ class DatabaseInitializationCoordinator:
             from user.infrastructure.data_initializer import UserDataInitializer
             self._initializers.append(UserDataInitializer())
         except ImportError:
-            logger.warning("用户模块初始化器未找到")    
+            logger.warning("用户模块初始化器未找到")
 
     def _sort_by_dependencies(self) -> list[DataInitializer]:
         """根据依赖关系对初始化器进行拓扑排序"""

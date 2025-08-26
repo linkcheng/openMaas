@@ -27,7 +27,9 @@ from loguru import logger
 
 from config.settings import settings
 from model.interface import router as model_router
+from shared.application.exception_mapper import map_domain_to_application_exception
 from shared.application.exceptions import ApplicationException, to_http_exception
+from shared.domain.base import DomainException
 from shared.infrastructure.cache import (
     close_redis,
     init_redis,
@@ -113,6 +115,30 @@ app.add_middleware(UserContextMiddleware)
 
 
 # 全局异常处理器
+@app.exception_handler(DomainException)
+async def domain_exception_handler(request: Request, exc: DomainException):
+    """领域异常处理器 - 转换为应用异常"""
+    logger.warning(
+        f"领域异常: {exc.message} - "
+        f"错误码: {getattr(exc, 'code', 'unknown')} - "
+        f"请求: {request.method} {request.url.path} - "
+        f"请求ID: {getattr(request.state, 'request_id', 'unknown')}"
+    )
+
+    # 将Domain异常转换为Application异常
+    app_exc = map_domain_to_application_exception(exc)
+    http_exc = to_http_exception(app_exc)
+
+    return JSONResponse(
+        status_code=http_exc.status_code,
+        content={
+            **http_exc.detail,
+            "request_id": getattr(request.state, "request_id", None),
+            "timestamp": time.time()
+        }
+    )
+
+
 @app.exception_handler(ApplicationException)
 async def application_exception_handler(request: Request, exc: ApplicationException):
     """应用异常处理器"""
@@ -215,7 +241,7 @@ app.include_router(model_router)
 
 if __name__ == "__main__":
     import uvicorn
-
+    print("========================start========================")
     # 配置日志
     logger.remove()
     logger.add(

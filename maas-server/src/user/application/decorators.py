@@ -29,7 +29,6 @@ from uuid_extensions import uuid7
 from shared.infrastructure.database import async_session_factory
 from user.infrastructure.models import AuditLogORM
 
-
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -46,20 +45,20 @@ def audit_log(
         description: 操作描述
         extract_user_from_result: 是否从返回结果中提取用户信息
     """
-    
+
     def decorator(func: F) -> F:
-        
+
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             # 提取审计上下文
             context = _extract_context(func, args, kwargs)
-            
+
             try:
                 # 执行原函数
                 result = await func(*args, **kwargs)
-                
+
                 context = _extract_context(func, args, kwargs)
-                
+
                 # 记录成功的审计日志
                 await _log_audit_action(
                     action=action,
@@ -70,9 +69,9 @@ def audit_log(
                     user_agent=context.get("user_agent"),
                     success=True,
                 )
-                
+
                 return result
-                
+
             except Exception as e:
                 # 记录失败的审计日志
                 await _log_audit_action(
@@ -85,41 +84,41 @@ def audit_log(
                     success=False,
                     error_message=str(e),
                 )
-                
+
                 # 重新抛出异常
                 raise
-        
+
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             # 同步函数的包装器（简化处理）
             logger.warning(f"同步函数 {func.__name__} 使用审计装饰器，建议使用异步版本")
             return func(*args, **kwargs)
-        
+
         # 根据函数类型选择包装器
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
-    
+
     return decorator
 
 
 def _extract_context(func: Callable, args: tuple, kwargs: dict) -> dict[str, Any]:
     """从函数参数中提取审计上下文"""
     context = {}
-    
+
     # 获取函数签名
     sig = inspect.signature(func)
     bound_args = sig.bind(*args, **kwargs)
     bound_args.apply_defaults()
-    
+
     # 查找Request对象
     request_obj = None
     for param_name, param_value in bound_args.arguments.items():
         if isinstance(param_value, Request):
             request_obj = param_value
             break
-    
+
     if request_obj:
         # 优先使用RequestContextMiddleware设置的客户端信息
         context["ip_address"] = getattr(request_obj.state, "client_ip", None)
@@ -128,14 +127,14 @@ def _extract_context(func: Callable, args: tuple, kwargs: dict) -> dict[str, Any
         # 从 request.state 获取用户信息（已认证接口）
         context["user_id"] = getattr(request_obj.state, "user_id", None)
         context["username"] = getattr(request_obj.state, "username", None)
-        
+
         # 如果state中没有用户信息，尝试从current_user获取
         current_user = getattr(request_obj.state, "current_user", None)
         if current_user and not context["user_id"]:
             context["user_id"] = getattr(current_user, "id", None)
             context["username"] = getattr(current_user, "username", None)
-    
-    return context   
+
+    return context
 
 
 async def _log_audit_action(
@@ -163,16 +162,16 @@ async def _log_audit_action(
                 success=success,
                 error_message=error_message,
             )
-            
+
             session.add(audit_log_orm)
             await session.commit()
-            
+
             # 记录到应用日志
             if success:
                 logger.info(f"审计日志: 用户 {username or 'system'} 执行 {action} - {description}")
             else:
                 logger.warning(f"审计日志 (失败): 用户 {username or 'system'} 执行 {action} - {description} - {error_message}")
-        
+
     except Exception as e:
         logger.error(f"记录审计日志失败: {e}", exc_info=True)
         # 审计日志失败不应该影响主业务流程

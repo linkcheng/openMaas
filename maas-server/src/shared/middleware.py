@@ -1,7 +1,7 @@
 """
 Copyright 2025 MaaS Team
 
-审计日志中间件 - 请求上下文管理
+请求上下文中间件 - 统一使用trace_id
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,25 +20,30 @@ import time
 import uuid
 
 from fastapi import Request
-from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from shared.infrastructure.logging_service import get_logger_with_trace, set_trace_id
+
+logger = get_logger_with_trace()
+
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
-    """请求上下文中间件
-
-    自动为每个请求生成唯一ID，提取客户端信息，并存储在request.state中
-    供审计装饰器使用。
-    """
+    """请求上下文中间件 - 统一使用trace_id"""
 
     def __init__(self, app: ASGIApp):
         super().__init__(app)
 
     async def dispatch(self, request: Request, call_next):
-        # 生成请求ID
-        request_id = str(uuid.uuid4())
-        request.state.request_id = request_id
+        # 生成trace_id（统一标识，短格式便于查看）
+        trace_id = str(uuid.uuid4())[:8]
+
+        # 设置到contextvar（业务代码可用）
+        set_trace_id(trace_id)
+
+        # 设置到request.state（保持向后兼容）
+        request.state.trace_id = trace_id
+        request.state.request_id = trace_id  # 保持向后兼容
 
         # 记录请求开始时间
         start_time = time.time()
@@ -52,11 +57,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.state.client_ip = client_ip
         request.state.user_agent = user_agent
 
-        # 记录请求开始
-        logger.info(
-            f"请求开始 - ID: {request_id}, Method: {request.method}, "
-            f"URL: {request.url}, IP: {client_ip}, UserAgent: {user_agent[:100]}"
-        )
+        logger.info(f"请求开始 - {request.method} {request.url.path}")
 
         try:
             # 处理请求
@@ -66,13 +67,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             process_time = time.time() - start_time
             request.state.process_time = process_time
 
-            # 添加响应头
-            response.headers["X-Request-ID"] = request_id
+            # 添加响应头（保持兼容性）
+            response.headers["X-Trace-ID"] = trace_id
+            response.headers["X-Request-ID"] = trace_id  # 保持兼容性
             response.headers["X-Process-Time"] = str(round(process_time * 1000, 2))
 
-            # 记录请求完成
             logger.info(
-                f"请求完成 - ID: {request_id}, Status: {response.status_code}, "
+                f"请求完成 - Status: {response.status_code}, "
                 f"Time: {process_time:.3f}s"
             )
 
@@ -82,11 +83,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             # 计算处理时间
             process_time = time.time() - start_time
 
-            # 记录请求异常
-            logger.error(
-                f"请求异常 - ID: {request_id}, Error: {e!s}, "
-                f"Time: {process_time:.3f}s", exc_info=True
-            )
+            logger.error(f"请求异常 - {e}", exc_info=True)
 
             # 重新抛出异常
             raise

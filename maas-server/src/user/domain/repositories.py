@@ -17,11 +17,11 @@ limitations under the License.
 """用户领域 - 仓储接口"""
 
 from abc import abstractmethod
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
 
 from shared.domain.base import Repository
-from user.domain.models import Permission, Role, User, AuditLog
+from user.domain.models import AuditLog, Permission, Role, User
 
 
 class IUserRepository(Repository[User]):
@@ -30,6 +30,11 @@ class IUserRepository(Repository[User]):
     @abstractmethod
     async def save(self, user: User) -> User:
         """保存用户"""
+        pass
+
+    @abstractmethod
+    async def batch_save(self, users: list[User]) -> list[User]:
+        """批量保存用户"""
         pass
 
     @abstractmethod
@@ -181,8 +186,8 @@ class IPermissionRepository(Repository[Permission]):
         pass
 
     @abstractmethod
-    async def find_by_resource_action(self, resource: str, action: str) -> Permission | None:
-        """根据资源和操作查找权限"""
+    async def find_by_name(self, name: str) -> Permission | None:
+        """根据name查找权限"""
         pass
 
     @abstractmethod
@@ -244,22 +249,22 @@ class IAuditLogRepository(Repository[AuditLog]):
         pass
 
     @abstractmethod
-    async def find_with_count(self, 
-        user_id: UUID | None = None, 
-        action = None, start_time: datetime | None = None, 
-        end_time: datetime | None = None, 
-        success: bool | None = None, 
+    async def find_with_count(self,
+        user_id: UUID | None = None,
+        action = None, start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        success: bool | None = None,
         limit: int = 20,
          offset: int = 0
     ) -> tuple[list, int]:
         """查找审计日志"""
         pass
-    
+
     @abstractmethod
     async def get_stats(self, start_time: datetime | None = None, end_time: datetime | None = None) -> dict:
         """获取统计数据"""
         pass
-    
+
     @abstractmethod
     async def cleanup_old_logs(self, before_date: datetime) -> int:
         """清理旧的审计日志"""

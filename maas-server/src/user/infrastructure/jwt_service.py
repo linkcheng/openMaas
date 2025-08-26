@@ -18,7 +18,6 @@ limitations under the License.
 import jwt
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from loguru import logger
 
 from config.settings import settings
 

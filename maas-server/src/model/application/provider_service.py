@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import datetime
+
 from loguru import logger
 
 from model.application.schemas import (
@@ -33,8 +34,8 @@ from model.domain.exceptions import (
     ModelConfigNotFoundException,
     ProviderAlreadyExistsException,
     ProviderHasActiveModelsException,
+    ProviderInactiveException,
     ProviderNotFoundException,
-    ProviderInactiveException
 )
 from model.domain.models.provider_model import ModelConfigEntity, ProviderEntity
 from model.domain.repository.provider_repository import (

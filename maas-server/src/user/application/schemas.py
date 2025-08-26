@@ -31,15 +31,19 @@ class UserStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+class RoleType(str, Enum):
+    """角色类型"""
+    ADMIN = "admin"
+    DEVELOPER = "developer"
+    USER = "user"
+
+
 # 角色和权限相关DTO
 class PermissionRequest(BaseModel):
     """权限创建请求"""
     name: str = Field(..., min_length=1, max_length=100, description="权限名称")
     display_name: str = Field(..., min_length=1, max_length=100, description="权限显示名称")
     description: str = Field(..., min_length=1, max_length=255, description="权限描述")
-    resource: str = Field(..., min_length=1, max_length=100, description="资源")
-    action: str = Field(..., min_length=1, max_length=100, description="操作")
-    module: str | None = Field(None, max_length=100, description="模块")
 
 
 class PermissionResponse(BaseModel):
@@ -149,6 +153,7 @@ class UserCreateRequest(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=50, description="名字")
     last_name: str = Field(..., min_length=1, max_length=50, description="姓氏")
     organization: str | None = Field(None, max_length=255, description="组织")
+    role_type: RoleType = Field(RoleType.USER, description="角色类型")
 
     @validator("username")
     def validate_username(cls, v):
@@ -171,6 +176,7 @@ class UserUpdateRequest(BaseModel):
     avatar_url: str | None = Field(None, description="头像URL")
     organization: str | None = Field(None, max_length=255)
     bio: str | None = Field(None, max_length=500)
+    role_type: RoleType = Field(RoleType.USER, description="角色类型")
 
 
 class PasswordChangeRequest(BaseModel):
@@ -322,6 +328,7 @@ class UserCreateCommand(BaseModel):
     first_name: str
     last_name: str
     organization: str | None = None
+    role_type: RoleType = RoleType.USER
 
 
 class UserUpdateCommand(BaseModel):
