@@ -22,6 +22,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, validator
+from shared.application.response import ApiResponse
 
 
 class UserStatus(str, Enum):
@@ -221,16 +222,6 @@ class UserProfileResponse(BaseModel):
     bio: str | None
 
 
-class RoleResponse(BaseModel):
-    """角色响应"""
-    id: UUID
-    name: str
-    role_type: str
-    is_system_role: bool
-    description: str
-    permissions: list[str]
-
-
 class UserResponse(BaseModel):
     """用户响应"""
     id: UUID
@@ -384,7 +375,7 @@ class AuditLogQuery(BaseModel):
 class AuditLogResponse(BaseModel):
     """审计日志响应"""
     id: int
-    user_id: UUID | None
+    user_id: str | None
     username: str | None
     action: str
     description: str
@@ -392,7 +383,7 @@ class AuditLogResponse(BaseModel):
     user_agent: str | None
     success: bool
     error_message: str | None
-    created_at: datetime
+    created_at: str | None
     operation_summary: str
     is_system_operation: bool
 
@@ -429,3 +420,69 @@ class AuditCleanupResponse(BaseModel):
     deleted_count: int
     retention_days: int
     cleanup_time: str
+
+
+# API 响应类型定义
+class PermissionListData(BaseModel):
+    """权限列表响应数据"""
+    permissions: list[PermissionResponse]
+    pagination: dict
+    filters: PermissionSearchQuery
+
+
+class BatchPermissionData(BaseModel):
+    """批量权限操作数据"""
+    created_permissions: list[PermissionResponse] | None = None
+    created_count: int | None = None
+    deleted_count: int | None = None
+    imported_count: int | None = None
+    skipped_count: int | None = None
+    failed_count: int | None = None
+
+
+class PermissionValidationData(BaseModel):
+    """权限验证数据"""
+    user_id: str
+    permission: str
+    has_permission: bool
+    resource: str | None = None
+    action: str | None = None
+    module: str | None = None
+
+
+class RoleListData(BaseModel):
+    """角色列表响应数据"""
+    roles: list[RoleResponse]
+    pagination: dict[str, Any] | None = None
+    filters: dict[str, Any] | None = None
+
+
+# 用户相关 API 响应类型
+class UserPermissionsData(BaseModel):
+    """用户权限数据"""
+    user_id: str
+    username: str
+    is_super_admin: bool
+    permissions: list[str]
+    permissions_by_module: dict[str, list[dict[str, Any]]]
+    permission_matrix: dict[str, Any]
+    roles: list[dict[str, Any]]
+    total_permissions: int
+
+
+class UserPermissionCheckData(BaseModel):
+    """用户权限检查数据"""
+    user_id: str
+    username: str
+    permission: str
+    has_permission: bool
+    is_super_admin: bool
+    granted_by_roles: list[str]
+
+
+# 认证相关 API 响应类型
+class CryptoKeyData(BaseModel):
+    """加密密钥数据"""
+    public_key: str
+    key_format: str
+    algorithm: str

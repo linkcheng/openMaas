@@ -285,7 +285,7 @@ async def require_admin(
 
     # 检查角色级别的管理员权限
     admin_roles = ["admin", "super_admin", "system_admin"]
-    user_roles = [role.name.lower() for role in user.roles]
+    user_roles = [role.name.lower() for role in user._roles]
     if any(role in user_roles for role in admin_roles):
         return True
 

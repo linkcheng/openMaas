@@ -27,6 +27,8 @@ from user.application.schemas import (
     PasswordChangeCommand,
     RoleResponse,
     UserCreateCommand,
+    UserPermissionsData,
+    UserPermissionCheckData,
     UserProfileResponse,
     UserResponse,
     UserSearchQuery,
@@ -56,7 +58,6 @@ class UserApplicationService:
     async def create_user(
         self,
         command: UserCreateCommand,
-        session: AsyncSession
     ) -> UserResponse:
         """创建用户 - 事务操作"""
         # 1. 使用Domain Service验证创建数据
@@ -94,7 +95,6 @@ class UserApplicationService:
     async def update_user_profile(
         self,
         command: UserUpdateCommand,
-        session: AsyncSession
     ) -> UserResponse:
         """更新用户档案 - 事务操作"""
         # 1. Application Service查询用户
@@ -121,7 +121,6 @@ class UserApplicationService:
     async def change_password(
         self,
         command: PasswordChangeCommand,
-        session: AsyncSession
     ) -> bool:
         """修改密码 - 事务操作"""
         # 1. Application Service查询用户
@@ -183,7 +182,6 @@ class UserApplicationService:
     async def logout_user(
         self, 
         user_id: UUID,
-        session: AsyncSession
     ) -> None:
         """用户登出,增加key_version使所有token失效 - 事务操作"""
         # 1. Application Service查询用户
@@ -204,7 +202,6 @@ class UserApplicationService:
         user_id: UUID, 
         *,
         reason: str = "权限变更",
-        session: AsyncSession
     ) -> None:
         """使用户所有token失效 - 事务操作"""
         # 1. Application Service查询用户
@@ -225,7 +222,6 @@ class UserApplicationService:
         user_id: UUID, 
         reason: str, 
         suspended_by: UUID,
-        session: AsyncSession
     ) -> bool:
         """暂停用户并使token失效 - 事务操作"""
         # 1. Application Service查询用户
@@ -247,7 +243,6 @@ class UserApplicationService:
         user_id: UUID, 
         role_ids: list[UUID], 
         assigned_by: UUID,
-        session: AsyncSession
     ) -> UserResponse:
         """分配用户角色 - 事务操作"""
         # 1. Application Service查询用户
@@ -277,7 +272,7 @@ class UserApplicationService:
     async def get_user_permissions(
         self, 
         user_id: UUID,
-    ) -> dict[str, Any]:
+    ) -> UserPermissionsData:
         """获取用户完整权限 - 只读操作"""
         # 1. Application Service查询用户
         user = await self._user_repository.find_by_id(user_id)
@@ -285,13 +280,14 @@ class UserApplicationService:
             raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
         
         # 2. 使用Domain Service计算权限
-        return self._user_domain_service.calculate_user_permissions(user)
+        permissions_data = self._user_domain_service.calculate_user_permissions(user)
+        return UserPermissionsData(**permissions_data)
 
     async def check_user_permission(
         self, 
         user_id: UUID, 
         permission_name: str,
-    ) -> dict[str, Any]:
+    ) -> UserPermissionCheckData:
         """验证用户权限 - 只读操作"""
         # 1. Application Service查询用户
         user = await self._user_repository.find_by_id(user_id)
@@ -299,13 +295,13 @@ class UserApplicationService:
             raise ApplicationException(f"用户 {user_id} 不存在", ErrorCode.BIZ_USER_NOT_FOUND)
         
         # 2. 使用Domain Service检查权限
-        return self._user_domain_service.check_user_permission_logic(user, permission_name)
+        check_data = self._user_domain_service.check_user_permission_logic(user, permission_name)
+        return UserPermissionCheckData(**check_data)
 
     @transactional()
     async def activate_user(
         self, 
         user_id: UUID,
-        session: AsyncSession
     ) -> bool:
         """激活用户 - 事务操作"""
         # 1. Application Service查询用户

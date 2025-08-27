@@ -31,12 +31,17 @@ from user.application.schemas import (
     PermissionRequest,
     PermissionSearchQuery,
     PermissionUpdateRequest,
+    PermissionResponse,
+    PermissionExportResponse,
+    PermissionListData,
+    BatchPermissionData,
+    PermissionValidationData
 )
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])
 
 
-@router.get("", response_model=dict)
+@router.get("", response_model=ApiResponse[PermissionListData])
 async def get_permissions(
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
     name: str | None = Query(None, description="权限名称关键词"),
@@ -61,26 +66,26 @@ async def get_permissions(
     permissions = await permission_service.search_permissions(query)
 
     # 构建分页响应
-    response_data = {
-        "permissions": permissions,
-        "pagination": {
+    response_data = PermissionListData(
+        permissions=permissions,
+        pagination={
             "page": page,
             "limit": limit,
             "total": len(permissions),
             "has_more": len(permissions) == limit
         },
-        "filters": {
-            "name": name,
-            "module": module,
-            "resource": resource,
-            "action": action
-        }
-    }
+        filters=PermissionSearchQuery(
+            name=name,
+            module=module,
+            resource=resource,
+            action=action
+        ),
+    )
 
     return ApiResponse.success_response(data=response_data, message="获取权限列表成功")
 
 
-@router.get("/modules/{module}", response_model=dict)
+@router.get("/modules/{module}", response_model=ApiResponse[list[PermissionResponse]])
 async def get_permissions_by_module(
     module: str,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -91,32 +96,7 @@ async def get_permissions_by_module(
     return ApiResponse.success_response(data=permissions, message=f"获取模块 {module} 权限成功")
 
 
-@router.get("/all", response_model=dict)
-async def get_all_permissions(
-    permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
-):
-    """获取所有权限"""
-
-    permissions = await permission_service.get_all_permissions()
-
-    # 按模块分组
-    permissions_by_module = {}
-    for perm in permissions:
-        module = perm.module or "default"
-        if module not in permissions_by_module:
-            permissions_by_module[module] = []
-        permissions_by_module[module].append(perm)
-
-    response_data = {
-        "permissions": permissions,
-        "permissions_by_module": permissions_by_module,
-        "total_count": len(permissions)
-    }
-
-    return ApiResponse.success_response(data=response_data, message="获取所有权限成功")
-
-
-@router.post("", response_model=dict)
+@router.post("", response_model=ApiResponse[PermissionResponse])
 @audit_admin_operation("管理员操作")
 async def create_permission(
     request: PermissionRequest,
@@ -129,7 +109,7 @@ async def create_permission(
     return ApiResponse.success_response(data=permission, message="权限创建成功")
 
 
-@router.get("/{permission_id}", response_model=dict)
+@router.get("/{permission_id}", response_model=ApiResponse[PermissionResponse])
 async def get_permission(
     permission_id: UUID,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -146,7 +126,7 @@ async def get_permission(
     return ApiResponse.success_response(data=permission, message="获取权限详情成功")
 
 
-@router.put("/{permission_id}", response_model=dict)
+@router.put("/{permission_id}", response_model=ApiResponse[PermissionResponse])
 @audit_admin_operation("管理员操作")
 async def update_permission(
     permission_id: UUID,
@@ -160,7 +140,7 @@ async def update_permission(
     return ApiResponse.success_response(data=permission, message="权限更新成功")
 
 
-@router.delete("/{permission_id}", response_model=dict)
+@router.delete("/{permission_id}", response_model=ApiResponse[None])
 @audit_admin_operation("管理员操作")
 async def delete_permission(
     permission_id: UUID,
@@ -177,7 +157,7 @@ async def delete_permission(
 
 
 # 批量操作接口
-@router.post("/batch", response_model=dict)
+@router.post("/batch", response_model=ApiResponse[BatchPermissionData])
 @audit_admin_operation("管理员操作")
 async def batch_create_permissions(
     request: PermissionBatchRequest,
@@ -187,14 +167,17 @@ async def batch_create_permissions(
 
     permissions = await permission_service.batch_create_permissions(request)
     logger.info(f"批量创建权限成功，共创建 {len(permissions)} 个权限")
-
+    response_data = BatchPermissionData(    
+        created_permissions=permissions,
+        created_count=len(permissions)
+    )
     return ApiResponse.success_response(
-        data={"created_permissions": permissions, "created_count": len(permissions)},
+        data=response_data,
         message=f"批量创建权限成功，共创建 {len(permissions)} 个权限"
     )
 
 
-@router.delete("/batch", response_model=dict)
+@router.delete("/batch", response_model=ApiResponse[BatchPermissionData])
 @audit_admin_operation("管理员操作")
 async def batch_delete_permissions(
     permission_ids: list[UUID],
@@ -212,7 +195,7 @@ async def batch_delete_permissions(
 
 
 # 导入导出接口
-@router.get("/export", response_model=dict)
+@router.get("/export", response_model=ApiResponse[PermissionExportResponse])
 async def export_permissions(
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
     module: str | None = Query(None, description="导出指定模块的权限"),
@@ -228,7 +211,7 @@ async def export_permissions(
     )
 
 
-@router.post("/import", response_model=dict)
+@router.post("/import", response_model=ApiResponse[BatchPermissionData])
 @audit_admin_operation("管理员操作")
 async def import_permissions(
     import_data: list[dict[str, Any]],
@@ -246,7 +229,7 @@ async def import_permissions(
 
 
 # 权限验证接口
-@router.get("/validate/{user_id}", response_model=dict)
+@router.get("/validate/{user_id}", response_model=ApiResponse[PermissionValidationData])
 async def validate_user_permission(
     user_id: UUID,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -255,18 +238,18 @@ async def validate_user_permission(
     """验证用户权限"""
 
     has_permission = await permission_service.validate_permission(user_id, permission_name)
-
+    response_data = PermissionValidationData(
+        user_id=str(user_id),
+        permission=permission_name,
+        has_permission=has_permission
+    )
     return ApiResponse.success_response(
-        data={
-            "user_id": str(user_id),
-            "permission": permission_name,
-            "has_permission": has_permission
-        },
+        data=response_data,
         message="权限验证完成"
     )
 
 
-@router.get("/validate/{user_id}/by-parts")
+@router.get("/validate/{user_id}/by-parts", response_model=ApiResponse[PermissionValidationData])
 async def validate_user_permission_by_parts(
     user_id: UUID,
     permission_service: Annotated[PermissionApplicationService, Depends(get_permission_application_service)],
@@ -281,15 +264,15 @@ async def validate_user_permission_by_parts(
     )
 
     permission_name = f"{module}.{resource}.{action}"
-
+    response_data = PermissionValidationData(
+        user_id=str(user_id),
+        permission=permission_name,
+        has_permission=has_permission,
+        resource=resource,
+        action=action,
+        module=module
+    )
     return ApiResponse.success_response(
-        data={
-            "user_id": str(user_id),
-            "permission": permission_name,
-            "resource": resource,
-            "action": action,
-            "module": module,
-            "has_permission": has_permission
-        },
+        data=response_data,
         message="权限验证完成"
     )

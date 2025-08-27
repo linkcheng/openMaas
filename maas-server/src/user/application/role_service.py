@@ -53,7 +53,6 @@ class RoleApplicationService:
     async def create_role(
         self, 
         request: RoleCreateRequest,
-        session: AsyncSession
     ) -> RoleResponse:
         """创建角色 - 事务操作"""
         # 1. 使用Domain Service验证数据格式
@@ -83,7 +82,6 @@ class RoleApplicationService:
         self, 
         role_id: UUID, 
         request: RoleUpdateRequest,
-        session: AsyncSession
     ) -> RoleResponse:
         """更新角色 - 事务操作"""
         # 1. Application Service查询角色
@@ -135,7 +133,6 @@ class RoleApplicationService:
     async def delete_role(
         self, 
         role_id: UUID,
-        session: AsyncSession
     ) -> bool:
         """删除角色（带安全检查） - 事务操作"""
         # 1. Application Service查询角色
@@ -183,7 +180,6 @@ class RoleApplicationService:
         self, 
         role_id: UUID, 
         permission_ids: list[UUID],
-        session: AsyncSession
     ) -> RoleResponse:
         """批量更新角色权限 - 事务操作"""
         # 1. Application Service查询角色
@@ -223,7 +219,6 @@ class RoleApplicationService:
     async def assign_user_roles(
         self, 
         request: UserRoleAssignRequest,
-        session: AsyncSession
     ) -> bool:
         """为用户分配角色 - 事务操作"""
         # 1. Application Service查询用户

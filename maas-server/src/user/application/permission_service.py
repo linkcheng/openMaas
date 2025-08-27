@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shared.domain.base import DomainException
 from shared.infrastructure.transaction_manager import transactional
 from user.application.schemas import (
+    BatchPermissionData,
     PermissionBatchRequest,
     PermissionExportResponse,
     PermissionRequest,
@@ -54,7 +55,6 @@ class PermissionApplicationService:
     async def create_permission(
         self, 
         request: PermissionRequest,
-        session: AsyncSession
     ) -> PermissionResponse:
         """创建权限 - 事务操作"""
         # 1. 检查权限是否已存在
@@ -94,7 +94,6 @@ class PermissionApplicationService:
         self, 
         permission_id: UUID, 
         request: PermissionUpdateRequest,
-        session: AsyncSession
     ) -> PermissionResponse:
         """更新权限 - 事务操作"""
         # 1. Application Service查询权限
@@ -130,7 +129,6 @@ class PermissionApplicationService:
     async def delete_permission(
         self, 
         permission_id: UUID,
-        session: AsyncSession
     ) -> bool:
         """删除权限 - 事务操作"""
         # 1. Application Service查询权限
@@ -188,7 +186,6 @@ class PermissionApplicationService:
     async def batch_create_permissions(
         self, 
         request: PermissionBatchRequest,
-        session: AsyncSession
     ) -> list[PermissionResponse]:
         """批量创建权限 - 事务操作"""
         # 1. 准备数据
@@ -238,8 +235,7 @@ class PermissionApplicationService:
     async def batch_delete_permissions(
         self, 
         permission_ids: list[UUID],
-        session: AsyncSession
-    ) -> dict[str, Any]:
+    ) -> BatchPermissionData:
         """批量删除权限 - 事务操作"""
         deleted_count = 0
         failed_deletions = []
@@ -274,10 +270,10 @@ class PermissionApplicationService:
                 })
 
         # 事务在装饰器中自动提交
-        return {
-            "deleted_count": deleted_count,
-            "failed_deletions": failed_deletions
-        }
+        return BatchPermissionData(
+            deleted_count=deleted_count,
+            failed_deletions=failed_deletions
+        )
 
     async def export_permissions(
         self, 
@@ -303,8 +299,7 @@ class PermissionApplicationService:
     async def import_permissions(
         self, 
         import_data: list[dict[str, Any]],
-        session: AsyncSession
-    ) -> dict[str, Any]:
+    ) -> BatchPermissionData:
         """导入权限配置 - 事务操作"""
         # 1. 使用Domain Service验证导入数据
         valid_imports, invalid_imports = self._permission_domain_service.validate_import_permission_data(
@@ -345,10 +340,10 @@ class PermissionApplicationService:
                 })
 
         # 事务在装饰器中自动提交
-        return {
-            "imported_count": imported_count,
-            "failed_imports": failed_imports
-        }
+        return BatchPermissionData(
+            imported_count=imported_count,
+            failed_imports=failed_imports
+        )
 
     async def validate_permission(
         self, 

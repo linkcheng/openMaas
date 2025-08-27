@@ -37,6 +37,7 @@ from user.application.schemas import (
     UserCreateRequest,
     UserLoginRequest,
     UserResponse,
+    CryptoKeyData,
 )
 from user.application.user_service import UserApplicationService
 from user.infrastructure.password_service import PasswordHashService
@@ -46,7 +47,7 @@ from user.infrastructure.permission import get_current_user_id
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 
-@router.get("/crypto/public-key", response_model=ApiResponse[dict], summary="获取SM2公钥")
+@router.get("/crypto/public-key", response_model=ApiResponse[CryptoKeyData], summary="获取SM2公钥")
 async def get_public_key():
     """
     获取SM2公钥用于前端密码加密
@@ -56,8 +57,12 @@ async def get_public_key():
 
     sm2_service = get_sm2_service()
     key_info = sm2_service.get_key_info()
-
-    return ApiResponse.success_response(key_info, "获取公钥成功")
+    key_data = CryptoKeyData(
+        public_key=key_info["public_key"],
+        algorithm=key_info["algorithm"],
+        key_length=key_info["key_length"],
+    )
+    return ApiResponse.success_response(key_data, "获取公钥成功")
 
 
 @router.post("/register", response_model=ApiResponse[UserResponse], summary="用户注册")

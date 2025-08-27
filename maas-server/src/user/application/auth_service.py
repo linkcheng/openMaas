@@ -77,8 +77,6 @@ class AuthService:
     async def refresh_access_token(
         self,
         refresh_token: str,
-        *,
-        session: AsyncSession,
     ) -> AuthTokenResponse:
         """刷新访问令牌 - 只读操作"""
         logger.info(f"刷新访问令牌: {refresh_token}")

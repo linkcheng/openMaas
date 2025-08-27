@@ -329,7 +329,7 @@ class UserDataInitializer(DataInitializer):
                     "action": "view"
                 """
                 # 创建新权限
-                permission = await permission_domain_service.create_permission_entity(
+                permission = permission_domain_service.create_permission_entity(
                     name=permission_data["name"],
                     display_name=permission_data["display_name"],
                     description=permission_data["description"],
@@ -365,7 +365,7 @@ class UserDataInitializer(DataInitializer):
                 permission_ids = [perm.id for perm in permissions]
 
                 # 创建新角色
-                role = await role_domain_service.create_role_entity(
+                role = role_domain_service.create_role_entity(
                     name=role_data["name"],
                     display_name=role_data["display_name"],
                     description=role_data["description"],
@@ -397,7 +397,7 @@ class UserDataInitializer(DataInitializer):
             role = await role_repository.find_by_name(RoleType.ADMIN.value)
 
             # 创建新的管理员用户
-            admin_user = await user_domain_service.create_user_entity(
+            admin_user = user_domain_service.create_user_entity(
                 username=admin_data["username"],
                 email=admin_data["email"],
                 password_hash=admin_data["password_hash"],

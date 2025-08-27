@@ -29,6 +29,9 @@ from user.application.schemas import (
     AuditCleanupCommand,
     AuditLogQuery,
     AuditStatsQuery,
+    AuditLogListResponse,
+    AuditStatsResponse,
+    AuditCleanupResponse,
 )
 from user.infrastructure.permission import require_admin_permission
 
@@ -37,7 +40,7 @@ router = APIRouter(prefix="/audit", tags=["审计日志"])
 
 @router.get(
     "/logs",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[AuditLogListResponse],
     summary="获取审计日志列表",
     description="管理员查看系统审计日志列表，支持分页和筛选",
     dependencies=[require_admin_permission()],
@@ -51,7 +54,7 @@ async def get_audit_logs(
     start_time: datetime | None = Query(None, description="开始时间"),
     end_time: datetime | None = Query(None, description="结束时间"),
     success: bool | None = Query(None, description="操作结果筛选"),
-) -> ApiResponse[dict]:
+):
     """获取审计日志列表"""
 
     # 构建查询对象
@@ -69,33 +72,17 @@ async def get_audit_logs(
     result = await audit_service.get_logs(query)
 
     # 转换响应格式
-    response_data = {
-        "items": [
-            {
-                "id": log.id,
-                "user_id": str(log.user_id) if log.user_id else None,
-                "username": log.username,
-                "action": log.action,
-                "description": log.description,
-                "ip_address": log.ip_address,
-                "user_agent": log.user_agent,
-                "success": log.success,
-                "error_message": log.error_message,
-                "created_at": log.created_at.isoformat(),
-                "operation_summary": log.operation_summary,
-                "is_system_operation": log.is_system_operation,
-            }
-            for log in result["logs"]
-        ],
-        "pagination": result["pagination"],
-    }
+    response_data = AuditLogListResponse(
+        items= result["logs"],
+        pagination=result["pagination"],
+    )
 
     return ApiResponse.success_response(response_data, "获取审计日志成功")
 
 
 @router.get(
     "/stats",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[AuditStatsResponse],
     summary="获取审计日志统计",
     description="获取审计日志的统计信息，包括总数、成功率等",
     dependencies=[require_admin_permission()],
@@ -103,18 +90,18 @@ async def get_audit_logs(
 async def get_audit_stats(
     audit_service: Annotated[AuditApplicationService, Depends(get_audit_application_service)],
     days: int = Query(7, ge=1, le=365, description="统计天数"),
-) -> ApiResponse[dict]:
+):
     """获取审计日志统计"""
 
     query = AuditStatsQuery(days=days)
     stats = await audit_service.get_stats(query)
 
-    return ApiResponse.success_response(stats.dict(), "获取统计信息成功")
+    return ApiResponse.success_response(stats, "获取统计信息成功")
 
 
 @router.get(
     "/users/{user_id}/logs",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[AuditLogListResponse],
     summary="获取指定用户的审计日志",
     description="管理员查看指定用户的操作日志",
     dependencies=[require_admin_permission()],
@@ -124,7 +111,7 @@ async def get_user_audit_logs(
     audit_service: Annotated[AuditApplicationService, Depends(get_audit_application_service)],
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-) -> ApiResponse[dict]:
+):
     """获取指定用户的审计日志"""
 
     result = await audit_service.get_user_logs(
@@ -134,30 +121,17 @@ async def get_user_audit_logs(
     )
 
     # 转换返回格式
-    response_data = {
-        "user_id": str(user_id),
-        "items": [
-            {
-                "id": log.id,
-                "action": log.action,
-                "description": log.description,
-                "ip_address": log.ip_address,
-                "success": log.success,
-                "error_message": log.error_message,
-                "created_at": log.created_at.isoformat(),
-                "operation_summary": log.operation_summary,
-            }
-            for log in result["logs"]
-        ],
-        "pagination": result["pagination"],
-    }
+    response_data = AuditLogListResponse(
+        items= result["logs"],
+        pagination=result["pagination"],
+    )
 
     return ApiResponse.success_response(response_data, "获取用户审计日志成功")
 
 
 @router.post(
     "/cleanup",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[AuditCleanupResponse],
     summary="清理旧的审计日志",
     description="清理指定天数之前的审计日志（谨慎操作）",
     dependencies=[require_admin_permission()],
@@ -165,12 +139,10 @@ async def get_user_audit_logs(
 async def cleanup_audit_logs(
     audit_service: Annotated[AuditApplicationService, Depends(get_audit_application_service)],
     days: int = Query(90, ge=30, le=365, description="保留天数，30-365天"),
-) -> ApiResponse[dict]:
+):
     """清理旧的审计日志"""
 
     command = AuditCleanupCommand(days=days)
-    result = await audit_service.cleanup_old_logs(command)
+    response_data = await audit_service.cleanup_old_logs(command)
 
-    response_data = result.dict()
-
-    return ApiResponse.success_response(response_data, f"清理完成，删除了 {result.deleted_count} 条记录")
+    return ApiResponse.success_response(response_data, f"清理完成，删除了 {response_data.deleted_count} 条记录")

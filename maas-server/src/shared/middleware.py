@@ -83,7 +83,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             # 计算处理时间
             process_time = time.time() - start_time
 
-            logger.error(f"请求异常 - {e}", exc_info=True)
+            logger.error("请求异常 - {}", str(e), exc_info=True)
 
             # 重新抛出异常
             raise

@@ -308,34 +308,3 @@ class UserDomainService:
             "is_super_admin": user.is_super_admin(),
             "granted_by_roles": granted_by_roles,
         }
-
-    def check_user_permission_by_parts_logic(
-        self, user: User, resource: str, action: str, module: str | None = None
-    ) -> dict[str, Any]:
-        """通过资源和操作验证用户权限逻辑（纯业务逻辑）"""
-        has_permission = user.has_permission_by_parts(resource, action, module)
-
-        # 构建权限名称用于显示
-        if module:
-            permission_name = f"{module}.{resource}.{action}"
-        else:
-            permission_name = f"*.{resource}.{action}"
-
-        # 查找授予权限的角色
-        granted_by_roles = []
-        if has_permission and not user.is_super_admin():
-            for role in user.roles:
-                if role.has_permission_by_parts(resource, action, module):
-                    granted_by_roles.append(role.name)
-
-        return {
-            "user_id": str(user.id),
-            "username": user.username,
-            "permission": permission_name,
-            "resource": resource,
-            "action": action,
-            "module": module,
-            "has_permission": has_permission,
-            "is_super_admin": user.is_super_admin(),
-            "granted_by_roles": granted_by_roles,
-        }

@@ -35,11 +35,12 @@ from user.application.schemas import (
     UserCreateRequest,
     UserResponse,
     UserSearchQuery,
-    UserStatsResponse,
     UserSummaryResponse,
     UserCreateCommand,
     UserUpdateCommand,
     UserUpdateRequest,
+    UserPermissionsData,
+    UserPermissionCheckData,
 )
 from user.application.user_service import (
     UserApplicationService,
@@ -179,7 +180,7 @@ async def activate_user(
 
 
 # 权限相关API
-@router.get("/{user_id}/permissions", response_model=ApiResponse[dict], summary="获取用户权限")
+@router.get("/{user_id}/permissions", response_model=ApiResponse[UserPermissionsData], summary="获取用户权限")
 async def get_user_permissions(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
@@ -190,7 +191,7 @@ async def get_user_permissions(
     return ApiResponse.success_response(permissions, "获取用户权限成功")
 
 
-@router.get("/{user_id}/permissions/check", response_model=ApiResponse[dict], summary="检查用户权限")
+@router.get("/{user_id}/permissions/check", response_model=ApiResponse[UserPermissionCheckData], summary="检查用户权限")
 async def check_user_permission(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,

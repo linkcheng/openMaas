@@ -69,7 +69,7 @@ class AuditApplicationService:
         log_responses = [
             AuditLogResponse(
                 id=log.id,
-                user_id=log.user_id,
+                user_id=str(log.user_id) if log.user_id else None,
                 username=log.username,
                 action=log.action,
                 description=log.description,
@@ -77,7 +77,7 @@ class AuditApplicationService:
                 user_agent=log.user_agent,
                 success=log.success,
                 error_message=log.error_message,
-                created_at=log.created_at,
+                created_at=log.created_at.isoformat() if log.created_at else None,
                 operation_summary=log.get_operation_summary(),
                 is_system_operation=log.is_system_operation,
             )
@@ -137,7 +137,6 @@ class AuditApplicationService:
     async def cleanup_old_logs(
         self, 
         command: AuditCleanupCommand,
-        session: AsyncSession
     ) -> AuditCleanupResponse:
         """清理旧的审计日志 - 事务操作"""
         # 调用领域服务验证业务规则

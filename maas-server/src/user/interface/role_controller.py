@@ -27,11 +27,12 @@ from user.application import get_role_application_service
 from user.application.decorators import audit_admin_operation
 from user.application.role_service import RoleApplicationService
 from user.application.schemas import (
-    PermissionRequest,
     RoleCreateRequest,
     RoleSearchQuery,
     RoleUpdateRequest,
     UserRoleAssignRequest,
+    RoleListData,
+    RoleResponse,
 )
 from user.infrastructure.permission import (
     get_current_user_id,
@@ -40,30 +41,7 @@ from user.infrastructure.permission import (
 router = APIRouter(prefix="/roles", tags=["角色管理"])
 
 
-@router.post("/permissions", response_model=dict)
-@audit_admin_operation("创建权限")
-async def create_permission(
-    request: PermissionRequest,
-    role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
-):
-    """创建权限（仅超级管理员）"""
-
-    permission = await role_service.create_permission(request)
-    logger.info(f"权限创建成功: {permission.name}")
-    return ApiResponse.success_response(data=permission, message="权限创建成功")
-
-
-@router.get("/permissions", response_model=dict)
-async def get_all_permissions(
-    role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
-):
-    """获取所有权限"""
-
-    permissions = await role_service.get_all_permissions()
-    return ApiResponse.success_response(data=permissions, message="获取权限列表成功")
-
-
-@router.post("", response_model=dict)
+@router.post("", response_model=ApiResponse[RoleResponse])
 @audit_admin_operation("创建角色")
 async def create_role(
     request: RoleCreateRequest,
@@ -76,7 +54,7 @@ async def create_role(
     return ApiResponse.success_response(data=role, message="角色创建成功")
 
 
-@router.get("", response_model=dict)
+@router.get("", response_model=ApiResponse[RoleListData])
 async def search_roles(
     role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
     name: str | None = Query(None, description="角色名称关键词"),
@@ -90,20 +68,20 @@ async def search_roles(
     roles = await role_service.search_roles(query)
 
     # 构建分页响应
-    response_data = {
-        "roles": roles,
-        "pagination": {
+    response_data = RoleListData(
+        roles=roles,
+        pagination={
             "page": page,
             "limit": limit,
             "total": len(roles),  # 这里应该从repository获取总数，暂时使用当前页数量
             "has_more": len(roles) == limit  # 简单判断是否有更多数据
         }
-    }
+    )
 
     return ApiResponse.success_response(data=response_data, message="获取角色列表成功")
 
 
-@router.get("/{role_id}", response_model=dict)
+@router.get("/{role_id}", response_model=ApiResponse[RoleResponse])
 async def get_role(
     role_id: UUID,
     role_service: Annotated[RoleApplicationService, Depends(get_role_application_service)],
@@ -116,7 +94,7 @@ async def get_role(
     return ApiResponse.success_response(data=role, message="获取角色详情成功")
 
 
-@router.put("/{role_id}", response_model=dict)
+@router.put("/{role_id}", response_model=ApiResponse[RoleResponse])
 @audit_admin_operation("更新角色")
 async def update_role(
     role_id: UUID,
@@ -130,7 +108,7 @@ async def update_role(
     return ApiResponse.success_response(data=role, message="角色更新成功")
 
 
-@router.put("/{role_id}/permissions", response_model=dict)
+@router.put("/{role_id}/permissions", response_model=ApiResponse[RoleResponse])
 @audit_admin_operation("更新角色权限")
 async def update_role_permissions(
     role_id: UUID,
@@ -144,7 +122,7 @@ async def update_role_permissions(
     return ApiResponse.success_response(data=role, message="角色权限更新成功")
 
 
-@router.delete("/{role_id}", response_model=dict)
+@router.delete("/{role_id}", response_model=ApiResponse[None])
 @audit_admin_operation("删除角色")
 async def delete_role(
     role_id: UUID,
@@ -160,8 +138,7 @@ async def delete_role(
     return ApiResponse.error_response(message="角色删除失败")
 
 
-
-@router.post("/users/assign", response_model=dict)
+@router.post("/users/assign", response_model=ApiResponse[None])
 @audit_admin_operation("为用户分配角色")
 async def assign_user_roles(
     request: UserRoleAssignRequest,
