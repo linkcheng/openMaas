@@ -131,7 +131,7 @@ async def get_audit_domain_service(
 async def get_user_application_service(
     user_domain_service: UserDomainService = Depends(get_user_domain_service),
     user_repository: IUserRepository = Depends(get_user_repository),
-    role_repository: IRoleRepository = Depends(get_role_repository)    
+    role_repository: IRoleRepository = Depends(get_role_repository)
 ) -> AsyncGenerator[UserApplicationService, None]:
     """获取用户应用服务"""
     yield UserApplicationService(

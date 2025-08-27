@@ -18,10 +18,10 @@ limitations under the License.
 
 from typing import Any
 
-from shared.infrastructure.logging_service import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.domain.initializer import DataInitializer
+from shared.infrastructure.logging_service import get_logger
 from user.domain.models import (
     RoleType,
     User,
@@ -306,7 +306,7 @@ class UserDataInitializer(DataInitializer):
             await session.rollback()
             return False
 
-    async def _initialize_permissions(self, 
+    async def _initialize_permissions(self,
         permission_domain_service: PermissionDomainService,
         permission_repository: IPermissionRepository
     ) -> None:

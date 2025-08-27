@@ -113,7 +113,7 @@ def transactional():
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
-            
+
             # 检查是否已在事务中
             current_session = TransactionManager.get_current_session()
             if current_session:
@@ -122,7 +122,7 @@ def transactional():
             async with async_session_factory() as session:
                 # 设置事务上下文
                 TransactionManager.set_current_session(session)
-                
+
                 try:
                     result = await func(*args, **kwargs)
                     await session.commit()
@@ -135,7 +135,7 @@ def transactional():
                 finally:
                     await session.close()
                     TransactionManager.clear_current_session()
-           
+
 
         return wrapper
     return decorator

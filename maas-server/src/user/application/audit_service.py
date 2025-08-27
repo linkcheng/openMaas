@@ -20,9 +20,6 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from shared.infrastructure.transaction_manager import transactional
 from user.application.schemas import (
     AuditCleanupCommand,
@@ -32,15 +29,15 @@ from user.application.schemas import (
     AuditStatsQuery,
     AuditStatsResponse,
 )
-from user.domain.services.audit_domain_service import AuditDomainService
 from user.domain.repositories import IAuditLogRepository
+from user.domain.services.audit_domain_service import AuditDomainService
 
 
 class AuditApplicationService:
     """审计应用服务 - 负责协调和编排，DTO转换"""
 
     def __init__(
-        self, 
+        self,
         audit_domain_service: AuditDomainService,
         audit_repository: IAuditLogRepository
     ):
@@ -48,7 +45,7 @@ class AuditApplicationService:
         self._audit_repository = audit_repository
 
     async def get_logs(
-        self, 
+        self,
         query: AuditLogQuery,
     ) -> dict[str, Any]:
         """分页查询审计日志 - 只读操作"""
@@ -109,7 +106,7 @@ class AuditApplicationService:
         return await self.get_logs(query)
 
     async def get_stats(
-        self, 
+        self,
         query: AuditStatsQuery,
     ) -> AuditStatsResponse:
         """获取审计统计信息 - 只读操作"""
@@ -135,7 +132,7 @@ class AuditApplicationService:
 
     @transactional()
     async def cleanup_old_logs(
-        self, 
+        self,
         command: AuditCleanupCommand,
     ) -> AuditCleanupResponse:
         """清理旧的审计日志 - 事务操作"""
@@ -143,10 +140,10 @@ class AuditApplicationService:
         before_date = self._audit_domain_service.validate_cleanup_policy(
             retention_days=command.days
         )
-        
+
         # 应用服务层调用Repository执行数据操作
         deleted_count = await self._audit_repository.cleanup_old_logs(before_date)
-        
+
         # 转换为响应DTO
         return AuditCleanupResponse(
             deleted_count=deleted_count,

@@ -28,11 +28,11 @@ from user.application.decorators import audit_admin_operation
 from user.application.role_service import RoleApplicationService
 from user.application.schemas import (
     RoleCreateRequest,
+    RoleListData,
+    RoleResponse,
     RoleSearchQuery,
     RoleUpdateRequest,
     UserRoleAssignRequest,
-    RoleListData,
-    RoleResponse,
 )
 from user.infrastructure.permission import (
     get_current_user_id,

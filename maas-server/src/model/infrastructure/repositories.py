@@ -3,8 +3,8 @@
 
 """
 from typing import Any
-from loguru import logger
 
+from loguru import logger
 from sqlalchemy import and_, asc, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload

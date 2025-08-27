@@ -33,15 +33,15 @@ from user.application.auth_service import AuthService
 from user.application.decorators import audit_login, audit_logout, audit_user_create
 from user.application.schemas import (
     AuthTokenResponse,
+    CryptoKeyData,
     UserCreateCommand,
     UserCreateRequest,
     UserLoginRequest,
     UserResponse,
-    CryptoKeyData,
 )
 from user.application.user_service import UserApplicationService
-from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.jwt_service import jwt_bearer
+from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.permission import get_current_user_id
 
 router = APIRouter(prefix="/auth", tags=["认证"])

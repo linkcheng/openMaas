@@ -101,7 +101,7 @@ class UserContextMiddleware(BaseHTTPMiddleware):
             #     user = await self.handle_refresh_token(payload)
             else:
                 return None
-            
+
             # 提取用户权限
             permissions = []
             for role in user.roles:

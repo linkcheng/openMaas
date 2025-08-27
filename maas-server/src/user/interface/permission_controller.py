@@ -27,15 +27,15 @@ from user.application import get_permission_application_service
 from user.application.decorators import audit_admin_operation
 from user.application.permission_service import PermissionApplicationService
 from user.application.schemas import (
+    BatchPermissionData,
     PermissionBatchRequest,
-    PermissionRequest,
-    PermissionSearchQuery,
-    PermissionUpdateRequest,
-    PermissionResponse,
     PermissionExportResponse,
     PermissionListData,
-    BatchPermissionData,
-    PermissionValidationData
+    PermissionRequest,
+    PermissionResponse,
+    PermissionSearchQuery,
+    PermissionUpdateRequest,
+    PermissionValidationData,
 )
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])
@@ -167,7 +167,7 @@ async def batch_create_permissions(
 
     permissions = await permission_service.batch_create_permissions(request)
     logger.info(f"批量创建权限成功，共创建 {len(permissions)} 个权限")
-    response_data = BatchPermissionData(    
+    response_data = BatchPermissionData(
         created_permissions=permissions,
         created_count=len(permissions)
     )

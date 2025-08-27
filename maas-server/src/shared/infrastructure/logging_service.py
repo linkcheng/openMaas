@@ -135,7 +135,7 @@ def set_trace_id(trace_id: str) -> None:
 def get_logger_with_trace():
     """获取自动包含trace_id的logger（业务代码友好）"""
     trace_id = get_trace_id()
-    return logger.bind(trace_id=trace_id or "-") 
+    return logger.bind(trace_id=trace_id or "-")
 
 
 # 保持向后兼容性

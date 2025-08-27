@@ -18,6 +18,7 @@ limitations under the License.
 
 from typing import Any
 from uuid import UUID
+
 from loguru import logger
 from uuid_extensions import uuid7
 
@@ -53,9 +54,9 @@ class PermissionDomainService:
             permission_name = PermissionName(name)
         except ValueError as e:
             raise DomainException(f"权限名称格式错误: {e!s}")
-        
+
         return permission_name
-    
+
     def validate_permission_uniqueness(self, existing_permission: Permission | None, permission_name: PermissionName) -> None:
         """验证权限唯一性（纯业务逻辑）"""
         if existing_permission:
@@ -75,7 +76,7 @@ class PermissionDomainService:
             display_name=display_name,
             description=description,
         )
-        
+
         logger.info(f"权限实体创建成功: {permission.name.value}")
         return permission
 
@@ -111,7 +112,7 @@ class PermissionDomainService:
 
         logger.info(f"权限实体更新成功: {permission.name.value}")
         return permission
-        
+
     def validate_permission_name_uniqueness(
         self, existing_permission: Permission | None, new_name: str, permission_id: UUID
     ) -> None:
@@ -131,7 +132,7 @@ class PermissionDomainService:
             )
 
         logger.info(f"权限删除验证通过: {permission.name.value}")
-    
+
     def validate_batch_permission_data(
         self, permissions_data: list[dict[str, Any]]
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -156,7 +157,7 @@ class PermissionDomainService:
 
                 # 验证数据格式
                 permission_name = self.validate_permission_creation_data(name, display_name, description)
-                
+
                 # 添加验证通过的数据
                 valid_permissions.append({
                     "name": name,
@@ -213,7 +214,7 @@ class PermissionDomainService:
                     perm_data["display_name"],
                     perm_data["description"]
                 )
-                
+
                 valid_imports.append({
                     "name": perm_data["name"],
                     "display_name": perm_data["display_name"],

@@ -19,10 +19,8 @@ limitations under the License.
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.infrastructure.transaction_manager import transactional
-
 from user.application.schemas import AuthTokenResponse
 from user.domain.models import User
 from user.domain.repositories import IUserRepository
@@ -34,8 +32,8 @@ class AuthService:
     """认证服务"""
 
     def __init__(
-        self, 
-        auth_domain_service: AuthDomainService, 
+        self,
+        auth_domain_service: AuthDomainService,
         user_domain_service: UserDomainService,
         user_repository: IUserRepository
     ):
@@ -55,10 +53,10 @@ class AuthService:
             user = await self._user_repository.find_by_email(login_id)
         else:
             user = await self._user_repository.find_by_username(login_id)
-        
+
         # 2. 使用Domain Service认证用户凭证
         auth_user = self._user_domain_service.authenticate_user_credentials(user, password)
-    
+
         access_token = self._auth_domain_service.create_access_token(auth_user)
         refresh_token = self._auth_domain_service.create_refresh_token(auth_user)
 
@@ -80,16 +78,16 @@ class AuthService:
     ) -> AuthTokenResponse:
         """刷新访问令牌 - 只读操作"""
         logger.info(f"刷新访问令牌: {refresh_token}")
-        
+
         # 1. 使用Domain Service验证刷新令牌并返回用户ID
         user_id: UUID = self._auth_domain_service.validate_refresh_token(refresh_token)
-        
+
         # 2. Application Service查询Repository获取用户
         user = await self._user_repository.find_by_id(user_id)
-        
+
         # 3. 使用Domain Service验证用户是否可以刷新令牌
         self._auth_domain_service.validate_user_for_token_refresh(user)
-        
+
         # 4. 使用Domain Service创建令牌响应
         access_token = self._auth_domain_service.create_access_token(user)
 

@@ -145,7 +145,13 @@ export const useAuth = () => {
   // 刷新token
   const refreshToken = async () => {
     try {
-      const response = await refreshTokenApi()
+      // 获取当前的refresh_token
+      const currentRefreshToken = userStore.tokens?.refresh_token
+      if (!currentRefreshToken) {
+        throw new Error('No refresh token available')
+      }
+      
+      const response = await refreshTokenApi(currentRefreshToken)
 
       if (response.data.success && response.data.data) {
         const tokenData: AuthTokens = response.data.data

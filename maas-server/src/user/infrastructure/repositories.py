@@ -1105,7 +1105,7 @@ class AuditLogRepository(SQLAlchemyRepository[AuditLog, AuditLogORM], IAuditLogR
 
     async def cleanup_old_logs(self, before_date: datetime) -> int:
         """清理旧的审计日志"""
-        
+
         # 先统计要删除的数量
         count_query = select(func.count(AuditLogORM.id)).where(AuditLogORM.created_at < before_date)
         count_result = await self.session.execute(count_query)

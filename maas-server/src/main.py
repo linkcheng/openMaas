@@ -24,10 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
-from shared.infrastructure.logging_service import get_logger
-
 from config.settings import settings
-from model.interface import router as model_router
+from shared.infrastructure.logging_service import get_logger
 from shared.application.exception_mapper import map_domain_to_application_exception
 from shared.application.exceptions import ApplicationException, to_http_exception
 from shared.domain.base import DomainException
@@ -42,9 +40,9 @@ from shared.infrastructure.database import (
 from shared.middleware import RequestContextMiddleware
 from user.infrastructure.middleware import UserContextMiddleware
 from user.interface import router as user_router
+from model.interface import router as model_router
 
-
-logger = get_logger(trace='-')
+logger = get_logger(trace="-")
 
 
 @asynccontextmanager
@@ -242,7 +240,6 @@ app.include_router(model_router)
 
 if __name__ == "__main__":
     import uvicorn
-    print("========================start========================")
     # 配置日志
     logger.remove()
     logger.add(

@@ -39,7 +39,7 @@ class SQLAlchemyRepository(Repository[T], Generic[T, M]):
         self._default_session = session
         self.entity_class = entity_class
         self.model_class = model_class
-    
+
     @property
     def session(self) -> AsyncSession:
         """动态获取当前应该使用的session - 事务上下文感知

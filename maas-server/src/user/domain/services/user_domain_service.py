@@ -31,7 +31,6 @@ from user.domain.models import (
     UserProfile,
     UserStatus,
 )
-from user.domain.repositories import IRoleRepository, IUserRepository
 from user.domain.services.permission_calculation_service import (
     PermissionCalculationService,
 )
@@ -64,7 +63,7 @@ class UserDomainService:
         self._validation_service.validate_email(email)
         if password:
             self._validation_service.validate_password(password)
-    
+
     def validate_user_uniqueness(
         self, existing_user_by_email, existing_user_by_username, email: str, username: str
     ) -> None:
@@ -103,7 +102,7 @@ class UserDomainService:
         # 分配默认角色
         if default_role:
             user.add_role(default_role)
-        
+
         logger.info(f"用户实体创建成功: {user.username} ({user.email.value})")
         return user
 
@@ -122,7 +121,7 @@ class UserDomainService:
 
         # 更新最后登录时间
         user.last_login_at = datetime.utcnow()
-        
+
         logger.info(f"用户 {user.username} 认证成功")
         return user
 

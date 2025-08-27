@@ -26,7 +26,7 @@ from model.domain.repository.provider_repository import (
 )
 from model.domain.services.provider_service import ProviderDomainService
 from model.domain.services.validation_service import ValidationService
-from model.infrastructure.repositorise import ModelConfigRepository, ProviderRepository
+from model.infrastructure.repositories import ModelConfigRepository, ProviderRepository
 from shared.infrastructure.transaction_manager import get_db_session
 
 

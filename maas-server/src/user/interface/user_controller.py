@@ -32,21 +32,21 @@ from user.application.decorators import audit_user_operation
 from user.application.schemas import (
     PasswordChangeCommand,
     PasswordChangeRequest,
+    UserCreateCommand,
     UserCreateRequest,
+    UserPermissionCheckData,
+    UserPermissionsData,
     UserResponse,
     UserSearchQuery,
     UserSummaryResponse,
-    UserCreateCommand,
     UserUpdateCommand,
     UserUpdateRequest,
-    UserPermissionsData,
-    UserPermissionCheckData,
 )
 from user.application.user_service import (
     UserApplicationService,
 )
-from user.infrastructure.password_service import PasswordHashService
 from user.domain.models import User
+from user.infrastructure.password_service import PasswordHashService
 from user.infrastructure.permission import get_current_user, get_current_user_id
 
 router = APIRouter(prefix="/users", tags=["用户管理"])

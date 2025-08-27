@@ -35,8 +35,20 @@ export const authApi = {
   // 用户登录
   login: (data: UserLoginRequest) => apiClient.post<ApiResponse<LoginResponse>>('/auth/login', data),
 
-  // 刷新 token
-  refreshToken: () => apiClient.post<ApiResponse<AuthTokens>>('/auth/refresh'),
+  // 刷新 token - 需要特殊处理，不能依赖请求拦截器的access_token
+  refreshToken: async (refreshToken: string) => {
+    // 直接使用axios实例，绕过默认的请求拦截器
+    const response = await (apiClient as any).client.post(
+      '/auth/refresh',
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${refreshToken}`
+        }
+      }
+    )
+    return response
+  },
 
   // 用户登出
   logout: () => apiClient.post<ApiResponse>('/auth/logout'),

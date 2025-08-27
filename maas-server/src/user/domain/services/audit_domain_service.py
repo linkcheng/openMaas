@@ -140,7 +140,7 @@ class AuditDomainService(DomainService):
 
         # 计算删除截止时间
         before_date = datetime.now(UTC) - timedelta(days=retention_days)
-        
+
         logger.info(f"审计日志清理策略验证通过: 保留{retention_days}天，截止时间{before_date}")
         return before_date
 

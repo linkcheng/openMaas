@@ -19,8 +19,6 @@ limitations under the License.
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from shared.domain.base import DomainException
 from shared.infrastructure.transaction_manager import transactional
 from user.application.schemas import (
@@ -32,7 +30,11 @@ from user.application.schemas import (
     PermissionSearchQuery,
     PermissionUpdateRequest,
 )
-from user.domain.repositories import IPermissionRepository, IRoleRepository, IUserRepository
+from user.domain.repositories import (
+    IPermissionRepository,
+    IRoleRepository,
+    IUserRepository,
+)
 from user.domain.services.permission_domain_service import PermissionDomainService
 
 
@@ -53,7 +55,7 @@ class PermissionApplicationService:
 
     @transactional()
     async def create_permission(
-        self, 
+        self,
         request: PermissionRequest,
     ) -> PermissionResponse:
         """创建权限 - 事务操作"""
@@ -64,21 +66,21 @@ class PermissionApplicationService:
         existing = await self._permission_repository.find_by_name(request.name)
 
         self._permission_domain_service.validate_permission_uniqueness(existing, permission_name)
-        
+
         # 2. 使用Domain Service创建权限实体
         permission = self._permission_domain_service.create_permission_entity(
             name=request.name,
             display_name=request.display_name,
             description=request.description,
         )
-        
+
         # 3. Application Service保存权限
         saved_permission = await self._permission_repository.save(permission)
 
         return self._to_permission_response(saved_permission)
 
     async def get_permission(
-        self, 
+        self,
         permission_id: UUID,
     ) -> PermissionResponse | None:
         """获取权限 - 只读操作"""
@@ -91,8 +93,8 @@ class PermissionApplicationService:
 
     @transactional()
     async def update_permission(
-        self, 
-        permission_id: UUID, 
+        self,
+        permission_id: UUID,
         request: PermissionUpdateRequest,
     ) -> PermissionResponse:
         """更新权限 - 事务操作"""
@@ -100,7 +102,7 @@ class PermissionApplicationService:
         permission = await self._permission_repository.find_by_id(permission_id)
         if not permission:
             raise DomainException(f"权限 {permission_id} 不存在")
-            
+
         # 2. 如果更新名称，检查唯一性
         if request.name is not None:
             _ = self._permission_domain_service.validate_permission_creation_data(
@@ -119,7 +121,7 @@ class PermissionApplicationService:
             description=request.description,
             module=request.module
         )
-        
+
         # 4. Application Service保存权限
         saved_permission = await self._permission_repository.save(updated_permission)
         # 事务在装饰器中自动提交
@@ -127,7 +129,7 @@ class PermissionApplicationService:
 
     @transactional()
     async def delete_permission(
-        self, 
+        self,
         permission_id: UUID,
     ) -> bool:
         """删除权限 - 事务操作"""
@@ -135,10 +137,10 @@ class PermissionApplicationService:
         permission = await self._permission_repository.find_by_id(permission_id)
         if not permission:
             raise DomainException(f"权限 {permission_id} 不存在")
-        
+
         # 2. 查询使用此权限的角色
         roles_with_permission = await self._role_repository.find_roles_with_permission([permission_id])
-        
+
         # 3. 使用Domain Service验证删除规则
         self._permission_domain_service.validate_permission_deletion_rules(
             permission, roles_with_permission
@@ -150,7 +152,7 @@ class PermissionApplicationService:
         return True
 
     async def search_permissions(
-        self, 
+        self,
         query: PermissionSearchQuery,
     ) -> list[PermissionResponse]:
         """搜索权限 - 只读操作"""
@@ -166,7 +168,7 @@ class PermissionApplicationService:
         return [self._to_permission_response(perm) for perm in permissions]
 
     async def get_permissions_by_module(
-        self, 
+        self,
         module: str,
     ) -> list[PermissionResponse]:
         """按模块获取权限 - 只读操作"""
@@ -184,7 +186,7 @@ class PermissionApplicationService:
 
     @transactional()
     async def batch_create_permissions(
-        self, 
+        self,
         request: PermissionBatchRequest,
     ) -> list[PermissionResponse]:
         """批量创建权限 - 事务操作"""
@@ -202,29 +204,29 @@ class PermissionApplicationService:
         valid_permissions, invalid_permissions = self._permission_domain_service.validate_batch_permission_data(
             permissions_data
         )
-        
+
         # 3. Application Service批量创建权限
         created_responses = []
         for perm_data in valid_permissions:
             try:
                 # 检查唯一性
                 existing = await self._permission_repository.find_by_name(
-                    perm_data["permission_name"].value, 
+                    perm_data["permission_name"].value,
                 )
                 if existing:
                     continue  # 跳过已存在的
-                
+
                 # 创建权限实体
                 permission = self._permission_domain_service.create_permission_entity(
                     name=perm_data["name"],
                     display_name=perm_data["display_name"],
                     description=perm_data["description"]
                 )
-                
+
                 # 保存
                 saved_permission = await self._permission_repository.save(permission)
                 created_responses.append(self._to_permission_response(saved_permission))
-                
+
             except Exception:
                 continue  # 跳过失败的
 
@@ -233,7 +235,7 @@ class PermissionApplicationService:
 
     @transactional()
     async def batch_delete_permissions(
-        self, 
+        self,
         permission_ids: list[UUID],
     ) -> BatchPermissionData:
         """批量删除权限 - 事务操作"""
@@ -250,10 +252,10 @@ class PermissionApplicationService:
                         "reason": f"权限 {permission_id} 不存在"
                     })
                     continue
-                
+
                 # 2. 查询使用此权限的角色
                 roles_with_permission = await self._role_repository.find_roles_with_permission([permission_id])
-                
+
                 # 3. 使用Domain Service验证删除规则
                 self._permission_domain_service.validate_permission_deletion_rules(
                     permission, roles_with_permission
@@ -276,7 +278,7 @@ class PermissionApplicationService:
         )
 
     async def export_permissions(
-        self, 
+        self,
         module: str | None = None,
     ) -> PermissionExportResponse:
         """导出权限配置 - 只读操作"""
@@ -285,7 +287,7 @@ class PermissionApplicationService:
             permissions = await self._permission_repository.find_by_module(module)
         else:
             permissions = await self._permission_repository.find_all()
-        
+
         # 2. 使用Domain Service格式化数据
         export_data = self._permission_domain_service.format_permissions_for_export(permissions)
 
@@ -297,7 +299,7 @@ class PermissionApplicationService:
 
     @transactional()
     async def import_permissions(
-        self, 
+        self,
         import_data: list[dict[str, Any]],
     ) -> BatchPermissionData:
         """导入权限配置 - 事务操作"""
@@ -305,7 +307,7 @@ class PermissionApplicationService:
         valid_imports, invalid_imports = self._permission_domain_service.validate_import_permission_data(
             import_data
         )
-        
+
         # 2. Application Service处理导入
         imported_count = 0
         failed_imports = list(invalid_imports)  # 复制无效数据
@@ -346,35 +348,35 @@ class PermissionApplicationService:
         )
 
     async def validate_permission(
-        self, 
-        user_id: UUID, 
+        self,
+        user_id: UUID,
         permission_name: str,
     ) -> bool:
         """验证用户权限 - 只读操作"""
         # 1. Application Service查询用户
         user = await self._user_repository.find_by_id(user_id)
-        
+
         # 2. 使用Domain Service验证权限逻辑
         return self._permission_domain_service.validate_user_permission_logic(user, permission_name)
 
     async def validate_permission_by_parts(
-        self, 
-        user_id: UUID, 
-        resource: str, 
-        action: str, 
+        self,
+        user_id: UUID,
+        resource: str,
+        action: str,
         module: str | None = None,
     ) -> bool:
         """通过资源和操作验证用户权限 - 只读操作"""
         # 1. Application Service查询用户
         user = await self._user_repository.find_by_id(user_id)
-        
+
         # 2. 使用Domain Service验证权限逻辑
         return self._permission_domain_service.validate_user_permission_by_parts_logic(
             user, resource, action, module
         )
 
     async def get_permission_usage_statistics(
-        self, 
+        self,
         permission_id: UUID,
     ) -> dict:
         """获取权限使用统计 - 只读操作"""
@@ -393,7 +395,7 @@ class PermissionApplicationService:
             for user in role_users:
                 if user not in users_with_permission:
                     users_with_permission.append(user)
-        
+
         # 4. 使用Domain Service计算统计数据
         return self._permission_domain_service.calculate_permission_usage_statistics(
             permission, roles_with_permission, users_with_permission

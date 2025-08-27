@@ -75,7 +75,7 @@ class AuthDomainService:
 
         user_id = UUID(payload.get("sub"))
         return user_id
-    
+
     def validate_user_for_token_refresh(self, user: User) -> None:
         """验证用户是否可以刷新令牌（纯业务逻辑）"""
         if not user:
@@ -83,5 +83,5 @@ class AuthDomainService:
 
         if not user.is_active:
             raise DomainException("用户已被暂停")
-    
+
 

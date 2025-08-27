@@ -22,7 +22,7 @@ from loguru import logger
 from uuid_extensions import uuid7
 
 from shared.domain.base import DomainException
-from user.domain.models import Role, RoleType, Permission
+from user.domain.models import Permission, Role, RoleType
 from user.domain.services.user_validation_service import UserValidationService
 
 
@@ -44,7 +44,7 @@ class RoleDomainService:
         # 数据格式验证
         self._validation_service.validate_role_name(name)
         self._validation_service.validate_role_description(description)
-    
+
     def validate_role_name_uniqueness(self, existing_role: Role | None, name: str) -> None:
         """验证角色名称唯一性（纯业务逻辑）"""
         if existing_role:
@@ -72,7 +72,7 @@ class RoleDomainService:
             role_type=role_type,
             is_system_role=is_system_role,
         )
-        
+
         logger.info(f"角色实体创建成功: {role.name}")
         return role
 
@@ -94,7 +94,7 @@ class RoleDomainService:
 
         logger.info(f"角色实体更新成功: {role.name}")
         return role
-        
+
     def validate_role_name_update_uniqueness(
         self, existing_role: Role | None, name: str, role_id: UUID
     ) -> None:
@@ -107,7 +107,7 @@ class RoleDomainService:
         # 检查是否为系统角色
         if role.is_system_role:
             raise DomainException(f"无法修改系统角色 {role.name} 的权限")
-            
+
     def update_role_permissions_entity(
         self, role: Role, new_permissions: list
     ) -> Role:
@@ -116,7 +116,7 @@ class RoleDomainService:
         role.set_permissions(new_permissions)
         logger.info(f"角色 {role.name} 权限已更新")
         return role
-        
+
     def invalidate_users_tokens_for_role_change(self, users_with_role: list) -> list:
         """使角色变更影响的用户token失效（纯业务逻辑）"""
         for user in users_with_role:

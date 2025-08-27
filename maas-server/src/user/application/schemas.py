@@ -22,7 +22,6 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, validator
-from shared.application.response import ApiResponse
 
 
 class UserStatus(str, Enum):
