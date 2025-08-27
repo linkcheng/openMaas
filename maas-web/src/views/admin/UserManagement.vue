@@ -318,12 +318,11 @@ const loadUsers = async () => {
     userStats.new_today = response.data.data.new_today || 0
   } catch (error) {
     console.error('加载用户列表失败:', handleApiError(error))
-    // 模拟数据
-    users.value = generateMockUsers()
-    userStats.total = 245
-    userStats.active = 198
-    userStats.suspended = 47
-    userStats.new_today = 12
+    users.value = []
+    userStats.total = 0
+    userStats.active = 0
+    userStats.suspended = 0
+    userStats.new_today = 0
   } finally {
     loading.value = false
   }
@@ -347,7 +346,7 @@ const viewUser = async (user: User) => {
     selectedUser.value = response.data.data
   } catch (error) {
     console.error('获取用户详情失败:', handleApiError(error))
-    selectedUser.value = user // 使用当前数据作为备用
+    selectedUser.value = user
   }
 }
 
@@ -417,26 +416,6 @@ const formatDate = (dateString?: string): string => {
   })
 }
 
-// 生成模拟数据
-const generateMockUsers = (): User[] => {
-  return Array.from({ length: 10 }, (_, i) => ({
-    id: `user-${i + 1}`,
-    username: `user${i + 1}`,
-    email: `user${i + 1}@example.com`,
-    first_name: ['张', '李', '王', '刘', '陈'][i % 5],
-    last_name: ['三', '四', '五', '六', '七'][i % 5],
-    organization: i % 3 === 0 ? '测试公司' : undefined,
-    status: i % 4 === 0 ? 'suspended' : 'active',
-    email_verified: i % 3 !== 0,
-    created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-    last_login:
-      Math.random() > 0.3
-        ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-        : undefined,
-    api_calls_count: Math.floor(Math.random() * 1000),
-    api_keys_count: Math.floor(Math.random() * 5),
-  }))
-}
 
 onMounted(() => {
   loadUsers()

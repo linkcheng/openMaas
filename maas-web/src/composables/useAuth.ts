@@ -16,7 +16,17 @@
 
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/userStore'
-import { apiClient, handleApiError } from '@/utils/api'
+import {
+  handleApiError,
+  register as registerApi,
+  login as loginApi,
+  logout as logoutApi,
+  refreshToken as refreshTokenApi,
+  verifyEmail as verifyEmailApi,
+  getProfile as getProfileApi,
+  forgotPassword as forgotPasswordApi,
+  resetPassword as resetPasswordApi,
+} from '@/utils/api'
 import { SM2CryptoUtil } from '@/utils/crypto'
 import type {
   UserRegisterRequest,
@@ -58,7 +68,7 @@ export const useAuth = () => {
         password: encryptedPassword,
       }
 
-      const response = await apiClient.auth.register(encryptedData)
+      const response = await registerApi(encryptedData)
 
       if (response.data.success) {
         return { success: true, message: response.data.message }
@@ -87,7 +97,7 @@ export const useAuth = () => {
         password: encryptedPassword,
       }
 
-      const response = await apiClient.auth.login(encryptedData)
+      const response = await loginApi(encryptedData)
 
       if (response.data.success && response.data.data) {
         const tokenData: LoginResponse = response.data.data
@@ -121,7 +131,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      await apiClient.auth.logout()
+      await logoutApi()
     } catch (err) {
       // 即使登出API调用失败，也要清除本地状态
       console.error('登出API调用失败:', err)
@@ -135,7 +145,7 @@ export const useAuth = () => {
   // 刷新token
   const refreshToken = async () => {
     try {
-      const response = await apiClient.auth.refreshToken()
+      const response = await refreshTokenApi()
 
       if (response.data.success && response.data.data) {
         const tokenData: AuthTokens = response.data.data
@@ -163,7 +173,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.users.getProfile()
+      const response = await getProfileApi()
 
       if (response.data.success && response.data.data) {
         const userData: LoginResponse['user'] = response.data.data
@@ -191,7 +201,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.forgotPassword(data)
+      const response = await forgotPasswordApi(data)
 
       if (response.data.success) {
         return { success: true, message: response.data.message }
@@ -213,7 +223,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.resetPassword(data)
+      const response = await resetPasswordApi(data)
 
       if (response.data.success) {
         return { success: true, message: response.data.message }
@@ -235,7 +245,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      const response = await apiClient.auth.verifyEmail(token)
+      const response = await verifyEmailApi(token)
 
       if (response.data.success) {
         return { success: true, message: response.data.message }

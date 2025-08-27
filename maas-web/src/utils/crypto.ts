@@ -20,7 +20,7 @@
  */
 
 import { sm2 } from 'sm-crypto'
-import { apiClient, handleApiError } from './api'
+import { handleApiError, getPublicKey as fetchPublicKey } from './api'
 import { LocalStorageCache, CACHE_KEYS } from './cache'
 
 /**
@@ -83,7 +83,7 @@ export class SM2CryptoUtil {
     
     // 请求接口
     try {
-      const response = await apiClient.auth.getPublicKey()
+      const response = await fetchPublicKey()
       if (response.data.success && response.data.data) {
         const keyInfo = response.data.data as SM2PublicKey
         // 缓存24小时

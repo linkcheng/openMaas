@@ -239,7 +239,7 @@ import {
   User,
   Clock
 } from '@element-plus/icons-vue'
-import type { Role } from '@/types/permission'
+import type { Role } from '@/types/permission/roleTypes'
 import { formatDateTime } from '@/utils/date'
 
 interface Props {
@@ -251,7 +251,7 @@ interface Props {
 interface Emits {
   (e: 'view', role: Role): void
   (e: 'edit', role: Role): void
-  (e: 'delete', role: Role): void
+  (e: 'delete', roleId: string): void
   (e: 'assign-permissions', role: Role): void
   (e: 'view-users', role: Role): void
   (e: 'sort-change', sort: { prop: string; order: string }): void
@@ -307,7 +307,7 @@ const handleEdit = (role: Role) => {
 
 const handleDelete = (role: Role) => {
   if (canDelete(role)) {
-    emit('delete', role)
+    emit('delete', role.id)
   }
 }
 

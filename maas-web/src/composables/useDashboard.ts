@@ -112,15 +112,15 @@ export function useDashboard() {
       console.error('加载管理员统计失败:', handleApiError(error))
       apiError.value.adminStats = true
 
-      // 对于API不存在的情况，使用模拟数据
+      // API调用失败时使用空数据
       Object.assign(adminStats, {
-        total_users: 245,
-        total_api_keys: 89,
-        total_requests: 15420,
-        active_users: 67,
-        active_users_30d: 156,
-        total_models: 23,
-        total_deployments: 12,
+        total_users: 0,
+        total_api_keys: 0,
+        total_requests: 0,
+        active_users: 0,
+        active_users_30d: 0,
+        total_models: 0,
+        total_deployments: 0,
       })
       return false
     }
@@ -143,44 +143,8 @@ export function useDashboard() {
       console.error('加载最近活动失败:', handleApiError(error))
       apiError.value.activities = true
 
-      // 对于API不存在的情况，使用模拟数据
-      const mockActivities: ActivityLogResponse[] = [
-        {
-          id: '1',
-          type: 'api_call',
-          description: '成功调用API接口',
-          timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-          status: 'success',
-        },
-        {
-          id: '2',
-          type: 'login',
-          description: '用户登录成功',
-          timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-          status: 'success',
-        },
-      ]
-
-      if (isAdmin.value) {
-        mockActivities.push(
-          {
-            id: '3',
-            type: 'user_register',
-            description: '新用户注册',
-            timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-            status: 'success',
-          },
-          {
-            id: '4',
-            type: 'system_warning',
-            description: '系统负载较高',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-            status: 'warning',
-          },
-        )
-      }
-
-      recentActivities.value = mockActivities
+      // API调用失败时显示空数据
+      recentActivities.value = []
       return false
     }
   }
@@ -278,9 +242,9 @@ export function useDashboard() {
     return { status: 'partial', message: `部分服务不可用 (${totalApis - errorCount}/${totalApis})` }
   }
 
-  // 生成模拟图表数据
+  // 生成图表数据
   const generateChartData = () => {
-    // 生成用户增长趋势数据（最近30天）
+    // 生成空的趋势数据（最近30天）
     const userTrend: Record<string, number> = {}
     const apiTrend: Record<string, number> = {}
 
@@ -289,36 +253,22 @@ export function useDashboard() {
       date.setDate(date.getDate() - i)
       const dateKey = date.toISOString().split('T')[0]
 
-      // 模拟用户增长数据
-      userTrend[dateKey] = Math.floor(Math.random() * 10) + 5
-
-      // 模拟API调用数据
-      apiTrend[dateKey] = Math.floor(Math.random() * 500) + 200
+      // 初始化为0
+      userTrend[dateKey] = 0
+      apiTrend[dateKey] = 0
     }
 
     chartData.userGrowthTrend = userTrend
     chartData.apiCallsTrend = apiTrend
 
-    // 生成模型使用分布数据
-    chartData.modelUsageDistribution = [
-      { name: 'GPT-4', value: 45, color: '#6366f1' },
-      { name: 'Claude-3', value: 30, color: '#8b5cf6' },
-      { name: 'Llama-2', value: 15, color: '#06b6d4' },
-      { name: '其他模型', value: 10, color: '#10b981' },
-    ]
-
-    // 生成用户活跃度分布
-    chartData.userActivityDistribution = [
-      { name: '高度活跃', value: 25, color: '#10b981' },
-      { name: '中等活跃', value: 35, color: '#f59e0b' },
-      { name: '低度活跃', value: 30, color: '#ef4444' },
-      { name: '不活跃', value: 10, color: '#6b7280' },
-    ]
+    // 初始化空数据
+    chartData.modelUsageDistribution = []
+    chartData.userActivityDistribution = []
   }
 
   // 处理时间周期变化
   const handlePeriodChange = (period: string) => {
-    // 根据选择的时间周期重新生成数据
+    // 根据选择的时间周期重新生成空数据
     let days = 30
     if (period === '7days') days = 7
     else if (period === '3months') days = 90
@@ -331,8 +281,8 @@ export function useDashboard() {
       date.setDate(date.getDate() - i)
       const dateKey = date.toISOString().split('T')[0]
 
-      newUserTrend[dateKey] = Math.floor(Math.random() * 10) + 5
-      newApiTrend[dateKey] = Math.floor(Math.random() * 500) + 200
+      newUserTrend[dateKey] = 0
+      newApiTrend[dateKey] = 0
     }
 
     chartData.userGrowthTrend = newUserTrend

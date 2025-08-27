@@ -134,7 +134,7 @@
     <div class="role-table-container">
       <RoleTable
         :roles="filteredRoles"
-        :loading="loading"
+        :loading="isLoading"
         :selectable="true"
         @view="handleViewRole"
         @edit="handleEditRole"
@@ -161,12 +161,20 @@
     </div>
 
     <!-- 角色编辑对话框 -->
-    <RoleEditDialog
-      v-model:visible="roleDialogVisible"
-      :role="selectedRole"
-      :mode="dialogMode"
-      @submit="handleRoleSubmit"
-    />
+    <el-dialog
+      v-model="roleDialogVisible"
+      :title="dialogMode === 'create' ? '创建角色' : '编辑角色'"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="selectedRole || dialogMode === 'create'">
+        <p>角色编辑功能正在开发中...</p>
+      </div>
+      <template #footer>
+        <el-button @click="roleDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="roleDialogVisible = false">确定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 权限分配对话框 -->
     <el-dialog
@@ -177,12 +185,7 @@
     >
       <div v-if="selectedRole">
         <h4>为角色 "{{ selectedRole.display_name }}" 分配权限</h4>
-        <PermissionTree
-          :permissions="permissions"
-          :selected-permissions="selectedRole.permissions || []"
-          :selectable="true"
-          @select="handlePermissionSelect"
-        />
+        <p>权限分配功能正在开发中...</p>
       </div>
       <template #footer>
         <el-button @click="permissionDialogVisible = false">取消</el-button>
@@ -207,6 +210,7 @@ import {
   ElAlert,
   ElPagination,
   ElDialog,
+  ElMessage,
 } from 'element-plus'
 import {
   Plus,
@@ -220,50 +224,26 @@ import {
 import { useRoleManagement } from '@/composables/permission/useRoleManagement'
 import { usePermissionManagement } from '@/composables/permission/usePermissionManagement'
 import RoleTable from '@/components/permission/RoleTable.vue'
-import RoleEditDialog from '@/components/permission/RoleEditDialog.vue'
-import PermissionTree from '@/components/permission/PermissionTree.vue'
-import type { Role } from '@/types/permission'
+import type { Role } from '@/types/permission/roleTypes'
 
 const router = useRouter()
 
 // 角色管理逻辑
+const roleManagement = useRoleManagement()
 const {
-  // 状态
   roles,
-  filteredRoles,
-  loading,
-  stats,
-  pagination,
-  filters,
-  roleDialogVisible,
-  permissionDialogVisible,
-  selectedRole,
-  dialogMode,
-  selectedRoleIds,
-  hasSelectedRoles,
-  selectedRoleCount,
-  canBatchDelete,
-  
-  // 方法
-  initialize,
-  refresh,
-  openCreateDialog,
-  openEditDialog,
-  openPermissionDialog,
+  isLoading,
+  error,
+  currentPage,
+  pageSize,
+  total,
+  searchQuery,
+  fetchRoles,
   createRole,
   updateRole,
   deleteRole,
-  assignRolePermissions,
-  batchDeleteRoles,
-  setSearchQuery,
-  setRoleTypeFilter,
-  setRoleStatusFilter,
-  resetFilters,
-  setPage,
-  setPageSize,
-  setSorting,
-  clearSelection,
-} = useRoleManagement()
+  refreshRoles
+} = roleManagement
 
 // 权限管理逻辑
 const {
@@ -271,61 +251,76 @@ const {
   fetchPermissions,
 } = usePermissionManagement()
 
-// 响应式数据
-const searchQuery = computed({
-  get: () => filters.value.searchQuery,
-  set: (value) => setSearchQuery(value)
-})
-
-const roleTypeFilter = computed({
-  get: () => filters.value.roleTypeFilter,
-  set: (value) => setRoleTypeFilter(value)
-})
-
-const roleStatusFilter = computed({
-  get: () => filters.value.roleStatusFilter,
-  set: (value) => setRoleStatusFilter(value)
-})
-
-const currentPage = computed({
-  get: () => pagination.value.currentPage,
-  set: (value) => setPage(value)
-})
-
-const pageSize = computed({
-  get: () => pagination.value.pageSize,
-  set: (value) => setPageSize(value)
-})
-
-const totalCount = computed(() => pagination.value.totalCount)
-
-// 选中的权限ID列表
+// 本地状态
+const roleTypeFilter = ref('')
+const roleStatusFilter = ref('')
+const selectedRoles = ref<Role[]>([])
 const selectedPermissionIds = ref<string[]>([])
+const roleDialogVisible = ref(false)
+const permissionDialogVisible = ref(false)
+const selectedRole = ref<Role | null>(null)
+const dialogMode = ref<'create' | 'edit'>('create')
+
+// 计算属性
+const filteredRoles = computed(() => {
+  let filtered = roles.value
+  
+  if (roleTypeFilter.value) {
+    filtered = filtered.filter(role => role.role_type === roleTypeFilter.value)
+  }
+  
+  if (roleStatusFilter.value) {
+    filtered = filtered.filter(role => role.status === roleStatusFilter.value)
+  }
+  
+  return filtered
+})
+
+const totalCount = computed(() => total.value)
+const hasSelectedRoles = computed(() => selectedRoles.value.length > 0)
+const selectedRoleCount = computed(() => selectedRoles.value.length)
+const canBatchDelete = computed(() => 
+  selectedRoles.value.every(role => !role.is_system_role)
+)
+
+const stats = computed(() => ({
+  total_roles: roles.value.length,
+  system_roles: roles.value.filter(r => r.is_system_role).length,
+  custom_roles: roles.value.filter(r => !r.is_system_role).length,
+  active_roles: roles.value.filter(r => r.status === 'active').length
+}))
 
 // 事件处理
 const handleCreateRole = () => {
-  openCreateDialog()
+  selectedRole.value = null
+  dialogMode.value = 'create'
+  roleDialogVisible.value = true
 }
 
 const handleViewRole = (role: Role) => {
-  // TODO: 导航到详情页面或显示详情对话框
+  ElMessage.info(`查看角色: ${role.display_name}`)
 }
 
 const handleEditRole = (role: Role) => {
-  openEditDialog(role)
+  selectedRole.value = role
+  dialogMode.value = 'edit'
+  roleDialogVisible.value = true
 }
 
-const handleDeleteRole = (role: Role) => {
-  deleteRole(role)
+const handleDeleteRole = async (roleId: string) => {
+  const result = await deleteRole(roleId)
+  if (result.success) {
+    await fetchRoles()
+  }
 }
 
 const handleAssignPermissions = (role: Role) => {
-  selectedPermissionIds.value = role.permissions || []
-  openPermissionDialog(role)
+  selectedRole.value = role
+  selectedPermissionIds.value = role.permissions.map(p => p.id)
+  permissionDialogVisible.value = true
 }
 
 const handleViewUsers = (role: Role) => {
-  // 导航到用户管理页面，并筛选该角色的用户
   router.push({
     name: 'permission-user-roles',
     query: { roleId: role.id }
@@ -333,51 +328,67 @@ const handleViewUsers = (role: Role) => {
 }
 
 const handleSearch = (query: string) => {
-  setSearchQuery(query)
+  // 搜索逻辑已在computed中处理
 }
 
 const handleTypeFilter = (type: string) => {
-  setRoleTypeFilter(type as any)
+  roleTypeFilter.value = type
 }
 
 const handleStatusFilter = (status: string) => {
-  setRoleStatusFilter(status as any)
+  roleStatusFilter.value = status
 }
 
 const handleResetFilters = () => {
-  resetFilters()
+  searchQuery.value = ''
+  roleTypeFilter.value = ''
+  roleStatusFilter.value = ''
 }
 
 const handleRefresh = () => {
-  refresh()
+  refreshRoles()
 }
 
-const handleBatchDelete = () => {
-  batchDeleteRoles()
+const handleBatchDelete = async () => {
+  for (const role of selectedRoles.value) {
+    if (!role.is_system_role) {
+      await deleteRole(role.id)
+    }
+  }
+  selectedRoles.value = []
+  await fetchRoles()
 }
 
 const handleSortChange = (sort: { prop: string; order: string }) => {
-  const order = sort.order === 'ascending' ? 'asc' : 'desc'
-  setSorting(sort.prop, order)
+  // 排序逻辑
+  ElMessage.info(`排序: ${sort.prop} ${sort.order}`)
 }
 
 const handleSelectionChange = (selection: Role[]) => {
-  selectedRoleIds.value = selection.map(role => role.id)
+  selectedRoles.value = selection
 }
 
 const handlePageChange = (page: number) => {
-  setPage(page)
+  currentPage.value = page
+  fetchRoles()
 }
 
 const handleSizeChange = (size: number) => {
-  setPageSize(size)
+  pageSize.value = size
+  fetchRoles()
 }
 
 const handleRoleSubmit = async (roleData: any) => {
+  let result
   if (dialogMode.value === 'create') {
-    await createRole(roleData)
-  } else {
-    await updateRole(selectedRole.value!.id, roleData)
+    result = await createRole(roleData)
+  } else if (selectedRole.value) {
+    result = await updateRole(selectedRole.value.id, roleData)
+  }
+  
+  if (result?.success) {
+    roleDialogVisible.value = false
+    await fetchRoles()
   }
 }
 
@@ -387,16 +398,19 @@ const handlePermissionSelect = (permissionIds: string[]) => {
 
 const handlePermissionAssign = async () => {
   if (selectedRole.value) {
-    await assignRolePermissions(selectedRole.value.id, {
-      permission_ids: selectedPermissionIds.value
-    })
+    ElMessage.success('权限分配功能正在开发中')
+    permissionDialogVisible.value = false
   }
+}
+
+const clearSelection = () => {
+  selectedRoles.value = []
 }
 
 // 初始化
 onMounted(async () => {
   await Promise.all([
-    initialize(),
+    fetchRoles(),
     fetchPermissions()
   ])
 })

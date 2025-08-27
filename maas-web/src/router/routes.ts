@@ -26,46 +26,6 @@ const createAuthRoute = (path: string, name: string, component: string, title: s
   meta: { requiresGuest: true, title }
 })
 
-/**
- * 创建需要认证的路由的辅助函数
- */
-const createProtectedRoute = (
-  path: string, 
-  name: string, 
-  component: string, 
-  title: string,
-  permissions?: string
-): RouteRecordRaw => ({
-  path,
-  name,
-  component: () => import(`../views/${component}.vue`),
-  meta: { 
-    requiresAuth: true, 
-    title,
-    ...(permissions && { permissions })
-  }
-})
-
-/**
- * 创建管理员路由的辅助函数
- */
-const createAdminRoute = (
-  path: string, 
-  name: string, 
-  component: string, 
-  title: string,
-  permissions?: string
-): RouteRecordRaw => ({
-  path: `admin/${path}`,
-  name,
-  component: () => import(`../views/admin/${component}.vue`),
-  meta: { 
-    requiresAuth: true, 
-    requiresAdmin: true, 
-    title,
-    ...(permissions && { permissions })
-  }
-})
 
 // 基础路由
 export const basicRoutes: RouteRecordRaw[] = [
@@ -90,27 +50,133 @@ export const authRoutes: RouteRecordRaw[] = [
 
 // MaaS 平台功能路由
 export const maasRoutes: RouteRecordRaw[] = [
-  createProtectedRoute('dashboard', 'dashboard', 'DashboardView', '仪表盘'),
-  createProtectedRoute('data-management', 'data-management', 'maas/DataManagementView', '数据管理'),
-  createProtectedRoute('model-management', 'model-management', 'maas/ModelManagementView', '模型管理'),
-  createProtectedRoute('model-finetune', 'model-finetune', 'maas/ModelFineTuneView', '模型微调'),
-  createProtectedRoute('model-deployment', 'model-deployment', 'maas/ModelDeploymentView', '模型部署'),
-  createProtectedRoute('model-inference', 'model-inference', 'maas/ModelInferenceView', '模型推理'),
-  createProtectedRoute('knowledge-base', 'knowledge-base', 'maas/KnowledgeBaseView', '知识库管理'),
-  createProtectedRoute('application-management', 'application-management', 'maas/ApplicationManagementView', '应用管理'),
-  createProtectedRoute('application-scenarios', 'application-scenarios', 'maas/ApplicationScenariosView', '应用场景'),
+  {
+    path: 'dashboard',
+    name: 'dashboard',
+    component: () => import('../views/DashboardView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '仪表盘'
+    }
+  },
+  {
+    path: 'data-management',
+    name: 'data-management',
+    component: () => import('../views/maas/DataManagementView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '数据管理'
+    }
+  },
+  {
+    path: 'model-management',
+    name: 'model-management',
+    component: () => import('../views/maas/ModelManagementView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '模型管理'
+    }
+  },
+  {
+    path: 'model-finetune',
+    name: 'model-finetune',
+    component: () => import('../views/maas/ModelFineTuneView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '模型微调'
+    }
+  },
+  {
+    path: 'model-deployment',
+    name: 'model-deployment',
+    component: () => import('../views/maas/ModelDeploymentView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '模型部署'
+    }
+  },
+  {
+    path: 'model-inference',
+    name: 'model-inference',
+    component: () => import('../views/maas/ModelInferenceView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '模型推理'
+    }
+  },
+  {
+    path: 'knowledge-base',
+    name: 'knowledge-base',
+    component: () => import('../views/maas/KnowledgeBaseView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '知识库管理'
+    }
+  },
+  {
+    path: 'application-management',
+    name: 'application-management',
+    component: () => import('../views/maas/ApplicationManagementView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '应用管理'
+    }
+  },
+  {
+    path: 'application-scenarios',
+    name: 'application-scenarios',
+    component: () => import('../views/maas/ApplicationScenariosView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '应用场景'
+    }
+  },
 ]
 
 // 用户管理路由
 export const userRoutes: RouteRecordRaw[] = [
-  createProtectedRoute('user/profile', 'profile', 'user/ProfileView', '个人资料'),
-  createProtectedRoute('user/settings', 'settings', 'user/SettingsView', '设置'),
+  {
+    path: 'user/profile',
+    name: 'profile',
+    component: () => import('../views/user/ProfileView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '个人资料'
+    }
+  },
+  {
+    path: 'user/settings',
+    name: 'settings',
+    component: () => import('../views/user/SettingsView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '设置'
+    }
+  },
 ]
 
 // 管理员路由
 export const adminRoutes: RouteRecordRaw[] = [
-  createAdminRoute('dashboard', 'admin', 'AdminDashboard', '管理后台'),
-  createAdminRoute('users', 'admin-users', 'UserManagement', '用户管理'),
+  {
+    path: 'admin/dashboard',
+    name: 'admin',
+    component: () => import('../views/admin/AdminDashboard.vue'),
+    meta: { 
+      requiresAuth: true, 
+      requiresAdmin: true, 
+      title: '管理后台'
+    }
+  },
+  {
+    path: 'admin/users',
+    name: 'admin-users',
+    component: () => import('../views/admin/UserManagement.vue'),
+    meta: { 
+      requiresAuth: true, 
+      requiresAdmin: true, 
+      title: '用户管理'
+    }
+  },
   {
     path: 'admin/providers',
     name: 'admin-providers',
@@ -124,7 +190,16 @@ export const adminRoutes: RouteRecordRaw[] = [
       ],
     },
   },
-  createAdminRoute('audit-logs', 'admin-audit-logs', 'AuditLogsView', '系统日志'),
+  {
+    path: 'admin/audit-logs',
+    name: 'admin-audit-logs',
+    component: () => import('../views/admin/AuditLogsView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      requiresAdmin: true, 
+      title: '系统日志'
+    }
+  },
 ]
 
 // 权限管理路由
@@ -135,22 +210,54 @@ export const permissionRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true },
     children: [
       { path: '', redirect: 'roles' },
-      createProtectedRoute('roles', 'permission-roles', 'admin/permission/RoleManagement', '角色管理', 'admin.role.view'),
-      createProtectedRoute('permissions', 'permission-permissions', 'admin/permission/PermissionManagement', '权限管理', 'admin.permission.view'),
-      createProtectedRoute('user-roles', 'permission-user-roles', 'admin/permission/UserRoleManagement', '用户权限', 'admin.user.manage'),
-    ].map(route => ({
-      ...route,
-      meta: {
-        ...route.meta,
-        requiresAdmin: true
-      }
-    }))
+      {
+        path: 'roles',
+        name: 'permission-roles',
+        component: () => import('../views/admin/permission/RoleManagement.vue'),
+        meta: { 
+          requiresAuth: true, 
+          requiresAdmin: true,
+          title: '角色管理',
+          permissions: 'admin.role.view'
+        }
+      },
+      {
+        path: 'permissions',
+        name: 'permission-permissions',
+        component: () => import('../views/admin/permission/PermissionManagement.vue'),
+        meta: { 
+          requiresAuth: true, 
+          requiresAdmin: true,
+          title: '权限管理',
+          permissions: 'admin.permission.view'
+        }
+      },
+      {
+        path: 'user-roles',
+        name: 'permission-user-roles',
+        component: () => import('../views/admin/permission/UserRoleManagement.vue'),
+        meta: { 
+          requiresAuth: true, 
+          requiresAdmin: true,
+          title: '用户权限',
+          permissions: 'admin.user.manage'
+        }
+      },
+    ]
   },
 ]
 
 // 通用路由
 export const commonRoutes: RouteRecordRaw[] = [
-  createProtectedRoute('permission-denied', 'permission-denied', 'common/PermissionDeniedView', '权限不足'),
+  {
+    path: 'permission-denied',
+    name: 'permission-denied',
+    component: () => import('../views/common/PermissionDeniedView.vue'),
+    meta: { 
+      requiresAuth: true, 
+      title: '权限不足'
+    }
+  },
 ]
 
 // 主应用路由（使用 MainLayout 包装）
