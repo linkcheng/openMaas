@@ -3,6 +3,7 @@
 
 """
 from typing import Any
+from loguru import logger
 
 from sqlalchemy import and_, asc, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -212,7 +213,6 @@ class ProviderRepository(SQLAlchemyRepository[ProviderEntity, ProviderORM], IPro
 
         # 优化分页 - 对于大偏移量给出警告
         if offset > 10000:
-            from loguru import logger
             logger.warning(f"Large offset detected ({offset}). Consider using cursor-based pagination.")
 
         # 限制最大页面大小

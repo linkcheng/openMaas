@@ -18,17 +18,11 @@ limitations under the License.
 
 from typing import Any
 from uuid import UUID
-
 from loguru import logger
 from uuid_extensions import uuid7
 
 from shared.domain.base import DomainException
 from user.domain.models import Permission, PermissionName
-from user.domain.repositories import (
-    IPermissionRepository,
-    IRoleRepository,
-    IUserRepository,
-)
 from user.domain.services.user_validation_service import UserValidationService
 
 

@@ -208,7 +208,7 @@ class LogConfig(BaseSettings):
         description="日志保留时间"
     )
     log_format: str = Field(
-        default="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+        default="{time:YYYY-MM-DD HH:mm:ss} | {level} | trace:{extra[trace_id]} | {message}",
         description="日志格式"
     )
 

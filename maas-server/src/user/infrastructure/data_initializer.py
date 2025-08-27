@@ -18,7 +18,7 @@ limitations under the License.
 
 from typing import Any
 
-from loguru import logger
+from shared.infrastructure.logging_service import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.domain.initializer import DataInitializer
@@ -46,6 +46,8 @@ from user.infrastructure.repositories import (
     RoleRepository,
     UserRepository,
 )
+
+logger = get_logger()
 
 
 class UserDataInitializer(DataInitializer):

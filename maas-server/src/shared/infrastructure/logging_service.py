@@ -20,6 +20,7 @@ import contextvars
 import sys
 from pathlib import Path
 
+import loguru as _loguru
 from loguru import logger
 
 from config.schemas import Settings
@@ -27,6 +28,19 @@ from config.settings import settings
 
 # trace_id上下文变量（业务代码友好）
 trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("trace_id")
+
+
+def _ensure_trace_id(record):
+    """在日志记录中确保存在trace_id，缺省为'-'"""
+    record["extra"].setdefault("trace_id", "-")
+    return record
+
+
+# 全局替换 loguru.logger，确保任意位置 `from loguru import logger` 均带默认 trace_id
+_loguru.logger = _loguru.logger.patch(_ensure_trace_id).bind(trace_id="-")
+
+# 本模块内使用与全局一致的 logger 引用
+logger = _loguru.logger
 
 
 class LoggingService:
@@ -81,6 +95,7 @@ class LoggingService:
             return (
                 "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
                 "<level>{level}</level> | "
+                "trace:{extra[trace_id]} | "
                 "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
                 "<level>{message}</level>"
             )
@@ -97,6 +112,10 @@ def get_logging_service() -> LoggingService:
         _logging_service = LoggingService(settings)
         _logging_service.configure()
     return _logging_service
+
+
+# 自动初始化日志服务
+get_logging_service()
 
 
 # trace_id便捷功能（保留业务代码友好性）
@@ -116,16 +135,12 @@ def set_trace_id(trace_id: str) -> None:
 def get_logger_with_trace():
     """获取自动包含trace_id的logger（业务代码友好）"""
     trace_id = get_trace_id()
-    return logger.bind(trace_id=trace_id) if trace_id else logger
+    return logger.bind(trace_id=trace_id or "-") 
 
 
 # 保持向后兼容性
-def get_logger(name: str | None = None, **context) -> logger:
+def get_logger(**context) -> logger:
     """获取logger实例（保持兼容性）"""
-    # 自动初始化日志服务
-    get_logging_service()
-
     if context:
         return logger.bind(**context)
-    else:
-        return logger.bind(name=name) if name else logger
+    return  logger

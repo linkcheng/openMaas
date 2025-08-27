@@ -25,8 +25,6 @@ from starlette.types import ASGIApp
 
 from shared.infrastructure.logging_service import get_logger_with_trace, set_trace_id
 
-logger = get_logger_with_trace()
-
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """请求上下文中间件 - 统一使用trace_id"""
@@ -36,7 +34,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # 生成trace_id（统一标识，短格式便于查看）
-        trace_id = str(uuid.uuid4())[:8]
+        trace_id = str(uuid.uuid4())
 
         # 设置到contextvar（业务代码可用）
         set_trace_id(trace_id)
@@ -56,6 +54,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         # 存储到request.state
         request.state.client_ip = client_ip
         request.state.user_agent = user_agent
+
+        logger = get_logger_with_trace()
 
         logger.info(f"请求开始 - {request.method} {request.url.path}")
 

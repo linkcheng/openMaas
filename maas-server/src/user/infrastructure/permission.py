@@ -45,11 +45,11 @@ async def get_current_user_with_permissions(
         return user
 
     # 未认证，返回 401
-    # raise HTTPException(
-    #     status_code=status.HTTP_401_UNAUTHORIZED,
-    #     detail="未认证的请求，请先登录",
-    #     headers={"WWW-Authenticate": "Bearer"},
-    # )
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="未认证的请求，请先登录",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_user(
@@ -284,7 +284,7 @@ async def require_admin(
         return True
 
     # 检查角色级别的管理员权限
-    admin_roles = ["admin", "super_admin", "system_admin"]
+    admin_roles = ["admin",]
     user_roles = [role.name.lower() for role in user._roles]
     if any(role in user_roles for role in admin_roles):
         return True

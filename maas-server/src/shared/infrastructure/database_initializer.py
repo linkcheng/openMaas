@@ -16,10 +16,12 @@ limitations under the License.
 
 """数据库初始化协调器 - 管理各模块数据初始化"""
 
-from loguru import logger
+from shared.infrastructure.logging_service import get_logger
 
 from shared.domain.initializer import DataInitializer
 from shared.infrastructure.database import async_session_factory
+
+logger = get_logger()
 
 
 class DatabaseInitializationCoordinator:

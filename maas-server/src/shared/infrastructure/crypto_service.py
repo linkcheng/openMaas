@@ -17,7 +17,6 @@ limitations under the License.
 """国密SM2加密服务"""
 
 import pathlib
-
 from loguru import logger
 from pysmx.SM2 import Decrypt, Encrypt, generate_keypair
 

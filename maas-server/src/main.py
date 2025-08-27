@@ -23,7 +23,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from loguru import logger
+
+from shared.infrastructure.logging_service import get_logger
 
 from config.settings import settings
 from model.interface import router as model_router
@@ -38,12 +39,12 @@ from shared.infrastructure.database import (
     close_database,
     init_database,
 )
-from shared.infrastructure.logging_service import get_logging_service
 from shared.middleware import RequestContextMiddleware
 from user.infrastructure.middleware import UserContextMiddleware
 from user.interface import router as user_router
 
-_ = get_logging_service()
+
+logger = get_logger(trace='-')
 
 
 @asynccontextmanager
