@@ -17,15 +17,15 @@ export interface PermissionDirectiveValue {
 /**
  * 权限验证指令
  * 用法:
- * v-permission="'user.profile.create'" (推荐：完整权限字符串)
+ * v-permission="'user:profile:create'" (推荐：完整权限字符串)
  * v-permission="{ module: 'user', resource: 'profile', action: 'create' }"
- * v-permission="{ permissions: ['user.profile.create', 'user.profile.update'], logic: 'OR' }"
+ * v-permission="{ permissions: ['user:profile:create', 'user:profile:update'], logic: 'OR' }"
  */
 export const permission: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding<string | PermissionDirectiveValue>) {
     updateElementVisibility(el, binding)
   },
-  
+
   updated(el: HTMLElement, binding: DirectiveBinding<string | PermissionDirectiveValue>) {
     updateElementVisibility(el, binding)
   }
@@ -35,7 +35,7 @@ export const permission: Directive = {
  * 更新元素可见性
  */
 function updateElementVisibility(
-  el: HTMLElement, 
+  el: HTMLElement,
   binding: DirectiveBinding<string | PermissionDirectiveValue>
 ) {
   const { hasPermission, hasAnyPermission, hasAllPermissions } = useAuth()
@@ -56,11 +56,11 @@ function updateElementVisibility(
       }
     } else if (module && resource && action) {
       // 三段式权限检查
-      hasRequiredPermission = hasPermission(`${module}.${resource}.${action}`)
+      hasRequiredPermission = hasPermission(`${module}:${resource}:${action}`)
     } else if (resource && action) {
-      // 向后兼容：假设resource是完整的module.resource
-      console.warn('Deprecated permission format. Please use complete module.resource.action format.')
-      hasRequiredPermission = hasPermission(`${resource}.${action}`)
+      // 向后兼容：假设resource是完整的module:resource
+      console.warn('Deprecated permission format. Please use complete module:resource:action format.')
+      hasRequiredPermission = hasPermission(`${resource}:${action}`)
     }
   }
 
@@ -84,7 +84,7 @@ export const role: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding<string | string[]>) {
     updateElementVisibilityByRole(el, binding)
   },
-  
+
   updated(el: HTMLElement, binding: DirectiveBinding<string | string[]>) {
     updateElementVisibilityByRole(el, binding)
   }
@@ -94,7 +94,7 @@ export const role: Directive = {
  * 根据角色更新元素可见性
  */
 function updateElementVisibilityByRole(
-  el: HTMLElement, 
+  el: HTMLElement,
   binding: DirectiveBinding<string | string[]>
 ) {
   const { hasRole, hasAnyRole } = useAuth()
@@ -127,7 +127,7 @@ export const admin: Directive = {
   mounted(el: HTMLElement) {
     updateElementVisibilityByAdmin(el)
   },
-  
+
   updated(el: HTMLElement) {
     updateElementVisibilityByAdmin(el)
   }
@@ -159,7 +159,7 @@ export const auth: Directive = {
   mounted(el: HTMLElement) {
     updateElementVisibilityByAuth(el, true)
   },
-  
+
   updated(el: HTMLElement) {
     updateElementVisibilityByAuth(el, true)
   }
@@ -169,7 +169,7 @@ export const guest: Directive = {
   mounted(el: HTMLElement) {
     updateElementVisibilityByAuth(el, false)
   },
-  
+
   updated(el: HTMLElement) {
     updateElementVisibilityByAuth(el, false)
   }

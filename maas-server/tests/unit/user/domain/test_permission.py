@@ -28,24 +28,24 @@ class TestPermissionName:
 
     def test_valid_permission_name(self):
         """测试有效的权限名称"""
-        permission_name = PermissionName("user.users.view")
-        assert permission_name.value == "user.users.view"
+        permission_name = PermissionName("user:users:view")
+        assert permission_name.value == "user:users:view"
         assert permission_name.module == "user"
         assert permission_name.resource == "users"
         assert permission_name.action == "view"
 
     def test_wildcard_permission_name(self):
         """测试通配符权限名称"""
-        permission_name = PermissionName("user.users.*")
-        assert permission_name.value == "user.users.*"
+        permission_name = PermissionName("user:users:*")
+        assert permission_name.value == "user:users:*"
         assert permission_name.module == "user"
         assert permission_name.resource == "users"
         assert permission_name.action == "*"
 
     def test_full_wildcard_permission_name(self):
         """测试完全通配符权限名称"""
-        permission_name = PermissionName("*.*.*")
-        assert permission_name.value == "*.*.*"
+        permission_name = PermissionName("*:*:*")
+        assert permission_name.value == "*:*:*"
         assert permission_name.module == "*"
         assert permission_name.resource == "*"
         assert permission_name.action == "*"
@@ -58,8 +58,8 @@ class TestPermissionName:
         with pytest.raises(ValueError, match="权限名称必须遵循"):
             PermissionName("user.users")
         
-        with pytest.raises(ValueError, match="权限名称必须遵循"):
-            PermissionName("user.users.view.extra")
+        with pytest.raises(ValueError, match="权限操作.*只能包含小写字母、数字和下划线"):
+            PermissionName("user:users:view.extra")
 
     def test_empty_permission_name(self):
         """测试空权限名称"""
@@ -72,39 +72,39 @@ class TestPermissionName:
     def test_empty_parts(self):
         """测试空的权限名称部分"""
         with pytest.raises(ValueError, match="权限名称的各部分不能为空"):
-            PermissionName("user..view")
+            PermissionName("user::view")
         
         with pytest.raises(ValueError, match="权限名称的各部分不能为空"):
-            PermissionName(".users.view")
+            PermissionName(":users:view")
         
         with pytest.raises(ValueError, match="权限名称的各部分不能为空"):
-            PermissionName("user.users.")
+            PermissionName("user:users:")
 
     def test_invalid_characters(self):
         """测试无效字符"""
         with pytest.raises(ValueError, match="只能包含小写字母、数字和下划线"):
-            PermissionName("User.users.view")  # 大写字母
+            PermissionName("User:users:view")  # 大写字母
         
         with pytest.raises(ValueError, match="只能包含小写字母、数字和下划线"):
-            PermissionName("user.users-admin.view")  # 连字符
+            PermissionName("user:users-admin:view")  # 连字符
         
         with pytest.raises(ValueError, match="只能包含小写字母、数字和下划线"):
-            PermissionName("user.users.View")  # 大写字母
+            PermissionName("user:users:View")  # 大写字母
 
     def test_invalid_start_character(self):
         """测试无效的开始字符"""
         with pytest.raises(ValueError, match="只能包含小写字母、数字和下划线，且必须以字母开头"):
-            PermissionName("1user.users.view")  # 数字开头
+            PermissionName("1user:users:view")  # 数字开头
         
         with pytest.raises(ValueError, match="只能包含小写字母、数字和下划线，且必须以字母开头"):
-            PermissionName("user._users.view")  # 下划线开头
+            PermissionName("user:_users:view")  # 下划线开头
 
     def test_permission_name_matching(self):
         """测试权限名称匹配"""
-        exact_permission = PermissionName("user.users.view")
-        wildcard_action = PermissionName("user.users.*")
-        wildcard_all = PermissionName("*.*.*")
-        different_permission = PermissionName("model.models.view")
+        exact_permission = PermissionName("user:users:view")
+        wildcard_action = PermissionName("user:users:*")
+        wildcard_all = PermissionName("*:*:*")
+        different_permission = PermissionName("model:models:view")
 
         # 精确匹配
         assert exact_permission.matches(exact_permission)
@@ -120,7 +120,7 @@ class TestPermissionName:
 
     def test_permission_name_immutability(self):
         """测试权限名称不可变性"""
-        permission_name = PermissionName("user.users.view")
+        permission_name = PermissionName("user:users:view")
         
         # 尝试修改应该失败（frozen dataclass）
         with pytest.raises(AttributeError):
@@ -133,7 +133,7 @@ class TestPermission:
     def test_create_permission(self):
         """测试创建权限"""
         permission_id = uuid7()
-        permission_name = PermissionName("user.users.view")
+        permission_name = PermissionName("user:users:view")
         permission = Permission(
             id=permission_id,
             name=permission_name,
@@ -151,7 +151,7 @@ class TestPermission:
 
     def test_permission_with_custom_module(self):
         """测试带自定义模块的权限"""
-        permission_name = PermissionName("user.users.view")
+        permission_name = PermissionName("user:users:view")
         permission = Permission(
             id=uuid7(),
             name=permission_name,
@@ -167,21 +167,21 @@ class TestPermission:
         """测试权限匹配"""
         exact_permission = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.view"),
+            name=PermissionName("user:users:view"),
             display_name="查看用户",
             description="查看用户"
         )
         
         wildcard_permission = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.*"),
+            name=PermissionName("user:users:*"),
             display_name="用户所有操作",
             description="用户所有操作"
         )
         
         different_permission = Permission(
             id=uuid7(),
-            name=PermissionName("model.models.view"),
+            name=PermissionName("model:models:view"),
             display_name="查看模型",
             description="查看模型"
         )
@@ -199,32 +199,32 @@ class TestPermission:
         """测试权限字符串表示"""
         permission = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.view"),
+            name=PermissionName("user:users:view"),
             display_name="查看用户",
             description="查看用户"
         )
 
-        assert str(permission) == "user.users.view"
+        assert str(permission) == "user:users:view"
 
     def test_permission_equality(self):
         """测试权限相等性"""
         permission1 = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.view"),
+            name=PermissionName("user:users:view"),
             display_name="查看用户",
             description="查看用户"
         )
         
         permission2 = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.view"),
+            name=PermissionName("user:users:view"),
             display_name="查看用户列表",  # 不同的显示名称
             description="查看用户列表和详情"  # 不同的描述
         )
         
         permission3 = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.create"),
+            name=PermissionName("user:users:create"),
             display_name="创建用户",
             description="创建新用户"
         )
@@ -241,7 +241,7 @@ class TestPermission:
         """测试权限哈希一致性"""
         permission = Permission(
             id=uuid7(),
-            name=PermissionName("user.users.view"),
+            name=PermissionName("user:users:view"),
             display_name="查看用户",
             description="查看用户"
         )

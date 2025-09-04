@@ -19,7 +19,6 @@ import {
   validateMenuPermission,
   exportMenuConfig,
   validateMenuConfigImport,
-  processMenuConfigImport,
   calculatePermissionLevel,
   generatePermissionDisplayName,
 } from '../permission'
@@ -27,24 +26,23 @@ import {
 import type {
   Permission,
   MenuPermissionConfig,
-  MenuConfigImportRequest,
 } from '@/types/permission'
 
 describe('Permission Utility Functions', () => {
   describe('validatePermissionName', () => {
     it('should validate correct permission names', () => {
-      expect(validatePermissionName('user.create')).toBe(true)
-      expect(validatePermissionName('user.profile.update')).toBe(true)
-      expect(validatePermissionName('system.config.manage')).toBe(true)
-      expect(validatePermissionName('role_management.view')).toBe(true)
+      expect(validatePermissionName('user:user:create')).toBe(true)
+      expect(validatePermissionName('user:profile:update')).toBe(true)
+      expect(validatePermissionName('system:config:manage')).toBe(true)
+      expect(validatePermissionName('role:management:view')).toBe(true)
     })
 
     it('should reject invalid permission names', () => {
       expect(validatePermissionName('')).toBe(false)
       expect(validatePermissionName('user')).toBe(false)
-      expect(validatePermissionName('user.')).toBe(false)
-      expect(validatePermissionName('.create')).toBe(false)
-      expect(validatePermissionName('user.create.')).toBe(false)
+      expect(validatePermissionName('user:')).toBe(false)
+      expect(validatePermissionName(':create')).toBe(false)
+      expect(validatePermissionName('user:create:')).toBe(false)
       expect(validatePermissionName('user-create')).toBe(false)
       expect(validatePermissionName('User.Create')).toBe(false)
       expect(validatePermissionName('user create')).toBe(false)
@@ -60,32 +58,32 @@ describe('Permission Utility Functions', () => {
 
   describe('formatPermissionName', () => {
     it('should format permission names correctly', () => {
-      expect(formatPermissionName('user', 'create')).toBe('user.create')
-      expect(formatPermissionName('user', 'update', 'profile')).toBe('user.profile.update')
-      expect(formatPermissionName('system', 'manage', 'config')).toBe('system.config.manage')
+      expect(formatPermissionName('user', 'create')).toBe('user:create')
+      expect(formatPermissionName('user', 'update', 'profile')).toBe('user:profile:update')
+      expect(formatPermissionName('system', 'manage', 'config')).toBe('system:config:manage')
     })
 
     it('should handle empty subResource', () => {
-      expect(formatPermissionName('role', 'delete', '')).toBe('role.delete')
-      expect(formatPermissionName('role', 'delete', undefined)).toBe('role.delete')
+      expect(formatPermissionName('role', 'delete', '')).toBe('role:delete')
+      expect(formatPermissionName('role', 'delete', undefined)).toBe('role:delete')
     })
   })
 
   describe('parsePermissionName', () => {
     it('should parse valid permission names', () => {
-      expect(parsePermissionName('user.create')).toEqual({
+      expect(parsePermissionName('user:user:create')).toEqual({
         resource: 'user',
         action: 'create',
-        subResource: undefined,
+        subResource: 'user',
       })
 
-      expect(parsePermissionName('user.profile.update')).toEqual({
+      expect(parsePermissionName('user:profile:update')).toEqual({
         resource: 'user',
         action: 'update',
         subResource: 'profile',
       })
 
-      expect(parsePermissionName('system.config.manage')).toEqual({
+      expect(parsePermissionName('system:config:manage')).toEqual({
         resource: 'system',
         action: 'manage',
         subResource: 'config',
@@ -94,27 +92,27 @@ describe('Permission Utility Functions', () => {
 
     it('should return null for invalid permission names', () => {
       expect(parsePermissionName('invalid')).toBeNull()
-      expect(parsePermissionName('user.')).toBeNull()
-      expect(parsePermissionName('.create')).toBeNull()
+      expect(parsePermissionName('user:')).toBeNull()
+      expect(parsePermissionName(':create')).toBeNull()
       expect(parsePermissionName('')).toBeNull()
     })
   })
 
   describe('checkPermission', () => {
-    const userPermissions = ['user.view', 'user.create', 'role.view']
+    const userPermissions = ['user:user:view', 'user:user:create', 'role:role:view']
 
     it('should return true for existing permissions', () => {
-      const result = checkPermission(userPermissions, 'user.view')
+      const result = checkPermission(userPermissions, 'user:user:view')
       expect(result.hasPermission).toBe(true)
       expect(result.missingPermissions).toBeUndefined()
       expect(result.message).toBe('权限验证通过')
     })
 
     it('should return false for missing permissions', () => {
-      const result = checkPermission(userPermissions, 'user.delete')
+      const result = checkPermission(userPermissions, 'user:user:delete')
       expect(result.hasPermission).toBe(false)
-      expect(result.missingPermissions).toEqual(['user.delete'])
-      expect(result.message).toBe('缺少权限: user.delete')
+      expect(result.missingPermissions).toEqual(['user:user:delete'])
+      expect(result.message).toBe('缺少权限: user:user:delete')
     })
   })
 
@@ -207,14 +205,14 @@ describe('Permission Utility Functions', () => {
 
     it('should build permission tree correctly', () => {
       const tree = buildPermissionTree(permissions)
-      
+
       expect(tree).toHaveLength(2) // 两个根节点
-      
+
       const userManageNode = tree.find(node => node.permission.id === 'perm-1')
       expect(userManageNode).toBeDefined()
       expect(userManageNode!.children).toHaveLength(1)
       expect(userManageNode!.children[0].permission.id).toBe('perm-2')
-      
+
       const roleViewNode = tree.find(node => node.permission.id === 'perm-3')
       expect(roleViewNode).toBeDefined()
       expect(roleViewNode!.children).toHaveLength(0)
@@ -222,7 +220,7 @@ describe('Permission Utility Functions', () => {
 
     it('should sort nodes by module and name', () => {
       const tree = buildPermissionTree(permissions)
-      
+
       // 应该按模块排序：permission_management 在前，user_management 在后
       expect(tree[0].permission.module).toBe('permission_management')
       expect(tree[1].permission.module).toBe('user_management')
@@ -264,7 +262,7 @@ describe('Permission Utility Functions', () => {
     it('should search by permission name', () => {
       const tree = buildPermissionTree(permissions)
       const results = searchPermissionTree(tree, 'user')
-      
+
       expect(results).toHaveLength(1)
       expect(results[0].permission.name).toBe('user.manage')
     })
@@ -272,7 +270,7 @@ describe('Permission Utility Functions', () => {
     it('should search by display name', () => {
       const tree = buildPermissionTree(permissions)
       const results = searchPermissionTree(tree, '角色')
-      
+
       expect(results).toHaveLength(1)
       expect(results[0].permission.display_name).toBe('查看角色')
     })
@@ -280,7 +278,7 @@ describe('Permission Utility Functions', () => {
     it('should search by description', () => {
       const tree = buildPermissionTree(permissions)
       const results = searchPermissionTree(tree, '管理系统')
-      
+
       expect(results).toHaveLength(1)
       expect(results[0].permission.description).toBe('管理系统用户')
     })
@@ -288,7 +286,7 @@ describe('Permission Utility Functions', () => {
     it('should return all nodes for empty search', () => {
       const tree = buildPermissionTree(permissions)
       const results = searchPermissionTree(tree, '')
-      
+
       expect(results).toHaveLength(2)
     })
   })
@@ -340,7 +338,7 @@ describe('Permission Utility Functions', () => {
 
     it('should get all ancestors correctly', () => {
       const ancestors = getPermissionAncestors(permissions[2], permissions)
-      
+
       expect(ancestors).toHaveLength(2)
       expect(ancestors[0].id).toBe('perm-1')
       expect(ancestors[1].id).toBe('perm-2')
@@ -399,7 +397,7 @@ describe('Permission Utility Functions', () => {
 
     it('should get all descendants correctly', () => {
       const descendants = getPermissionDescendants(permissions[0], permissions)
-      
+
       expect(descendants).toHaveLength(2)
       expect(descendants.map(d => d.id)).toContain('perm-2')
       expect(descendants.map(d => d.id)).toContain('perm-3')
@@ -483,13 +481,13 @@ describe('Permission Utility Functions', () => {
 
     it('should build menu tree correctly', () => {
       const tree = buildMenuTree(menuConfigs)
-      
+
       expect(tree).toHaveLength(2) // 两个根节点
-      
+
       // 应该按 sort_order 排序
       expect(tree[0].config.menu_key).toBe('dashboard')
       expect(tree[1].config.menu_key).toBe('admin')
-      
+
       // 检查子节点
       const adminNode = tree[1]
       expect(adminNode.children).toHaveLength(1)
@@ -517,7 +515,7 @@ describe('Permission Utility Functions', () => {
     it('should validate menu permission with AND logic', () => {
       const userPermissions = ['user.view', 'user.manage']
       const result = validateMenuPermission(menuConfig, userPermissions)
-      
+
       expect(result.hasPermission).toBe(true)
       expect(result.isVisible).toBe(true)
       expect(result.menu_key).toBe('admin.users')
@@ -526,7 +524,7 @@ describe('Permission Utility Functions', () => {
     it('should reject menu permission when missing required permissions', () => {
       const userPermissions = ['user.view']
       const result = validateMenuPermission(menuConfig, userPermissions)
-      
+
       expect(result.hasPermission).toBe(false)
       expect(result.isVisible).toBe(false)
       expect(result.missingPermissions).toEqual(['user.manage'])
@@ -537,9 +535,9 @@ describe('Permission Utility Functions', () => {
         ...menuConfig,
         required_permissions: [],
       }
-      
+
       const result = validateMenuPermission(noPermissionMenu, [])
-      
+
       expect(result.hasPermission).toBe(true)
       expect(result.isVisible).toBe(true)
       expect(result.message).toBe('无需权限验证')
@@ -567,7 +565,7 @@ describe('Permission Utility Functions', () => {
 
     it('should export menu config correctly', () => {
       const exportData = exportMenuConfig(configs, 'admin-123', '测试导出')
-      
+
       expect(exportData.version).toBe('1.0.0')
       expect(exportData.configs).toEqual(configs)
       expect(exportData.exported_by).toBe('admin-123')
@@ -586,7 +584,7 @@ describe('Permission Utility Functions', () => {
             menu_name: '测试菜单',
             menu_path: '/test',
             menu_type: 'menu',
-            required_permissions: ['test.view'],
+            required_permissions: ['test:view'],
             permission_logic: 'AND',
             is_visible: true,
             status: 'visible',
@@ -595,7 +593,7 @@ describe('Permission Utility Functions', () => {
           },
         ],
       }
-      
+
       const result = validateMenuConfigImport(importData)
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
@@ -612,7 +610,7 @@ describe('Permission Utility Functions', () => {
           },
         ],
       }
-      
+
       const result = validateMenuConfigImport(invalidData)
       expect(result.valid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(0)
@@ -621,11 +619,11 @@ describe('Permission Utility Functions', () => {
 
   describe('calculatePermissionLevel', () => {
     it('should calculate permission levels correctly', () => {
-      expect(calculatePermissionLevel('user.view')).toBe(1)
-      expect(calculatePermissionLevel('user.create')).toBe(2)
-      expect(calculatePermissionLevel('user.delete')).toBe(3)
-      expect(calculatePermissionLevel('user.manage')).toBe(4)
-      expect(calculatePermissionLevel('user.profile.update')).toBe(3) // 2 + 1 for subresource
+      expect(calculatePermissionLevel('user:user:view')).toBe(2) // 1 (view) + 1 (subResource: user)
+      expect(calculatePermissionLevel('user:user:create')).toBe(3) // 2 (create) + 1 (subResource: user)
+      expect(calculatePermissionLevel('user:user:delete')).toBe(4) // 3 (delete) + 1 (subResource: user)
+      expect(calculatePermissionLevel('user:user:manage')).toBe(5) // 4 (manage) + 1 (subResource: user)
+      expect(calculatePermissionLevel('user:profile:update')).toBe(3) // 2 (update) + 1 (subResource: profile)
     })
 
     it('should handle invalid permission names', () => {
@@ -636,15 +634,15 @@ describe('Permission Utility Functions', () => {
 
   describe('generatePermissionDisplayName', () => {
     it('should generate display names correctly', () => {
-      expect(generatePermissionDisplayName('user.create')).toBe('创建用户')
-      expect(generatePermissionDisplayName('role.delete')).toBe('删除角色')
-      expect(generatePermissionDisplayName('system.manage')).toBe('管理系统')
-      expect(generatePermissionDisplayName('user.profile.update')).toBe('更新用户profile')
+      expect(generatePermissionDisplayName('user:user:create')).toBe('创建用户user')
+      expect(generatePermissionDisplayName('role:role:delete')).toBe('删除角色role')
+      expect(generatePermissionDisplayName('system:system:manage')).toBe('管理系统system')
+      expect(generatePermissionDisplayName('user:profile:update')).toBe('更新用户profile')
     })
 
     it('should handle unknown resources and actions', () => {
-      expect(generatePermissionDisplayName('unknown.action')).toBe('actionunknown')
-      expect(generatePermissionDisplayName('resource.unknown')).toBe('unknownresource')
+      expect(generatePermissionDisplayName('unknown:unknown:action')).toBe('actionunknownunknown')
+      expect(generatePermissionDisplayName('resource:resource:unknown')).toBe('unknownresourceresource')
     })
 
     it('should handle invalid permission names', () => {

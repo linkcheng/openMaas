@@ -195,7 +195,7 @@ async def get_user_permissions(
 async def check_user_permission(
     user_service: Annotated[UserApplicationService, Depends(get_user_application_service)],
     user_id: UUID,
-    permission: str = Query(..., description="权限名称，格式：module.resource.action"),
+    permission: str = Query(..., description="权限名称，格式：module:resource:action"),
 ):
     """检查用户是否拥有指定权限（管理员）"""
 

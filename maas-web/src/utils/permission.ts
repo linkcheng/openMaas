@@ -18,9 +18,9 @@ import type {
 
 /**
  * 权限名称验证正则表达式
- * 格式: resource.action 或 resource.subresource.action
+ * 格式: module:resource:action
  */
-const PERMISSION_NAME_REGEX = /^[a-z_]+(\.[a-z_]+)*\.[a-z_]+$/
+const PERMISSION_NAME_REGEX = /^[a-z_]+(:[a-z_]+)*:[a-z_]+$/
 
 /**
  * 菜单键名验证正则表达式
@@ -59,7 +59,7 @@ export function formatPermissionName(
   }
   parts.push(action)
   
-  return parts.join('.')
+  return parts.join(':')
 }
 
 /**
@@ -76,10 +76,10 @@ export function parsePermissionName(permissionName: string): {
     return null
   }
   
-  const parts = permissionName.split('.')
+  const parts = permissionName.split(':')
   const action = parts.pop()!
   const resource = parts.shift()!
-  const subResource = parts.length > 0 ? parts.join('.') : undefined
+  const subResource = parts.length > 0 ? parts.join(':') : undefined
   
   return {
     resource,

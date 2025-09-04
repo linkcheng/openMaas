@@ -11,8 +11,6 @@ import type {
   PermissionResource,
   PermissionModule,
   CreatePermissionRequest,
-  UpdatePermissionRequest,
-  PermissionQueryParams,
   PermissionTreeNode,
   PermissionCheckResult,
   PermissionStats,
@@ -99,7 +97,7 @@ describe('Permission Types', () => {
 
     it('should accept valid permission actions', () => {
       const actions: PermissionAction[] = ['create', 'read', 'update', 'delete', 'manage', 'view', 'execute']
-      
+
       actions.forEach(action => {
         expect(typeof action).toBe('string')
         expect(['create', 'read', 'update', 'delete', 'manage', 'view', 'execute']).toContain(action)
@@ -110,7 +108,7 @@ describe('Permission Types', () => {
       const resources: PermissionResource[] = [
         'user', 'role', 'permission', 'provider', 'model', 'chat', 'system', 'menu', 'audit', 'config'
       ]
-      
+
       resources.forEach(resource => {
         expect(typeof resource).toBe('string')
       })
@@ -126,7 +124,7 @@ describe('Permission Types', () => {
         'system_management',
         'audit_management'
       ]
-      
+
       modules.forEach(module => {
         expect(typeof module).toBe('string')
       })
@@ -155,7 +153,7 @@ describe('Permission Types', () => {
 
     it('should accept create request with parent permission', () => {
       const createRequest: CreatePermissionRequest = {
-        name: 'user.profile.update',
+        name: 'user:profile:update',
         display_name: '更新用户资料',
         resource: 'user',
         action: 'update',

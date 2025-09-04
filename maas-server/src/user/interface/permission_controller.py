@@ -263,7 +263,7 @@ async def validate_user_permission_by_parts(
         user_id, resource, action, module
     )
 
-    permission_name = f"{module}.{resource}.{action}"
+    permission_name = f"{module}:{resource}:{action}"
     response_data = PermissionValidationData(
         user_id=str(user_id),
         permission=permission_name,

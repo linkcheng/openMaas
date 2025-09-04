@@ -54,8 +54,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'dashboard',
     name: 'dashboard',
     component: () => import('../views/DashboardView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '仪表盘'
     }
   },
@@ -63,8 +63,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'data-management',
     name: 'data-management',
     component: () => import('../views/maas/DataManagementView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '数据管理'
     }
   },
@@ -72,8 +72,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'model-management',
     name: 'model-management',
     component: () => import('../views/maas/ModelManagementView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '模型管理'
     }
   },
@@ -81,8 +81,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'model-finetune',
     name: 'model-finetune',
     component: () => import('../views/maas/ModelFineTuneView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '模型微调'
     }
   },
@@ -90,8 +90,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'model-deployment',
     name: 'model-deployment',
     component: () => import('../views/maas/ModelDeploymentView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '模型部署'
     }
   },
@@ -99,8 +99,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'model-inference',
     name: 'model-inference',
     component: () => import('../views/maas/ModelInferenceView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '模型推理'
     }
   },
@@ -108,8 +108,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'knowledge-base',
     name: 'knowledge-base',
     component: () => import('../views/maas/KnowledgeBaseView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '知识库管理'
     }
   },
@@ -117,8 +117,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'application-management',
     name: 'application-management',
     component: () => import('../views/maas/ApplicationManagementView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '应用管理'
     }
   },
@@ -126,8 +126,8 @@ export const maasRoutes: RouteRecordRaw[] = [
     path: 'application-scenarios',
     name: 'application-scenarios',
     component: () => import('../views/maas/ApplicationScenariosView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '应用场景'
     }
   },
@@ -139,8 +139,8 @@ export const userRoutes: RouteRecordRaw[] = [
     path: 'user/profile',
     name: 'profile',
     component: () => import('../views/user/ProfileView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '个人资料'
     }
   },
@@ -148,8 +148,8 @@ export const userRoutes: RouteRecordRaw[] = [
     path: 'user/settings',
     name: 'settings',
     component: () => import('../views/user/SettingsView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '设置'
     }
   },
@@ -161,9 +161,9 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: 'admin/dashboard',
     name: 'admin',
     component: () => import('../views/admin/AdminDashboard.vue'),
-    meta: { 
-      requiresAuth: true, 
-      requiresAdmin: true, 
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
       title: '管理后台'
     }
   },
@@ -171,9 +171,9 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: 'admin/users',
     name: 'admin-users',
     component: () => import('../views/admin/UserManagement.vue'),
-    meta: { 
-      requiresAuth: true, 
-      requiresAdmin: true, 
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
       title: '用户管理'
     }
   },
@@ -194,9 +194,9 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: 'admin/audit-logs',
     name: 'admin-audit-logs',
     component: () => import('../views/admin/AuditLogsView.vue'),
-    meta: { 
-      requiresAuth: true, 
-      requiresAdmin: true, 
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
       title: '系统日志'
     }
   },
@@ -214,33 +214,33 @@ export const permissionRoutes: RouteRecordRaw[] = [
         path: 'roles',
         name: 'permission-roles',
         component: () => import('../views/admin/permission/RoleManagement.vue'),
-        meta: { 
-          requiresAuth: true, 
+        meta: {
+          requiresAuth: true,
           requiresAdmin: true,
           title: '角色管理',
-          permissions: 'admin.role.view'
+          permissions: 'system:roles:view'
         }
       },
       {
         path: 'permissions',
         name: 'permission-permissions',
         component: () => import('../views/admin/permission/PermissionManagement.vue'),
-        meta: { 
-          requiresAuth: true, 
+        meta: {
+          requiresAuth: true,
           requiresAdmin: true,
           title: '权限管理',
-          permissions: 'admin.permission.view'
+          permissions: 'system:permissions:view'
         }
       },
       {
         path: 'user-roles',
         name: 'permission-user-roles',
         component: () => import('../views/admin/permission/UserRoleManagement.vue'),
-        meta: { 
-          requiresAuth: true, 
+        meta: {
+          requiresAuth: true,
           requiresAdmin: true,
           title: '用户权限',
-          permissions: 'admin.user.manage'
+          permissions: 'system:users:manage'
         }
       },
     ]
@@ -253,8 +253,8 @@ export const commonRoutes: RouteRecordRaw[] = [
     path: 'permission-denied',
     name: 'permission-denied',
     component: () => import('../views/common/PermissionDeniedView.vue'),
-    meta: { 
-      requiresAuth: true, 
+    meta: {
+      requiresAuth: true,
       title: '权限不足'
     }
   },

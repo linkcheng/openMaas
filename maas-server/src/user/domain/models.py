@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 """用户领域 - 领域模型"""
-
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -93,17 +93,15 @@ class PermissionName(ValueObject):
         if not self.value or not self.value.strip():
             raise ValueError("权限名称不能为空")
 
-        # 验证权限命名规范: {module}.{resource}.{action}
-        parts = self.value.split(".")
+        # 验证权限命名规范: {module}:{resource}:{action}
+        parts = self.value.split(":")
         if len(parts) != 3:
-            raise ValueError("权限名称必须遵循 {module}.{resource}.{action} 格式")
+            raise ValueError("权限名称必须遵循 {module}:{resource}:{action} 格式")
 
         module, resource, action = parts
         if not all(part.strip() for part in [module, resource, action]):
             raise ValueError("权限名称的各部分不能为空")
 
-        # 验证字符规范
-        import re
         pattern = r"^[a-z][a-z0-9_]*$"
         for part in [module, resource]:
             if not re.match(pattern, part) and part != "*":
@@ -116,17 +114,17 @@ class PermissionName(ValueObject):
     @property
     def module(self) -> str:
         """获取模块名"""
-        return self.value.split(".")[0]
+        return self.value.split(":")[0]
 
     @property
     def resource(self) -> str:
         """获取资源名"""
-        return self.value.split(".")[1]
+        return self.value.split(":")[1]
 
     @property
     def action(self) -> str:
         """获取操作名"""
-        return self.value.split(".")[2]
+        return self.value.split(":")[2]
 
     def matches(self, other: "PermissionName") -> bool:
         """检查权限是否匹配（支持通配符）"""
@@ -134,8 +132,8 @@ class PermissionName(ValueObject):
             return True
 
         # 检查通配符匹配
-        self_parts = self.value.split(".")
-        other_parts = other.value.split(".")
+        self_parts = self.value.split(":")
+        other_parts = other.value.split(":")
 
         for i, (self_part, other_part) in enumerate(zip(self_parts, other_parts, strict=False)):
             if self_part == "*" or other_part == "*":
@@ -276,7 +274,7 @@ class Role(Entity):
     def has_permission_by_parts(self, resource: str, action: str, module: str | None = None) -> bool:
         """通过资源和操作检查权限"""
         if module:
-            permission_name = f"{module}.{resource}.{action}"
+            permission_name = f"{module}:{resource}:{action}"
         else:
             # 尝试匹配任何模块
             for perm in self._permissions:

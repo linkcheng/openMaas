@@ -34,10 +34,10 @@ export const usePermissionManagement = () => {
   const selectedModule = ref('')
 
   // 权限检查
-  const canView = computed(() => hasPermission('admin.permission.view'))
-  const canCreate = computed(() => hasPermission('admin.permission.create'))
-  const canEdit = computed(() => hasPermission('admin.permission.edit'))
-  const canDelete = computed(() => hasPermission('admin.permission.delete'))
+  const canView = computed(() => hasPermission('system:permissions:view'))
+  const canCreate = computed(() => hasPermission('system:permissions:create'))
+  const canEdit = computed(() => hasPermission('system:permissions:edit'))
+  const canDelete = computed(() => hasPermission('system:permissions:delete'))
 
   // 清除错误
   const clearError = () => {
@@ -55,22 +55,22 @@ export const usePermissionManagement = () => {
         page: currentPage.value,
         limit: pageSize.value
       }
-      
+
       if (searchQuery.value) {
         params.name = searchQuery.value
       }
-      
+
       if (selectedModule.value) {
         params.module = selectedModule.value
       }
-      
+
       const response = await apiClient.get('/permissions', params)
-      
+
       if ((response.data as any)?.success) {
         const data = response.data.data
         permissions.value = data.permissions || []
         total.value = data.total || 0
-        
+
         return { success: true, data: permissions.value }
       } else {
         throw new Error((response.data as any)?.message || '获取权限列表失败')
@@ -99,12 +99,12 @@ export const usePermissionManagement = () => {
     try {
       // 调用后端API创建权限
       const response = await apiClient.post('/permissions', data)
-      
+
       if ((response.data as any)?.success) {
         const newPermission = response.data.data
         permissions.value.push(newPermission)
         total.value = permissions.value.length
-        
+
         ElMessage.success('权限创建成功')
         return { success: true, data: newPermission }
       } else {
@@ -134,15 +134,15 @@ export const usePermissionManagement = () => {
     try {
       // 调用后端API更新权限
       const response = await apiClient.put(`/permissions/${id}`, data)
-      
+
       if ((response.data as any)?.success) {
         const updatedPermission = response.data.data
         const permissionIndex = permissions.value.findIndex(permission => permission.id === id)
-        
+
         if (permissionIndex !== -1) {
           permissions.value[permissionIndex] = updatedPermission
         }
-        
+
         ElMessage.success('权限更新成功')
         return { success: true, data: updatedPermission }
       } else {
@@ -171,14 +171,14 @@ export const usePermissionManagement = () => {
     try {
       // 调用后端API删除权限
       const response = await apiClient.delete(`/permissions/${id}`)
-      
+
       if ((response.data as any)?.success) {
         const permissionIndex = permissions.value.findIndex(permission => permission.id === id)
         if (permissionIndex !== -1) {
           permissions.value.splice(permissionIndex, 1)
           total.value = permissions.value.length
         }
-        
+
         ElMessage.success('权限删除成功')
         return { success: true }
       } else {

@@ -120,9 +120,9 @@ class UserValidationService:
         if len(permission_name) > 100:
             raise DomainException("权限名称长度不能超过100个字符")
 
-        # 权限名称格式: module.resource.action 或 *.resource.action
-        if not re.match(r"^(\*|[a-zA-Z0-9_]+)\.[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$", permission_name):
-            raise DomainException("权限名称格式无效，应为: module.resource.action")
+        # 权限名称格式: module:resource:action 或 *:resource:action
+        if not re.match(r"^(\*|[a-zA-Z0-9_]+)\:[a-zA-Z0-9_]+\:[a-zA-Z0-9_]+$", permission_name):
+            raise DomainException("权限名称格式无效，应为: module:resource:action")
 
     @staticmethod
     def validate_permission_display_name(display_name: str) -> None:

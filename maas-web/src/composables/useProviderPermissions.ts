@@ -26,7 +26,7 @@ export const useProviderPermissions = () => {
 
   // 基础权限检查 - 使用完整的权限系统
   const canAccessProviderManagement = computed(() => {
-    return isAuthenticated.value && (isAdmin.value || hasPermission('admin.provider.view'))
+    return isAuthenticated.value && (isAdmin.value || hasPermission('system:provider:view'))
   })
 
   // 查看权限 - 允许所有已认证用户查看

@@ -72,134 +72,139 @@ class UserDataInitializer(DataInitializer):
 
             # 系统管理权限
             {
-                "name": "system.system.view",
+                "name": "system:system:view",
                 "display_name": "查看系统",
                 "description": "查看系统信息",
             },
             {
-                "name": "system.system.update",
+                "name": "system:system:update",
                 "display_name": "更新系统",
                 "description": "更新系统配置",
             },
             {
-                "name": "system.system.monitor",
+                "name": "system:system:monitor",
                 "display_name": "系统监控",
                 "description": "监控系统状态",
             },
             # 用户管理权限
             {
-                "name": "system.users.view",
+                "name": "system:users:view",
                 "display_name": "查看用户",
                 "description": "查看用户列表和详情",
             },
             {
-                "name": "system.users.create",
+                "name": "system:users:create",
                 "display_name": "创建用户",
                 "description": "创建新用户账户",
             },
             {
-                "name": "system.users.update",
+                "name": "system:users:update",
                 "display_name": "更新用户",
                 "description": "更新用户信息",
             },
             {
-                "name": "system.users.delete",
+                "name": "system:users:delete",
                 "display_name": "删除用户",
                 "description": "删除用户账户",
             },
+            {
+                "name": "system:users:manage",
+                "display_name": "管理用户",
+                "description": "管理用户账户",
+            },
             # 角色管理权限
             {
-                "name": "system.roles.view",
+                "name": "system:roles:view",
                 "display_name": "查看角色",
                 "description": "查看角色列表和详情",
             },
             {
-                "name": "system.roles.create",
+                "name": "system:roles:create",
                 "display_name": "创建角色",
                 "description": "创建新角色",
             },
             {
-                "name": "system.roles.update",
+                "name": "system:roles:update",
                 "display_name": "更新角色",
                 "description": "更新角色信息",
             },
             {
-                "name": "system.roles.delete",
+                "name": "system:roles:delete",
                 "display_name": "删除角色",
                 "description": "删除角色",
             },
             # 权限管理权限
             {
-                "name": "system.permissions.view",
+                "name": "system:permissions:view",
                 "display_name": "查看权限",
                 "description": "查看权限列表和详情",
             },
             {
-                "name": "system.permissions.create",
+                "name": "system:permissions:create",
                 "display_name": "创建权限",
                 "description": "创建新权限",
             },
             {
-                "name": "system.permissions.update",
+                "name": "system:permissions:update",
                 "display_name": "更新权限",
                 "description": "更新权限信息",
             },
             {
-                "name": "system.permissions.delete",
+                "name": "system:permissions:delete",
                 "display_name": "删除权限",
                 "description": "删除权限",
             },
             # 审计日志管理权限
             {
-                "name": "system.audit.view",
+                "name": "system:audit:view",
                 "display_name": "查看审计日志",
                 "description": "查看审计日志列表和详情",
             },
             {
-                "name": "system.audit.create",
+                "name": "system:audit:create",
                 "display_name": "创建审计日志",
                 "description": "创建新审计日志",
             },
             {
-                "name": "system.audit.update",
+                "name": "system:audit:update",
                 "display_name": "更新审计日志",
                 "description": "更新审计日志信息",
                 "module": "system",
             },
             {
-                "name": "system.audit.delete",
+                "name": "system:audit:delete",
                 "display_name": "删除审计日志",
                 "description": "删除审计日志",
             },
             # 用户管理权限
             {
-                "name": "user.users.view",
+                "name": "user:profile:view",
                 "display_name": "查看用户",
                 "description": "查看用户详情",
             },
             {
-                "name": "user.users.update",
+                "name": "user:profile:update",
                 "display_name": "更新用户",
                 "description": "更新用户信息",
             },
             # 模型管理权限
             {
-                "name": "model.models.view",
+                "name": "model:models:view",
                 "display_name": "查看模型",
                 "description": "查看模型列表和详情",
             },
             {
-                "name": "model.models.create",
+                "name": "model:models:create",
                 "display_name": "创建模型",
                 "description": "创建新模型",
             },
             {
-                "name": "model.models.update",
+                "name": "model:models:update",
                 "display_name": "更新模型",
                 "description": "更新模型信息",
             },
             {
-                "name": "model.models.delete",
+                "name": "model:models:delete",
                 "display_name": "删除模型",
                 "description": "删除模型",
             },
@@ -215,13 +220,13 @@ class UserDataInitializer(DataInitializer):
                 "role_type": RoleType.ADMIN,
                 "is_system_role": True,
                 "permissions": [
-                    "system.system.view", "system.system.update", "system.system.monitor",
-                    "system.users.view", "system.users.create", "system.users.update", "system.users.delete",
-                    "system.roles.view", "system.roles.create", "system.roles.update", "system.roles.delete",
-                    "system.permissions.view", "system.permissions.create", "system.permissions.update", "system.permissions.delete",
-                    "system.audit.view", "system.audit.create", "system.audit.update", "system.audit.delete",
-                    "user.users.view", "user.users.update",
-                    "model.models.view", "model.models.create", "model.models.update", "model.models.delete"
+                    "system:system:view", "system:system:update", "system:system:monitor",
+                    "system:users:view", "system:users:create", "system:users:update", "system:users:delete",
+                    "system:roles:view", "system:roles:create", "system:roles:update", "system:roles:delete",
+                    "system:permissions:view", "system:permissions:create", "system:permissions:update", "system:permissions:delete",
+                    "system:audit:view", "system:audit:create", "system:audit:update", "system:audit:delete",
+                    "user:profile:view", "user:profile:update",
+                    "model:models:view", "model:models:create", "model:models:update", "model:models:delete"
                 ]
             },
             {
@@ -231,9 +236,9 @@ class UserDataInitializer(DataInitializer):
                 "role_type": RoleType.DEVELOPER,
                 "is_system_role": False,
                 "permissions": [
-                    "user.users.view", "user.users.update",
-                    "model.models.view", "model.models.create", "model.models.update", "model.models.delete",
-                    "system.system.view"
+                    "user:profile:view", "user:profile:update",
+                    "model:models:view", "model:models:create", "model:models:update", "model:models:delete",
+                    "system:system:view"
                 ]
             },
             {
@@ -243,8 +248,8 @@ class UserDataInitializer(DataInitializer):
                 "role_type": RoleType.USER,
                 "is_system_role": False,
                 "permissions": [
-                    "user.users.view", "user.users.update",
-                    "model.models.view"
+                    "user:profile:view", "user:profile:update",
+                    "model:models:view"
                 ]
             }
         ]

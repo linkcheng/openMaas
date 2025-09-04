@@ -333,7 +333,7 @@ class UserApplicationService:
 
             role_permissions = []
             for perm in role.permissions:
-                role_permissions.append(f"{perm.module}.{perm.resource}:{perm.action}")
+                role_permissions.append(f"{perm.module}:{perm.resource}:{perm.action}")
 
             roles.append(RoleResponse(
                 id=role.id,

@@ -19,7 +19,6 @@ import { ElMessage } from 'element-plus'
 import { useAuth } from '@/composables/useAuth'
 import { apiClient, handleApiError } from '@/utils/api'
 import type { Role, CreateRoleRequest, UpdateRoleRequest } from '@/types/permission/roleTypes'
-import type { PaginatedApiResponse } from '@/types/api'
 
 export const useRoleManagement = () => {
   const { hasPermission } = useAuth()
@@ -34,10 +33,10 @@ export const useRoleManagement = () => {
   const searchQuery = ref('')
 
   // 权限检查
-  const canView = computed(() => hasPermission('admin.role.view'))
-  const canCreate = computed(() => hasPermission('admin.role.create'))
-  const canEdit = computed(() => hasPermission('admin.role.edit'))
-  const canDelete = computed(() => hasPermission('admin.role.delete'))
+  const canView = computed(() => hasPermission('system:roles:view'))
+  const canCreate = computed(() => hasPermission('system:roles:create'))
+  const canEdit = computed(() => hasPermission('system:roles:edit'))
+  const canDelete = computed(() => hasPermission('system:roles:delete'))
 
   // 清除错误
   const clearError = () => {
@@ -55,18 +54,18 @@ export const useRoleManagement = () => {
         page: currentPage.value,
         limit: pageSize.value
       }
-      
+
       if (searchQuery.value) {
         params.name = searchQuery.value
       }
-      
+
       const response = await apiClient.get('/roles', params)
-      
+
       if ((response.data as any)?.success) {
         const data = response.data.data
         roles.value = data.roles || []
         total.value = data.total || 0
-        
+
         return { success: true, data: roles.value }
       } else {
         throw new Error((response.data as any)?.message || '获取角色列表失败')
@@ -95,12 +94,12 @@ export const useRoleManagement = () => {
     try {
       // 调用后端API创建角色
       const response = await apiClient.post('/roles', data)
-      
+
       if ((response.data as any)?.success) {
         const newRole = response.data.data
         roles.value.push(newRole)
         total.value = roles.value.length
-        
+
         ElMessage.success('角色创建成功')
         return { success: true, data: newRole }
       } else {
@@ -130,15 +129,15 @@ export const useRoleManagement = () => {
     try {
       // 调用后端API更新角色
       const response = await apiClient.put(`/roles/${id}`, data)
-      
+
       if ((response.data as any)?.success) {
         const updatedRole = response.data.data
         const roleIndex = roles.value.findIndex(role => role.id === id)
-        
+
         if (roleIndex !== -1) {
           roles.value[roleIndex] = updatedRole
         }
-        
+
         ElMessage.success('角色更新成功')
         return { success: true, data: updatedRole }
       } else {
@@ -167,14 +166,14 @@ export const useRoleManagement = () => {
     try {
       // 调用后端API删除角色
       const response = await apiClient.delete(`/roles/${id}`)
-      
+
       if ((response.data as any)?.success) {
         const roleIndex = roles.value.findIndex(role => role.id === id)
         if (roleIndex !== -1) {
           roles.value.splice(roleIndex, 1)
           total.value = roles.value.length
         }
-        
+
         ElMessage.success('角色删除成功')
         return { success: true }
       } else {

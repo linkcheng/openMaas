@@ -233,7 +233,6 @@ const roleManagement = useRoleManagement()
 const {
   roles,
   isLoading,
-  error,
   currentPage,
   pageSize,
   total,
@@ -247,7 +246,6 @@ const {
 
 // 权限管理逻辑
 const {
-  permissions,
   fetchPermissions,
 } = usePermissionManagement()
 
@@ -264,22 +262,22 @@ const dialogMode = ref<'create' | 'edit'>('create')
 // 计算属性
 const filteredRoles = computed(() => {
   let filtered = roles.value
-  
+
   if (roleTypeFilter.value) {
     filtered = filtered.filter(role => role.role_type === roleTypeFilter.value)
   }
-  
+
   if (roleStatusFilter.value) {
     filtered = filtered.filter(role => role.status === roleStatusFilter.value)
   }
-  
+
   return filtered
 })
 
 const totalCount = computed(() => total.value)
 const hasSelectedRoles = computed(() => selectedRoles.value.length > 0)
 const selectedRoleCount = computed(() => selectedRoles.value.length)
-const canBatchDelete = computed(() => 
+const canBatchDelete = computed(() =>
   selectedRoles.value.every(role => !role.is_system_role)
 )
 
@@ -385,7 +383,7 @@ const handleRoleSubmit = async (roleData: any) => {
   } else if (selectedRole.value) {
     result = await updateRole(selectedRole.value.id, roleData)
   }
-  
+
   if (result?.success) {
     roleDialogVisible.value = false
     await fetchRoles()
@@ -527,21 +525,21 @@ onMounted(async () => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     display: flex;
     justify-content: flex-start;
   }
-  
+
   .stats-cards .el-col {
     margin-bottom: 16px;
   }
-  
+
   .search-filters .el-col {
     margin-bottom: 8px;
   }
-  
+
   .filter-actions {
     justify-content: flex-start;
   }
